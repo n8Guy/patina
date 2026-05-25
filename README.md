@@ -1,4 +1,4 @@
-# my-patina
+# patina
 
 Your professional story, organised.
 
