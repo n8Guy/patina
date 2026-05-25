@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { render } from './template.js';
 import { writeManagedFile } from './upgrade.js';
-import { MANAGED_FILES, LINKEDIN_MANAGED_FILES, type ChecksumMap } from './checksums.js';
+import { MODULE_CONTENT_FILES, type ChecksumMap } from './checksums.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +28,97 @@ function touch(targetDir: string, relativePath: string): void {
   writeFileSync(full, '', 'utf8');
 }
 
+// ── Exported helpers ───────────────────────────────────────────────────────────
+
+/**
+ * Build a TemplateVars object from a Profile. Centralizes the mapping so
+ * both scaffold() and runUpdate() produce identical vars.
+ */
+export function profileToVars(profile: Profile, liProfileUrl?: string): TemplateVars {
+  const today = new Date().toISOString().split('T')[0];
+  return {
+    PATINA_NAME: profile.patina_name,
+    USER_NAME: profile.name,
+    USER_TITLE: profile.title,
+    ROLE_DESCRIPTION: profile.role_description ?? '',
+    COMPANY_NAME: profile.work.company_name,
+    COMPANY_DESCRIPTION: profile.work.company_description ?? '',
+    CONTENT_DIR: profile.content_dir,
+    EDITOR: profile.editor,
+    LI_PROFILE_URL: liProfileUrl ?? profile.linkedin?.profile_url ?? '',
+    TODAY: today,
+  };
+}
+
+/**
+ * Returns [relativePath, content] pairs for the base managed files:
+ * CLAUDE.md, .claude/settings.json, add.md, reflect.md, and conditionally .mcp.json.
+ *
+ * @param targetDir - The absolute path to the patina directory. Required for
+ *   the obsidian .mcp.json vault path. If omitted, .mcp.json is not produced
+ *   (safe to omit when editor !== 'obsidian').
+ */
+export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?: string): Array<[string, string]> {
+  const files: Array<[string, string]> = [
+    ['CLAUDE.md', render(tpl('CLAUDE.md'), vars)],
+    ['.claude/settings.json', tpl('.claude/settings.json')],
+    ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
+    ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
+  ];
+
+  if (editor === 'obsidian' && targetDir) {
+    const mcp = {
+      mcpServers: {
+        obsidian: {
+          command: 'npx',
+          args: ['-y', 'mcp-obsidian@latest', join(targetDir, vars.CONTENT_DIR)],
+        },
+      },
+    };
+    files.push(['.mcp.json', JSON.stringify(mcp, null, 2) + '\n']);
+  }
+
+  return files;
+}
+
+/**
+ * Returns [relativePath, content] pairs for the managed files of a given module
+ * (command files + manifest).
+ */
+export function moduleManagedFiles(module: string, vars: TemplateVars): Array<[string, string]> {
+  if (module === 'linkedin') {
+    const liCmds = [
+      'li-all.md', 'li-about.md', 'li-headline.md', 'li-experience.md',
+      'li-skills.md', 'li-featured.md', 'li-activity.md',
+    ];
+    const files: Array<[string, string]> = liCmds.map(cmd => [
+      `.claude/commands/${cmd}`,
+      render(tpl(`modules/linkedin/commands/${cmd}`), vars),
+    ]);
+    files.push([
+      '.claude/modules/linkedin/manifest.md',
+      render(tpl('modules/linkedin/manifest.md'), vars),
+    ]);
+    return files;
+  }
+  return [];
+}
+
+/**
+ * Returns [relativePath, content] pairs for the content-dir files of a given module
+ * (files under <contentDir>/<module>/). relativePath is relative to targetDir.
+ */
+export function moduleContentFiles(module: string, vars: TemplateVars, contentDir: string): Array<[string, string]> {
+  if (module === 'linkedin') {
+    const files = MODULE_CONTENT_FILES['linkedin'] ?? [];
+    return files.map(file => [
+      `${contentDir}/linkedin/${file}`,
+      render(tpl(`modules/linkedin/graph/${file}`), vars),
+    ]);
+  }
+  return [];
+}
+
 export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const {
     targetDir, patinaName, userName, title, roleDescription,
@@ -35,6 +126,21 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   } = opts;
 
   const today = new Date().toISOString().split('T')[0];
+
+  // Build a temporary Profile object so we can use profileToVars
+  const tempProfile: Profile = {
+    patina_name: patinaName,
+    name: userName,
+    title,
+    role_description: roleDescription || undefined,
+    job_description_url: jobDescriptionUrl || undefined,
+    work,
+    editor,
+    modules,
+    content_dir: contentDir,
+    created: today,
+    ...(modules.includes('linkedin') && liProfileUrl ? { linkedin: { profile_url: liProfileUrl } } : {}),
+  };
 
   const vars: TemplateVars = {
     PATINA_NAME: patinaName,
@@ -55,40 +161,9 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
 
   // ── Managed files (tracked for safe upgrades)
   const managedFiles: Array<[string, string]> = [
-    ['CLAUDE.md', render(tpl('CLAUDE.md'), vars)],
-    ['.claude/settings.json', tpl('.claude/settings.json')],
-    ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
-    ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
+    ...baseManagedFiles(vars, editor, targetDir),
+    ...modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
-
-  if (editor === 'obsidian') {
-    const mcp = {
-      mcpServers: {
-        obsidian: {
-          command: 'npx',
-          args: ['-y', 'mcp-obsidian@latest', join(targetDir, contentDir)],
-        },
-      },
-    };
-    managedFiles.push(['.mcp.json', JSON.stringify(mcp, null, 2) + '\n']);
-  }
-
-  if (modules.includes('linkedin')) {
-    const liCmds = [
-      'li-all.md', 'li-about.md', 'li-headline.md', 'li-experience.md',
-      'li-skills.md', 'li-featured.md', 'li-activity.md',
-    ];
-    for (const cmd of liCmds) {
-      managedFiles.push([
-        `.claude/commands/${cmd}`,
-        render(tpl(`modules/linkedin/commands/${cmd}`), vars),
-      ]);
-    }
-    managedFiles.push([
-      '.claude/modules/linkedin/manifest.md',
-      render(tpl('modules/linkedin/manifest.md'), vars),
-    ]);
-  }
 
   for (const [relativePath, content] of managedFiles) {
     const { checksum } = writeManagedFile(targetDir, relativePath, content, {});
@@ -104,38 +179,14 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeRaw(targetDir, `${contentDir}/notes/exclusions.md`, render(tpl('graph/notes/exclusions.md'), vars));
 
   if (modules.includes('linkedin')) {
-    const liGraphFiles = [
-      'INSTRUCTIONS.md',
-      'LinkedIn Current State.md',
-      'LinkedIn About.md',
-      'LinkedIn Headline.md',
-      'LinkedIn Experience.md',
-      'LinkedIn Skills.md',
-      'LinkedIn Featured.md',
-      'LinkedIn Activity.md',
-    ];
-    for (const file of liGraphFiles) {
-      writeRaw(
-        targetDir,
-        `${contentDir}/linkedin/${file}`,
-        render(tpl(`modules/linkedin/graph/${file}`), vars)
-      );
+    for (const [relativePath, content] of moduleContentFiles('linkedin', vars, contentDir)) {
+      writeRaw(targetDir, relativePath, content);
     }
   }
 
   // ── profile.yaml (written last — includes checksums)
   const profile: Profile = {
-    patina_name: patinaName,
-    name: userName,
-    title,
-    role_description: roleDescription || undefined,
-    job_description_url: jobDescriptionUrl || undefined,
-    work,
-    editor,
-    modules,
-    content_dir: contentDir,
-    created: today,
-    ...(modules.includes('linkedin') && liProfileUrl ? { linkedin: { profile_url: liProfileUrl } } : {}),
+    ...tempProfile,
     _checksums: checksums,
   } as Profile & { _checksums: ChecksumMap };
   writeRaw(targetDir, 'profile.yaml', yaml.dump(profile));
