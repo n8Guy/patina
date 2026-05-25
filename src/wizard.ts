@@ -20,7 +20,7 @@ declare module '@clack/prompts' {
 
 function printBanner(): void {
   const gradient = ['#FF6B6B', '#FF8C42', '#FFAB2E', '#C084FC', '#818CF8'];
-  const title = 'my-patina'
+  const title = 'patina'
     .split('')
     .map((char, i) => chalk.bold.hex(gradient[i % gradient.length])(char))
     .join('');
