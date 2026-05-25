@@ -1,11 +1,20 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { join, resolve } from 'path';
-import { readFileSync } from 'fs';
+import { dirname, join, resolve } from 'path';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import yaml from 'js-yaml';
 import { detectMode } from './detect.js';
-import { scaffold } from './scaffold.js';
+import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
+import { writeManagedFile } from './upgrade.js';
+import { hashFile, MODULE_MANAGED_FILES, type ChecksumMap } from './checksums.js';
 import type { Editor, ModuleId, Profile, WorkInfo } from './types.js';
+
+// @clack/prompts supports hint on text inputs at runtime but the type definitions omit it.
+declare module '@clack/prompts' {
+  interface TextOptions {
+    hint?: string;
+  }
+}
 
 // ─── Brand ───────────────────────────────────────────────────────────────────
 
@@ -161,7 +170,7 @@ async function runInstall(cwd: string): Promise<void> {
   const setup = await p.group(
     {
       editor: () =>
-        p.select<{ value: Editor; label: string; hint?: string }[], Editor>({
+        p.select<Editor>({
           message: 'How do you want to view and edit your files?',
           options: [
             {
@@ -175,7 +184,7 @@ async function runInstall(cwd: string): Promise<void> {
         }),
 
       modules: () =>
-        p.multiselect<{ value: ModuleId; label: string; hint?: string }[], ModuleId>({
+        p.multiselect<ModuleId>({
           message: 'Which modules do you want to add?',
           options: [
             {
@@ -250,6 +259,33 @@ async function runInstall(cwd: string): Promise<void> {
 
 // ─── Update ──────────────────────────────────────────────────────────────────
 
+/** Write profile.yaml atomically at the end of an update operation. */
+function writeProfile(cwd: string, profile: Profile): void {
+  const full = join(cwd, 'profile.yaml');
+  writeFileSync(full, yaml.dump(profile), 'utf8');
+}
+
+/**
+ * Delete a managed file only if the user has not modified it since it was
+ * written (i.e. the current hash matches the stored checksum).
+ * Returns 'deleted' or 'kept'.
+ */
+export function removeManagedFileIfUnmodified(
+  targetDir: string,
+  rel: string,
+  stored: ChecksumMap
+): 'deleted' | 'kept' {
+  const fullPath = join(targetDir, rel);
+  if (!existsSync(fullPath)) return 'deleted'; // already gone
+  const currentHash = hashFile(fullPath);
+  const storedHash = stored[rel];
+  if (storedHash && currentHash !== storedHash) {
+    return 'kept'; // user has edited it
+  }
+  unlinkSync(fullPath);
+  return 'deleted';
+}
+
 async function runUpdate(cwd: string): Promise<void> {
   const profile = yaml.load(readFileSync(join(cwd, 'profile.yaml'), 'utf8')) as Profile;
 
@@ -279,8 +315,268 @@ async function runUpdate(cwd: string): Promise<void> {
     return;
   }
 
-  p.log.warn('Full update flow coming in a future release.');
-  p.outro('');
+  if (action === 'profile') {
+    await runUpdateProfile(cwd, profile);
+  } else if (action === 'modules') {
+    await runUpdateModules(cwd, profile);
+  }
+}
+
+// ─── Branch A: Update personal info ──────────────────────────────────────────
+
+async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
+  console.log('');
+  console.log(`  ${label('Update personal info')}`);
+  console.log(`  ${chalk.hex('#64748B')('Press enter to keep the current value.')}`);
+
+  const identity = await p.group(
+    {
+      name: () =>
+        p.text({
+          message: "What's your name?",
+          initialValue: profile.name,
+          validate: (v) => (v.trim() === '' ? 'Name is required.' : undefined),
+        }),
+
+      title: () =>
+        p.text({
+          message: "What's your professional title?",
+          initialValue: profile.title ?? '',
+        }),
+
+      roleDescription: () =>
+        p.text({
+          message: 'Describe what you do — in your own words, not your title.',
+          initialValue: profile.role_description ?? '',
+        }),
+
+      jobDescriptionUrl: () =>
+        p.text({
+          message: 'Got a link to a job description or role overview?',
+          initialValue: profile.job_description_url ?? '',
+        }),
+    },
+    { onCancel }
+  );
+
+  // ── Work
+  console.log('');
+  console.log(`  ${label('Where you work')}`);
+
+  const selfEmployed = await p.confirm({
+    message: 'Are you self-employed or freelance?',
+    initialValue: profile.work?.self_employed ?? false,
+  });
+  if (p.isCancel(selfEmployed)) onCancel();
+
+  const companyLabel = selfEmployed
+    ? "What's your company called?"
+    : 'Where do you work?';
+
+  const work = await p.group(
+    {
+      companyName: () =>
+        p.text({
+          message: companyLabel,
+          initialValue: profile.work?.company_name ?? '',
+        }),
+
+      website: () =>
+        p.text({
+          message: selfEmployed ? 'Company website?' : 'Their website?',
+          initialValue: profile.work?.website ?? '',
+        }),
+
+      companyDescription: () =>
+        p.text({
+          message: selfEmployed ? 'What does your company do?' : 'What does the company do?',
+          initialValue: profile.work?.company_description ?? '',
+        }),
+    },
+    { onCancel }
+  );
+
+  // Build updated profile (direct field assignment — do NOT use mergeProfile)
+  const updatedProfile: Profile = {
+    ...profile,
+    name: identity.name.trim(),
+    title: (identity.title ?? '').trim(),
+    role_description: (identity.roleDescription ?? '').trim() || undefined,
+    job_description_url: (identity.jobDescriptionUrl ?? '').trim() || undefined,
+    work: {
+      self_employed: selfEmployed as boolean,
+      company_name: work.companyName?.trim() || (selfEmployed ? 'Freelance' : ''),
+      website: work.website?.trim() || undefined,
+      company_description: work.companyDescription?.trim() || undefined,
+    },
+  };
+
+  // Re-render and re-write all managed files
+  const vars = profileToVars(updatedProfile);
+  const stored: ChecksumMap = profile._checksums ?? {};
+  const newChecksums: ChecksumMap = {};
+
+  const files = [
+    ...baseManagedFiles(vars, updatedProfile.editor, cwd),
+    ...updatedProfile.modules.flatMap(m => moduleManagedFiles(m, vars)),
+  ];
+
+  const updated: string[] = [];
+  const skipped: string[] = [];
+
+  for (const [rel, content] of files) {
+    const { outcome, checksum } = writeManagedFile(cwd, rel, content, stored);
+    newChecksums[rel] = checksum;
+    if (outcome === 'skipped') {
+      skipped.push(rel);
+    } else {
+      updated.push(rel);
+    }
+  }
+
+  // Preserve checksums for files not in the current render pass
+  for (const [rel, hash] of Object.entries(stored)) {
+    if (!(rel in newChecksums)) {
+      newChecksums[rel] = hash;
+    }
+  }
+
+  updatedProfile._checksums = newChecksums;
+
+  // Write profile.yaml atomically at the very end
+  writeProfile(cwd, updatedProfile);
+
+  const summaryLines: string[] = [];
+  if (updated.length > 0) {
+    summaryLines.push(chalk.hex('#94A3B8')(`Updated: ${updated.join(', ')}`));
+  }
+  if (skipped.length > 0) {
+    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skipped.join(', ')}`));
+  }
+
+  p.note(summaryLines.join('\n'), label('Done'));
+  p.outro(chalk.hex('#94A3B8')('Profile updated.'));
+}
+
+// ─── Branch B: Add or remove modules ─────────────────────────────────────────
+
+async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
+  const currentModules = profile.modules ?? [];
+
+  const selected = await p.multiselect({
+    message: 'Which modules do you want active?',
+    options: [
+      {
+        value: 'linkedin',
+        label: 'LinkedIn',
+        hint: chalk.hex('#64748B')('draft and refine your LinkedIn profile'),
+      },
+    ],
+    initialValues: currentModules,
+    required: false,
+  });
+
+  if (p.isCancel(selected)) {
+    p.cancel(chalk.hex('#94A3B8')('No changes made.'));
+    return;
+  }
+
+  const selectedModules: ModuleId[] = Array.isArray(selected) ? (selected as ModuleId[]) : [];
+  const toAdd = selectedModules.filter(m => !currentModules.includes(m));
+  const toRemove = currentModules.filter(m => !selectedModules.includes(m));
+
+  if (toAdd.length === 0 && toRemove.length === 0) {
+    p.outro(chalk.hex('#94A3B8')('No changes — modules unchanged.'));
+    return;
+  }
+
+  const stored: ChecksumMap = profile._checksums ?? {};
+  const newChecksums: ChecksumMap = { ...stored };
+  const updatedProfile: Profile = { ...profile, modules: [...currentModules] };
+
+  const addedFiles: string[] = [];
+  const skippedFiles: string[] = [];
+  const deletedFiles: string[] = [];
+  const keptFiles: string[] = [];
+
+  // ── Add modules
+  for (const module of toAdd) {
+    // Prompt for LinkedIn URL if not already set
+    if (module === 'linkedin' && !updatedProfile.linkedin?.profile_url) {
+      const url = await p.text({
+        message: "What's your LinkedIn profile URL?",
+        placeholder: 'https://linkedin.com/in/yourname (optional)',
+      });
+      if (p.isCancel(url)) {
+        p.cancel(chalk.hex('#94A3B8')('No changes made.'));
+        return;
+      }
+      if (typeof url === 'string' && url.trim()) {
+        updatedProfile.linkedin = { profile_url: url.trim() };
+      }
+    }
+
+    const vars = profileToVars(updatedProfile);
+    const contentDir = updatedProfile.content_dir;
+
+    // Write managed files
+    for (const [rel, content] of moduleManagedFiles(module, vars)) {
+      const { outcome, checksum } = writeManagedFile(cwd, rel, content, stored);
+      newChecksums[rel] = checksum;
+      if (outcome === 'skipped') {
+        skippedFiles.push(rel);
+      } else {
+        addedFiles.push(rel);
+      }
+    }
+
+    // Write content-dir files only if they don't already exist
+    for (const [relativePath, content] of moduleContentFiles(module, vars, contentDir)) {
+      const fullPath = join(cwd, relativePath);
+      if (!existsSync(fullPath)) {
+        mkdirSync(dirname(fullPath), { recursive: true });
+        writeFileSync(fullPath, content, 'utf8');
+        addedFiles.push(relativePath);
+      }
+    }
+
+    updatedProfile.modules = [...updatedProfile.modules, module];
+  }
+
+  // ── Remove modules
+  for (const module of toRemove) {
+    const managedRels = MODULE_MANAGED_FILES[module] ?? [];
+    for (const rel of managedRels) {
+      const result = removeManagedFileIfUnmodified(cwd, rel, stored);
+      if (result === 'deleted') {
+        deletedFiles.push(rel);
+        delete newChecksums[rel];
+      } else {
+        keptFiles.push(rel);
+      }
+    }
+    // Content-dir files are never deleted
+    updatedProfile.modules = updatedProfile.modules.filter(m => m !== module);
+
+    // Remove linkedin data from profile if module removed
+    if (module === 'linkedin') {
+      delete (updatedProfile as Partial<Profile>).linkedin;
+    }
+  }
+
+  updatedProfile._checksums = newChecksums;
+
+  // Write profile.yaml atomically at the very end
+  writeProfile(cwd, updatedProfile);
+
+  const summaryLines: string[] = [];
+  if (addedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Added: ${addedFiles.join(', ')}`));
+  if (skippedFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skippedFiles.join(', ')}`));
+  if (deletedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Removed: ${deletedFiles.join(', ')}`));
+  if (keptFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edited files: ${keptFiles.join(', ')}`));
+
+  p.note(summaryLines.join('\n') || 'No file changes.', label('Done'));
+  p.outro(chalk.hex('#94A3B8')('Modules updated.'));
 }
 
 // ─── Shared ──────────────────────────────────────────────────────────────────

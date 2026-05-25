@@ -38,3 +38,16 @@ export const MODULE_MANAGED_FILES: Record<string, readonly string[]> = {
     '.claude/modules/linkedin/manifest.md',
   ],
 };
+
+export const MODULE_CONTENT_FILES: Record<string, readonly string[]> = {
+  linkedin: [
+    'INSTRUCTIONS.md',
+    'LinkedIn Current State.md',
+    'LinkedIn About.md',
+    'LinkedIn Headline.md',
+    'LinkedIn Experience.md',
+    'LinkedIn Skills.md',
+    'LinkedIn Featured.md',
+    'LinkedIn Activity.md',
+  ],
+};
