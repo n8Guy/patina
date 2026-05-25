@@ -28,8 +28,8 @@ function render(template, vars) {
 }
 
 // src/upgrade.ts
-import { existsSync as existsSync3, mkdirSync, writeFileSync, dirname } from "fs";
-import { join as join2 } from "path";
+import { existsSync as existsSync3, mkdirSync, writeFileSync } from "fs";
+import { join as join2, dirname } from "path";
 
 // src/checksums.ts
 import { createHash } from "crypto";
@@ -41,6 +41,22 @@ function hashFile(filePath) {
   if (!existsSync2(filePath)) return null;
   return hashContent(readFileSync(filePath, "utf8"));
 }
+var LINKEDIN_MANAGED_FILES = [
+  ".claude/commands/li-all.md",
+  ".claude/commands/li-about.md",
+  ".claude/commands/li-headline.md",
+  ".claude/commands/li-experience.md",
+  ".claude/commands/li-skills.md",
+  ".claude/commands/li-featured.md",
+  ".claude/commands/li-activity.md",
+  ".claude/commands/li-update.md"
+];
+var MODULE_MANAGED_FILES = {
+  linkedin: [
+    ...LINKEDIN_MANAGED_FILES,
+    ".claude/modules/linkedin/manifest.md"
+  ]
+};
 
 // src/upgrade.ts
 function writeManagedFile(targetDir, relativePath, newContent, storedChecksums) {
@@ -108,8 +124,8 @@ async function scaffold(opts) {
   const managedFiles = [
     ["CLAUDE.md", render(tpl("CLAUDE.md"), vars)],
     [".claude/settings.json", tpl(".claude/settings.json")],
-    [".claude/commands/include.md", render(tpl(".claude/commands/include.md"), vars)],
-    [".claude/commands/skill-search.md", render(tpl(".claude/commands/skill-search.md"), vars)]
+    [".claude/commands/add.md", render(tpl(".claude/commands/add.md"), vars)],
+    [".claude/commands/reflect.md", render(tpl(".claude/commands/reflect.md"), vars)]
   ];
   if (editor === "obsidian") {
     const mcp = {
@@ -139,6 +155,10 @@ async function scaffold(opts) {
         render(tpl(`modules/linkedin/commands/${cmd}`), vars)
       ]);
     }
+    managedFiles.push([
+      ".claude/modules/linkedin/manifest.md",
+      render(tpl("modules/linkedin/manifest.md"), vars)
+    ]);
   }
   for (const [relativePath, content] of managedFiles) {
     const { checksum } = writeManagedFile(targetDir, relativePath, content, {});

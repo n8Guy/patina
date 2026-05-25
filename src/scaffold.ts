@@ -57,8 +57,8 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const managedFiles: Array<[string, string]> = [
     ['CLAUDE.md', render(tpl('CLAUDE.md'), vars)],
     ['.claude/settings.json', tpl('.claude/settings.json')],
-    ['.claude/commands/include.md', render(tpl('.claude/commands/include.md'), vars)],
-    ['.claude/commands/skill-search.md', render(tpl('.claude/commands/skill-search.md'), vars)],
+    ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
+    ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
   ];
 
   if (editor === 'obsidian') {
@@ -84,6 +84,10 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
         render(tpl(`modules/linkedin/commands/${cmd}`), vars),
       ]);
     }
+    managedFiles.push([
+      '.claude/modules/linkedin/manifest.md',
+      render(tpl('modules/linkedin/manifest.md'), vars),
+    ]);
   }
 
   for (const [relativePath, content] of managedFiles) {

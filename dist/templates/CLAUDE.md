@@ -46,5 +46,5 @@ The graph is the source of truth. Nothing gets added to generated content unless
 
 | Command | What it does |
 |---------|-------------|
-| `/include <description>` | Add a skill, project, or experience to your graph |
-| `/skill-search [slug]` | Audit your graph for gaps, completions, and stale skills |
+| `/add <description>` | Add a skill, project, or experience to your graph |
+| `/reflect [slug]` | Review your graph for gaps, completions, and stale skills — also runs all installed module hooks |

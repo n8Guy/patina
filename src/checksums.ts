@@ -17,8 +17,8 @@ export function hashFile(filePath: string): string | null {
 export const MANAGED_FILES = [
   'CLAUDE.md',
   '.claude/settings.json',
-  '.claude/commands/include.md',
-  '.claude/commands/skill-search.md',
+  '.claude/commands/add.md',
+  '.claude/commands/reflect.md',
   '.mcp.json',
 ] as const;
 
@@ -32,3 +32,10 @@ export const LINKEDIN_MANAGED_FILES = [
   '.claude/commands/li-activity.md',
   '.claude/commands/li-update.md',
 ] as const;
+
+export const MODULE_MANAGED_FILES: Record<string, readonly string[]> = {
+  linkedin: [
+    ...LINKEDIN_MANAGED_FILES,
+    '.claude/modules/linkedin/manifest.md',
+  ],
+};
