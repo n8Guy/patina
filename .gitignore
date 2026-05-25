@@ -1,4 +1,6 @@
 node_modules/
 .obsidian/
 .DS_Store
-BACKLOG.md
+.current-issue.md
+.implementation-plan.md
+.claude/
