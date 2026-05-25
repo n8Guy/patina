@@ -30,7 +30,6 @@ export const LINKEDIN_MANAGED_FILES = [
   '.claude/commands/li-skills.md',
   '.claude/commands/li-featured.md',
   '.claude/commands/li-activity.md',
-  '.claude/commands/li-update.md',
 ] as const;
 
 export const MODULE_MANAGED_FILES: Record<string, readonly string[]> = {

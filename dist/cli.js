@@ -48,8 +48,7 @@ var LINKEDIN_MANAGED_FILES = [
   ".claude/commands/li-experience.md",
   ".claude/commands/li-skills.md",
   ".claude/commands/li-featured.md",
-  ".claude/commands/li-activity.md",
-  ".claude/commands/li-update.md"
+  ".claude/commands/li-activity.md"
 ];
 var MODULE_MANAGED_FILES = {
   linkedin: [
@@ -146,8 +145,7 @@ async function scaffold(opts) {
       "li-experience.md",
       "li-skills.md",
       "li-featured.md",
-      "li-activity.md",
-      "li-update.md"
+      "li-activity.md"
     ];
     for (const cmd of liCmds) {
       managedFiles.push([

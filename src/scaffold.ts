@@ -76,7 +76,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   if (modules.includes('linkedin')) {
     const liCmds = [
       'li-all.md', 'li-about.md', 'li-headline.md', 'li-experience.md',
-      'li-skills.md', 'li-featured.md', 'li-activity.md', 'li-update.md',
+      'li-skills.md', 'li-featured.md', 'li-activity.md',
     ];
     for (const cmd of liCmds) {
       managedFiles.push([
