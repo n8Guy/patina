@@ -86,7 +86,7 @@ This runs the wizard directly from TypeScript source via `tsx`. No build step ne
 npm run build
 ```
 
-Compiles TypeScript to `dist/` and copies templates to `dist/templates/`. The `dist/` directory is committed so `npx github:n8Guy/patina` works without a build step on the user's machine.
+Compiles TypeScript to `dist/` and copies templates to `dist/templates/`. The `dist/` directory is **gitignored** — it is built by the CI/publish workflow, not committed to the repo.
 
 ---
 
@@ -145,11 +145,36 @@ All PRs must pass the full test suite. For new features, add tests. The scaffold
 
 ## Releases
 
-The maintainer handles releases. When a PR is merged to `main`:
+The maintainer handles releases. Publishing is automated via GitHub Actions — it triggers on any tag matching `v*`.
 
-1. Version is bumped in `package.json`
-2. `npm run build` is run locally
-3. Committed and tagged
-4. `npm publish` (once the package is on npm)
+### Release flow
 
-There is no automated release pipeline yet — this is on the backlog.
+> **Owner only:** `main` is branch-protected. The owner bypasses protection for version bump commits only — the exception in the branch policy covers this. Non-owner contributors cannot cut releases.
+
+1. Ensure `main` is up to date:
+   ```bash
+   git checkout main && git pull
+   ```
+2. Verify the package contents locally before tagging:
+   ```bash
+   npm run build && npm pack --dry-run
+   ```
+   Confirm the tarball includes `README.md`, `LICENSE`, `package.json`, and `dist/**`.
+3. Bump the version and create the git tag in one step:
+   ```bash
+   npm version <patch|minor|major>
+   ```
+   This commits the version bump to `main` and creates the `v*` tag locally.
+4. Push the commit and tag directly to `main`:
+   ```bash
+   git push --follow-tags
+   ```
+5. GitHub Actions runs the `publish` workflow automatically:
+   - `test` job: installs deps and runs the full test suite on Node 20 and 22
+   - `publish` job: runs only if all tests pass — builds, verifies package contents, then publishes to npm with provenance
+
+### NPM_TOKEN prerequisite
+
+Publishing requires an `NPM_TOKEN` secret in GitHub Actions (Settings → Secrets and variables → Actions).
+
+Create a granular access token on npmjs.com scoped to the `my-patina` package with **publish** permission. Set an expiry (90 days recommended) and **renew it before it expires** — a lapsed token will cause the publish job to fail with 401. Update the secret in GitHub when you renew the token.
