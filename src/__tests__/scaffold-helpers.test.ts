@@ -188,6 +188,41 @@ describe('moduleManagedFiles — linkedin', () => {
   });
 });
 
+describe('moduleManagedFiles — resume', () => {
+  it('returns 2 files (1 command + manifest)', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleManagedFiles('resume', vars);
+    expect(files).toHaveLength(2);
+  });
+
+  it('includes resume-refresh command', () => {
+    const vars = profileToVars(makeProfile());
+    const paths = moduleManagedFiles('resume', vars).map(([rel]) => rel);
+    expect(paths).toContain('.claude/commands/resume-refresh.md');
+  });
+
+  it('includes the manifest', () => {
+    const vars = profileToVars(makeProfile());
+    const paths = moduleManagedFiles('resume', vars).map(([rel]) => rel);
+    expect(paths).toContain('.claude/modules/resume/manifest.md');
+  });
+
+  it('renders the content dir into command content', () => {
+    const vars = profileToVars(makeProfile({ content_dir: 'graph' }));
+    const files = moduleManagedFiles('resume', vars);
+    const allContent = files.map(([, c]) => c).join('\n');
+    expect(allContent).toContain('graph');
+  });
+
+  it('has no unreplaced template vars in any file', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleManagedFiles('resume', vars);
+    for (const [rel, content] of files) {
+      expect(content, rel).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    }
+  });
+});
+
 // ── moduleContentFiles ────────────────────────────────────────────────────────
 
 describe('moduleContentFiles — linkedin', () => {
@@ -238,5 +273,51 @@ describe('moduleContentFiles — linkedin', () => {
   it('returns empty array for unknown module', () => {
     const vars = profileToVars(makeProfile());
     expect(moduleContentFiles('unknown', vars, 'graph')).toEqual([]);
+  });
+});
+
+describe('moduleContentFiles — resume', () => {
+  it('returns 3 content files', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleContentFiles('resume', vars, 'graph');
+    expect(files).toHaveLength(3);
+  });
+
+  it('all paths are under graph/resume/', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleContentFiles('resume', vars, 'graph');
+    for (const [rel] of files) {
+      expect(rel.startsWith('graph/resume/')).toBe(true);
+    }
+  });
+
+  it('respects a custom contentDir', () => {
+    const vars = profileToVars(makeProfile({ content_dir: 'mywork' }));
+    const files = moduleContentFiles('resume', vars, 'mywork');
+    for (const [rel] of files) {
+      expect(rel.startsWith('mywork/resume/')).toBe(true);
+    }
+  });
+
+  it('includes INSTRUCTIONS.md', () => {
+    const vars = profileToVars(makeProfile());
+    const paths = moduleContentFiles('resume', vars, 'graph').map(([rel]) => rel);
+    expect(paths).toContain('graph/resume/INSTRUCTIONS.md');
+  });
+
+  it('INSTRUCTIONS.md contains user name', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleContentFiles('resume', vars, 'graph');
+    const instructions = files.find(([rel]) => rel === 'graph/resume/INSTRUCTIONS.md');
+    expect(instructions).toBeDefined();
+    expect(instructions![1]).toContain('Jane Doe');
+  });
+
+  it('has no unreplaced template vars in any file', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleContentFiles('resume', vars, 'graph');
+    for (const [rel, content] of files) {
+      expect(content, rel).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    }
   });
 });

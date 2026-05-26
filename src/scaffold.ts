@@ -101,6 +101,12 @@ export function moduleManagedFiles(module: string, vars: TemplateVars): Array<[s
     ]);
     return files;
   }
+  if (module === 'resume') {
+    return [
+      ['.claude/commands/resume-refresh.md', render(tpl('modules/resume/commands/resume-refresh.md'), vars)],
+      ['.claude/modules/resume/manifest.md', render(tpl('modules/resume/manifest.md'), vars)],
+    ];
+  }
   return [];
 }
 
@@ -114,6 +120,13 @@ export function moduleContentFiles(module: string, vars: TemplateVars, contentDi
     return files.map(file => [
       `${contentDir}/linkedin/${file}`,
       render(tpl(`modules/linkedin/graph/${file}`), vars),
+    ]);
+  }
+  if (module === 'resume') {
+    const files = MODULE_CONTENT_FILES['resume'] ?? [];
+    return files.map(file => [
+      `${contentDir}/resume/${file}`,
+      render(tpl(`modules/resume/graph/${file}`), vars),
     ]);
   }
   return [];
@@ -178,8 +191,8 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeRaw(targetDir, `${contentDir}/notes/README.md`, render(tpl('graph/notes/README.md'), vars));
   writeRaw(targetDir, `${contentDir}/notes/exclusions.md`, render(tpl('graph/notes/exclusions.md'), vars));
 
-  if (modules.includes('linkedin')) {
-    for (const [relativePath, content] of moduleContentFiles('linkedin', vars, contentDir)) {
+  for (const module of modules) {
+    for (const [relativePath, content] of moduleContentFiles(module, vars, contentDir)) {
       writeRaw(targetDir, relativePath, content);
     }
   }

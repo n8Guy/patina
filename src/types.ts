@@ -2,7 +2,7 @@ import type { ChecksumMap } from './checksums.js';
 
 export type Editor = 'obsidian' | 'vscode' | 'other';
 
-export type ModuleId = 'linkedin';
+export type ModuleId = 'linkedin' | 'resume';
 
 export interface WorkInfo {
   self_employed: boolean;
