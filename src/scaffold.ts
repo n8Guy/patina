@@ -39,7 +39,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string): Template
   return {
     PATINA_NAME: profile.patina_name,
     USER_NAME: profile.name,
-    USER_TITLE: profile.title,
+    USER_TITLE: profile.title ?? '',
     ROLE_DESCRIPTION: profile.role_description ?? '',
     COMPANY_NAME: profile.work.company_name,
     COMPANY_DESCRIPTION: profile.work.company_description ?? '',

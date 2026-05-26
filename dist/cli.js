@@ -265,6 +265,7 @@ function label(text2) {
 }
 var MULTISELECT_HINT = `
   ${chalk.hex("#64748B")("\u2191\u2193 to move  \xB7  space to select  \xB7  enter to confirm")}`;
+var OPTIONAL_HINT = ` ${chalk.dim.italic("optional, but helps a lot \u2014 hit enter to skip")}`;
 async function main() {
   printBanner();
   const cwd = process.cwd();
@@ -292,18 +293,16 @@ async function runInstall(cwd) {
         validate: (v) => v.trim() === "" ? "Name is required." : void 0
       }),
       title: () => p.text({
-        message: "What's your professional title?",
+        message: `What's your professional title?${OPTIONAL_HINT}`,
         placeholder: "e.g. Senior Engineer, Creative Director, Freelance Photographer"
       }),
       roleDescription: () => p.text({
-        message: "Describe what you do \u2014 in your own words, not your title.",
-        placeholder: "e.g. I lead a small team building software for financial advisors",
-        hint: chalk.hex("#64748B")("optional, but helps a lot \u2014 hit enter to skip")
+        message: `Describe what you do \u2014 in your own words, not your title.${OPTIONAL_HINT}`,
+        placeholder: "e.g. I lead a small team building software for financial advisors"
       }),
       jobDescriptionUrl: () => p.text({
-        message: "Got a link to a job description or role overview?",
-        placeholder: "https://...",
-        hint: chalk.hex("#64748B")("optional \u2014 hit enter to skip")
+        message: `Got a link to a job description or role overview?${OPTIONAL_HINT}`,
+        placeholder: "https://..."
       })
     },
     { onCancel }
@@ -325,14 +324,12 @@ async function runInstall(cwd) {
         hint: chalk.hex("#64748B")(selfEmployed ? 'hit enter to use "Freelance"' : "")
       }),
       website: () => p.text({
-        message: selfEmployed ? "Company website?" : "Their website?",
-        placeholder: "https://...",
-        hint: chalk.hex("#64748B")("optional")
+        message: `${selfEmployed ? "Company website?" : "Their website?"}${OPTIONAL_HINT}`,
+        placeholder: "https://..."
       }),
       companyDescription: () => p.text({
-        message: selfEmployed ? "What does your company do?" : "What does the company do?",
-        placeholder: "One or two sentences",
-        hint: chalk.hex("#64748B")("helps generate more relevant content")
+        message: `${selfEmployed ? "What does your company do?" : "What does the company do?"}${OPTIONAL_HINT}`,
+        placeholder: "One or two sentences"
       })
     },
     { onCancel }
@@ -473,15 +470,15 @@ async function runUpdateProfile(cwd, profile) {
         validate: (v) => v.trim() === "" ? "Name is required." : void 0
       }),
       title: () => p.text({
-        message: "What's your professional title?",
+        message: `What's your professional title?${OPTIONAL_HINT}`,
         initialValue: profile.title ?? ""
       }),
       roleDescription: () => p.text({
-        message: "Describe what you do \u2014 in your own words, not your title.",
+        message: `Describe what you do \u2014 in your own words, not your title.${OPTIONAL_HINT}`,
         initialValue: profile.role_description ?? ""
       }),
       jobDescriptionUrl: () => p.text({
-        message: "Got a link to a job description or role overview?",
+        message: `Got a link to a job description or role overview?${OPTIONAL_HINT}`,
         initialValue: profile.job_description_url ?? ""
       })
     },
@@ -502,11 +499,11 @@ async function runUpdateProfile(cwd, profile) {
         initialValue: profile.work?.company_name ?? ""
       }),
       website: () => p.text({
-        message: selfEmployed ? "Company website?" : "Their website?",
+        message: `${selfEmployed ? "Company website?" : "Their website?"}${OPTIONAL_HINT}`,
         initialValue: profile.work?.website ?? ""
       }),
       companyDescription: () => p.text({
-        message: selfEmployed ? "What does your company do?" : "What does the company do?",
+        message: `${selfEmployed ? "What does your company do?" : "What does the company do?"}${OPTIONAL_HINT}`,
         initialValue: profile.work?.company_description ?? ""
       })
     },

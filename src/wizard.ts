@@ -60,6 +60,7 @@ function label(text: string): string {
 }
 
 const MULTISELECT_HINT = `\n  ${chalk.hex('#64748B')('↑↓ to move  ·  space to select  ·  enter to confirm')}`;
+const OPTIONAL_HINT = ` ${chalk.dim.italic('optional, but helps a lot — hit enter to skip')}`;
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -102,22 +103,20 @@ async function runInstall(cwd: string): Promise<void> {
 
       title: () =>
         p.text({
-          message: "What's your professional title?",
+          message: `What's your professional title?${OPTIONAL_HINT}`,
           placeholder: 'e.g. Senior Engineer, Creative Director, Freelance Photographer',
         }),
 
       roleDescription: () =>
         p.text({
-          message: 'Describe what you do — in your own words, not your title.',
+          message: `Describe what you do — in your own words, not your title.${OPTIONAL_HINT}`,
           placeholder: 'e.g. I lead a small team building software for financial advisors',
-          hint: chalk.hex('#64748B')('optional, but helps a lot — hit enter to skip'),
         }),
 
       jobDescriptionUrl: () =>
         p.text({
-          message: 'Got a link to a job description or role overview?',
+          message: `Got a link to a job description or role overview?${OPTIONAL_HINT}`,
           placeholder: 'https://...',
-          hint: chalk.hex('#64748B')('optional — hit enter to skip'),
         }),
     },
     { onCancel }
@@ -150,16 +149,14 @@ async function runInstall(cwd: string): Promise<void> {
 
       website: () =>
         p.text({
-          message: selfEmployed ? 'Company website?' : 'Their website?',
+          message: `${selfEmployed ? 'Company website?' : 'Their website?'}${OPTIONAL_HINT}`,
           placeholder: 'https://...',
-          hint: chalk.hex('#64748B')('optional'),
         }),
 
       companyDescription: () =>
         p.text({
-          message: selfEmployed ? 'What does your company do?' : 'What does the company do?',
+          message: `${selfEmployed ? 'What does your company do?' : 'What does the company do?'}${OPTIONAL_HINT}`,
           placeholder: 'One or two sentences',
-          hint: chalk.hex('#64748B')('helps generate more relevant content'),
         }),
     },
     { onCancel }
@@ -342,19 +339,19 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
 
       title: () =>
         p.text({
-          message: "What's your professional title?",
+          message: `What's your professional title?${OPTIONAL_HINT}`,
           initialValue: profile.title ?? '',
         }),
 
       roleDescription: () =>
         p.text({
-          message: 'Describe what you do — in your own words, not your title.',
+          message: `Describe what you do — in your own words, not your title.${OPTIONAL_HINT}`,
           initialValue: profile.role_description ?? '',
         }),
 
       jobDescriptionUrl: () =>
         p.text({
-          message: 'Got a link to a job description or role overview?',
+          message: `Got a link to a job description or role overview?${OPTIONAL_HINT}`,
           initialValue: profile.job_description_url ?? '',
         }),
     },
@@ -385,13 +382,13 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
 
       website: () =>
         p.text({
-          message: selfEmployed ? 'Company website?' : 'Their website?',
+          message: `${selfEmployed ? 'Company website?' : 'Their website?'}${OPTIONAL_HINT}`,
           initialValue: profile.work?.website ?? '',
         }),
 
       companyDescription: () =>
         p.text({
-          message: selfEmployed ? 'What does your company do?' : 'What does the company do?',
+          message: `${selfEmployed ? 'What does your company do?' : 'What does the company do?'}${OPTIONAL_HINT}`,
           initialValue: profile.work?.company_description ?? '',
         }),
     },

@@ -14,7 +14,7 @@ export interface WorkInfo {
 export interface Profile {
   patina_name: string;
   name: string;
-  title: string;
+  title?: string;
   role_description?: string;
   job_description_url?: string;
   work: WorkInfo;
@@ -32,7 +32,7 @@ export interface ScaffoldOptions {
   targetDir: string;
   patinaName: string;
   userName: string;
-  title: string;
+  title?: string;
   roleDescription: string;
   jobDescriptionUrl: string;
   work: WorkInfo;
