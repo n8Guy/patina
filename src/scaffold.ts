@@ -158,7 +158,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const vars: TemplateVars = {
     PATINA_NAME: patinaName,
     USER_NAME: userName,
-    USER_TITLE: title,
+    USER_TITLE: title ?? '',
     ROLE_DESCRIPTION: roleDescription,
     COMPANY_NAME: work.company_name,
     COMPANY_DESCRIPTION: work.company_description ?? '',
