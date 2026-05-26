@@ -4,6 +4,6 @@ scripts/
 vitest.config.ts
 tsconfig.json
 BACKLOG.md
-.claude/
+/.claude/
 .current-issue.md
 .implementation-plan.md
