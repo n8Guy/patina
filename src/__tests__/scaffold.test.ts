@@ -205,6 +205,7 @@ describe('scaffold — obsidian editor', () => {
     const mcp = JSON.parse(read('.mcp.json'));
     const vaultPath = mcp.mcpServers.obsidian.args.at(-1) as string;
     expect(vaultPath).toContain('graph');
+    expect(vaultPath).not.toContain('\\');
   });
 });
 

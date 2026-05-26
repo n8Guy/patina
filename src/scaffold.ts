@@ -71,7 +71,7 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
       mcpServers: {
         obsidian: {
           command: 'npx',
-          args: ['-y', 'mcp-obsidian@latest', join(targetDir, vars.CONTENT_DIR)],
+          args: ['-y', 'mcp-obsidian@latest', join(targetDir, vars.CONTENT_DIR).replace(/\\/g, '/')],
         },
       },
     };

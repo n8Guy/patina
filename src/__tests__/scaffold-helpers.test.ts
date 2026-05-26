@@ -129,6 +129,17 @@ describe('baseManagedFiles', () => {
     expect(vaultPath).toContain('graph');
   });
 
+  it('.mcp.json vault path uses forward slashes on all platforms', () => {
+    const profile = makeProfile({ editor: 'obsidian', content_dir: 'graph' });
+    const vars = profileToVars(profile);
+    const files = baseManagedFiles(vars, 'obsidian', tmp);
+    const mcpEntry = files.find(([rel]) => rel === '.mcp.json');
+    expect(mcpEntry).toBeDefined();
+    const mcp = JSON.parse(mcpEntry![1]);
+    const vaultPath = mcp.mcpServers.obsidian.args.at(-1) as string;
+    expect(vaultPath).not.toContain('\\');
+  });
+
   it('CLAUDE.md content contains the user name', () => {
     const vars = profileToVars(makeProfile());
     const files = baseManagedFiles(vars, 'vscode');
