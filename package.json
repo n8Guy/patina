@@ -37,6 +37,7 @@
       "js": "#!/usr/bin/env node"
     }
   },
+  "files": ["dist/"],
   "keywords": ["patina", "career", "knowledge-graph", "cli"],
   "license": "MIT"
 }

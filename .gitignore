@@ -1,4 +1,5 @@
 node_modules/
+dist/
 .obsidian/
 .DS_Store
 .current-issue.md
