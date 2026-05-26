@@ -1,9 +1,0 @@
-src/
-scripts/
-**/*.test.ts
-vitest.config.ts
-tsconfig.json
-BACKLOG.md
-/.claude/
-.current-issue.md
-.implementation-plan.md

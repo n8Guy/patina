@@ -21,10 +21,10 @@ It works best if you use [Claude](https://claude.ai) and have [Claude Code](http
 Run this in your terminal:
 
 ```bash
-npx github:n8Guy/patina
+npx my-patina@latest
 ```
 
-> Once published to npm: `npx my-patina@latest`
+Or via GitHub directly: `npx github:n8Guy/patina`
 
 You'll be asked a few questions — your name, what you do, where you work. Everything you enter stays on your computer. Nothing is sent anywhere.
 
@@ -82,7 +82,7 @@ Run the same command again from inside your patina folder:
 
 ```bash
 cd your-patina
-npx github:n8Guy/patina
+npx my-patina@latest
 ```
 
 Patina detects that it's already set up and shows you your current profile. It can update your personal info or add new modules. Your notes and skills are never touched.
