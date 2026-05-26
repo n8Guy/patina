@@ -251,9 +251,9 @@ function printBanner() {
 }
 function privacyNote() {
   return [
-    chalk.bold.hex("#38BDF8")("Everything you enter stays on your computer."),
+    chalk.bold.hex("#38BDF8")("Your content stays on your computer. Always."),
     chalk.hex("#CBD5E1")(
-      "Nothing is sent to the internet during setup, and nothing\nis shared with anyone. Your answers go into a single file\ninside your patina folder that you can open, edit, or delete\nat any time."
+      "Everything in your patina \u2014 your profile, notes, skills,\nand LinkedIn drafts \u2014 lives in a folder on your machine.\nNothing is sent to the internet, nothing is stored in the\ncloud, and nothing is shared with anyone. You own it all\nand can open, edit, or delete any of it at any time."
     )
   ].join("\n\n");
 }

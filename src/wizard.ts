@@ -33,12 +33,13 @@ function printBanner(): void {
 
 function privacyNote(): string {
   return [
-    chalk.bold.hex('#38BDF8')('Everything you enter stays on your computer.'),
+    chalk.bold.hex('#38BDF8')('Your content stays on your computer. Always.'),
     chalk.hex('#CBD5E1')(
-      'Nothing is sent to the internet during setup, and nothing\n' +
-      'is shared with anyone. Your answers go into a single file\n' +
-      'inside your patina folder that you can open, edit, or delete\n' +
-      'at any time.'
+      'Everything in your patina — your profile, notes, skills,\n' +
+      'and LinkedIn drafts — lives in a folder on your machine.\n' +
+      'Nothing is sent to the internet, nothing is stored in the\n' +
+      'cloud, and nothing is shared with anyone. You own it all\n' +
+      'and can open, edit, or delete any of it at any time.'
     ),
   ].join('\n\n');
 }
