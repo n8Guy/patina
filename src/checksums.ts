@@ -12,6 +12,8 @@ export function hashFile(filePath: string): string | null {
   return hashContent(readFileSync(filePath, 'utf8'));
 }
 
+export const CONTENT_SUBDIRS = ['notes', 'skills', 'posts'] as const;
+
 // Files patina manages and can safely update if the user hasn't modified them.
 // graph/** is intentionally excluded — patina never touches user content.
 export const MANAGED_FILES = [

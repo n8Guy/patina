@@ -1,13 +1,14 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { dirname, join, resolve } from 'path';
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
 import yaml from 'js-yaml';
-import { detectMode } from './detect.js';
+import { detectMode, loadProfile } from './detect.js';
 import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
 import { hashFile, MODULE_MANAGED_FILES, type ChecksumMap } from './checksums.js';
 import type { Editor, ModuleId, Profile, WorkInfo } from './types.js';
+import { validate, formatReport } from './validate.js';
 
 // @clack/prompts supports hint on text inputs at runtime but the type definitions omit it.
 declare module '@clack/prompts' {
@@ -292,7 +293,7 @@ export function removeManagedFileIfUnmodified(
 }
 
 async function runUpdate(cwd: string): Promise<void> {
-  const profile = yaml.load(readFileSync(join(cwd, 'profile.yaml'), 'utf8')) as Profile;
+  const profile = loadProfile(cwd);
 
   p.intro(chalk.hex('#94A3B8')(`Found: ${chalk.bold.white(profile.patina_name || 'patina')}`));
 
@@ -311,6 +312,7 @@ async function runUpdate(cwd: string): Promise<void> {
     options: [
       { value: 'profile', label: 'Update personal info' },
       { value: 'modules', label: 'Add or remove modules' },
+      { value: 'validate', label: 'Run health check', hint: chalk.hex('#64748B')('check for broken links and excluded items') },
       { value: 'nothing', label: 'Nothing — just checking' },
     ],
   });
@@ -324,6 +326,8 @@ async function runUpdate(cwd: string): Promise<void> {
     await runUpdateProfile(cwd, profile);
   } else if (action === 'modules') {
     await runUpdateModules(cwd, profile);
+  } else if (action === 'validate') {
+    await runValidate(cwd, profile);
   }
 }
 
@@ -587,6 +591,19 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
 
   p.note(summaryLines.join('\n') || 'No file changes.', label('Done'));
   p.outro(chalk.hex('#94A3B8')('Modules updated.'));
+}
+
+// ─── Validate ────────────────────────────────────────────────────────────────
+
+async function runValidate(cwd: string, profile: Profile): Promise<void> {
+  const result = validate(cwd, profile);
+  const report = formatReport(result);
+  p.note(report, label('Health check'));
+  if (result.ok) {
+    p.outro(chalk.green('All good.'));
+  } else {
+    p.outro(chalk.red('Issues found — see above.'));
+  }
 }
 
 // ─── Shared ──────────────────────────────────────────────────────────────────

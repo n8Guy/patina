@@ -2,6 +2,21 @@ import type { ChecksumMap } from './checksums.js';
 
 export type Editor = 'obsidian' | 'vscode' | 'other';
 
+export type ValidationCheckId = 'wiki-links' | 'exclusions' | 'skill-notes';
+
+export interface ValidationIssue {
+  check: ValidationCheckId;
+  file: string;       // project-relative, forward-slash normalized
+  line?: number;      // 1-based
+  message: string;    // plain language
+}
+
+export interface ValidationResult {
+  ok: boolean;
+  issues: ValidationIssue[];
+  filesChecked: number;
+}
+
 export type ModuleId = 'linkedin' | 'resume';
 
 export interface WorkInfo {
