@@ -1,6 +1,6 @@
 {
   "name": "my-patina",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Personal professional knowledge graph — setup and management",
   "type": "module",
   "bin": {
@@ -31,15 +31,26 @@
     "vitest": "^1.0.0"
   },
   "tsup": {
-    "entry": ["src/cli.ts"],
-    "format": ["esm"],
+    "entry": [
+      "src/cli.ts"
+    ],
+    "format": [
+      "esm"
+    ],
     "clean": true,
     "banner": {
       "js": "#!/usr/bin/env node"
     }
   },
-  "files": ["dist/"],
-  "keywords": ["patina", "career", "knowledge-graph", "cli"],
+  "files": [
+    "dist/"
+  ],
+  "keywords": [
+    "patina",
+    "career",
+    "knowledge-graph",
+    "cli"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
