@@ -59,6 +59,8 @@ function label(text: string): string {
   return chalk.bold.hex('#C084FC')(text);
 }
 
+const MULTISELECT_HINT = `\n  ${chalk.hex('#64748B')('↑↓ to move  ·  space to select  ·  enter to confirm')}`;
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 export async function main(): Promise<void> {
@@ -185,7 +187,7 @@ async function runInstall(cwd: string): Promise<void> {
 
       modules: () =>
         p.multiselect<ModuleId>({
-          message: 'Which modules do you want to add?',
+          message: `Which modules do you want to add?${MULTISELECT_HINT}`,
           options: [
             {
               value: 'linkedin',
@@ -464,7 +466,7 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
   const currentModules = profile.modules ?? [];
 
   const selected = await p.multiselect({
-    message: 'Which modules do you want active?',
+    message: `Which modules do you want active?${MULTISELECT_HINT}`,
     options: [
       {
         value: 'linkedin',

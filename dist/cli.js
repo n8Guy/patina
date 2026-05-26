@@ -263,6 +263,8 @@ function slugify(str) {
 function label(text2) {
   return chalk.bold.hex("#C084FC")(text2);
 }
+var MULTISELECT_HINT = `
+  ${chalk.hex("#64748B")("\u2191\u2193 to move  \xB7  space to select  \xB7  enter to confirm")}`;
 async function main() {
   printBanner();
   const cwd = process.cwd();
@@ -352,7 +354,7 @@ async function runInstall(cwd) {
         ]
       }),
       modules: () => p.multiselect({
-        message: "Which modules do you want to add?",
+        message: `Which modules do you want to add?${MULTISELECT_HINT}`,
         options: [
           {
             value: "linkedin",
@@ -561,7 +563,7 @@ async function runUpdateProfile(cwd, profile) {
 async function runUpdateModules(cwd, profile) {
   const currentModules = profile.modules ?? [];
   const selected = await p.multiselect({
-    message: "Which modules do you want active?",
+    message: `Which modules do you want active?${MULTISELECT_HINT}`,
     options: [
       {
         value: "linkedin",
