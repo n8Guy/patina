@@ -32,10 +32,18 @@ export const LINKEDIN_MANAGED_FILES = [
   '.claude/commands/li-activity.md',
 ] as const;
 
+export const RESUME_MANAGED_FILES = [
+  '.claude/commands/resume-refresh.md',
+] as const;
+
 export const MODULE_MANAGED_FILES: Record<string, readonly string[]> = {
   linkedin: [
     ...LINKEDIN_MANAGED_FILES,
     '.claude/modules/linkedin/manifest.md',
+  ],
+  resume: [
+    ...RESUME_MANAGED_FILES,
+    '.claude/modules/resume/manifest.md',
   ],
 };
 
@@ -49,5 +57,10 @@ export const MODULE_CONTENT_FILES: Record<string, readonly string[]> = {
     'LinkedIn Skills.md',
     'LinkedIn Featured.md',
     'LinkedIn Activity.md',
+  ],
+  resume: [
+    'INSTRUCTIONS.md',
+    'Resume Working Draft.md',
+    'Resume Last Submitted.md',
   ],
 };

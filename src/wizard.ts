@@ -192,6 +192,11 @@ async function runInstall(cwd: string): Promise<void> {
               label: 'LinkedIn',
               hint: chalk.hex('#64748B')('draft and refine your LinkedIn profile'),
             },
+            {
+              value: 'resume',
+              label: 'Resume',
+              hint: chalk.hex('#64748B')('keep your resume current from your graph'),
+            },
           ],
           required: false,
         }),
@@ -470,6 +475,11 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
         value: 'linkedin',
         label: 'LinkedIn',
         hint: chalk.hex('#64748B')('draft and refine your LinkedIn profile'),
+      },
+      {
+        value: 'resume',
+        label: 'Resume',
+        hint: chalk.hex('#64748B')('keep your resume current from your graph'),
       },
     ],
     initialValues: currentModules,
