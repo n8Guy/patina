@@ -333,6 +333,75 @@ async function runUpdate(cwd: string): Promise<void> {
 
 // ─── Branch A: Update personal info ──────────────────────────────────────────
 
+export interface ProfileFields {
+  name: string;
+  title: string;
+  roleDescription: string;
+  jobDescriptionUrl: string;
+  selfEmployed: boolean;
+  companyName: string;
+  website: string;
+  companyDescription: string;
+}
+
+export interface ProfileUpdateResult {
+  profile: Profile;
+  updated: string[];
+  skipped: string[];
+}
+
+export function applyProfileUpdate(
+  cwd: string,
+  profile: Profile,
+  fields: ProfileFields,
+): ProfileUpdateResult {
+  const updatedProfile: Profile = {
+    ...profile,
+    name: fields.name.trim(),
+    title: fields.title.trim(),
+    role_description: fields.roleDescription.trim() || undefined,
+    job_description_url: fields.jobDescriptionUrl.trim() || undefined,
+    work: {
+      self_employed: fields.selfEmployed,
+      company_name: fields.companyName.trim() || (fields.selfEmployed ? 'Freelance' : ''),
+      website: fields.website.trim() || undefined,
+      company_description: fields.companyDescription.trim() || undefined,
+    },
+  };
+
+  const vars = profileToVars(updatedProfile);
+  const stored: ChecksumMap = profile._checksums ?? {};
+  const newChecksums: ChecksumMap = {};
+
+  const files = [
+    ...baseManagedFiles(vars, updatedProfile.editor, cwd),
+    ...updatedProfile.modules.flatMap(m => moduleManagedFiles(m, vars)),
+  ];
+
+  const updated: string[] = [];
+  const skipped: string[] = [];
+
+  for (const [rel, content] of files) {
+    const { outcome, checksum } = writeManagedFile(cwd, rel, content, stored);
+    newChecksums[rel] = checksum;
+    if (outcome === 'skipped') {
+      skipped.push(rel);
+    } else {
+      updated.push(rel);
+    }
+  }
+
+  for (const [rel, hash] of Object.entries(stored)) {
+    if (!(rel in newChecksums)) {
+      newChecksums[rel] = hash;
+    }
+  }
+
+  updatedProfile._checksums = newChecksums;
+  writeProfile(cwd, updatedProfile);
+  return { profile: updatedProfile, updated, skipped };
+}
+
 async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
   console.log('');
   console.log(`  ${label('Update personal info')}`);
@@ -405,55 +474,16 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
     { onCancel }
   );
 
-  // Build updated profile (direct field assignment — do NOT use mergeProfile)
-  const updatedProfile: Profile = {
-    ...profile,
-    name: identity.name.trim(),
-    title: (identity.title ?? '').trim(),
-    role_description: (identity.roleDescription ?? '').trim() || undefined,
-    job_description_url: (identity.jobDescriptionUrl ?? '').trim() || undefined,
-    work: {
-      self_employed: selfEmployed as boolean,
-      company_name: work.companyName?.trim() || (selfEmployed ? 'Freelance' : ''),
-      website: work.website?.trim() || undefined,
-      company_description: work.companyDescription?.trim() || undefined,
-    },
-  };
-
-  // Re-render and re-write all managed files
-  const vars = profileToVars(updatedProfile);
-  const stored: ChecksumMap = profile._checksums ?? {};
-  const newChecksums: ChecksumMap = {};
-
-  const files = [
-    ...baseManagedFiles(vars, updatedProfile.editor, cwd),
-    ...updatedProfile.modules.flatMap(m => moduleManagedFiles(m, vars)),
-  ];
-
-  const updated: string[] = [];
-  const skipped: string[] = [];
-
-  for (const [rel, content] of files) {
-    const { outcome, checksum } = writeManagedFile(cwd, rel, content, stored);
-    newChecksums[rel] = checksum;
-    if (outcome === 'skipped') {
-      skipped.push(rel);
-    } else {
-      updated.push(rel);
-    }
-  }
-
-  // Preserve checksums for files not in the current render pass
-  for (const [rel, hash] of Object.entries(stored)) {
-    if (!(rel in newChecksums)) {
-      newChecksums[rel] = hash;
-    }
-  }
-
-  updatedProfile._checksums = newChecksums;
-
-  // Write profile.yaml atomically at the very end
-  writeProfile(cwd, updatedProfile);
+  const { updated, skipped } = applyProfileUpdate(cwd, profile, {
+    name: identity.name,
+    title: identity.title ?? '',
+    roleDescription: identity.roleDescription ?? '',
+    jobDescriptionUrl: identity.jobDescriptionUrl ?? '',
+    selfEmployed: selfEmployed as boolean,
+    companyName: work.companyName ?? '',
+    website: work.website ?? '',
+    companyDescription: work.companyDescription ?? '',
+  });
 
   const summaryLines: string[] = [];
   if (updated.length > 0) {
@@ -468,6 +498,84 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
 }
 
 // ─── Branch B: Add or remove modules ─────────────────────────────────────────
+
+export interface ModuleChangeResult {
+  profile: Profile;
+  added: string[];
+  skipped: string[];
+  deleted: string[];
+  kept: string[];
+}
+
+export function applyModuleChanges(
+  cwd: string,
+  profile: Profile,
+  toAdd: ModuleId[],
+  toRemove: ModuleId[],
+  liProfileUrl?: string,
+): ModuleChangeResult {
+  const stored: ChecksumMap = profile._checksums ?? {};
+  const newChecksums: ChecksumMap = { ...stored };
+  const updatedProfile: Profile = { ...profile, modules: [...(profile.modules ?? [])] };
+
+  const added: string[] = [];
+  const skippedFiles: string[] = [];
+  const deleted: string[] = [];
+  const kept: string[] = [];
+
+  for (const module of toAdd) {
+    if (module === 'linkedin' && !updatedProfile.linkedin?.profile_url && liProfileUrl?.trim()) {
+      updatedProfile.linkedin = { profile_url: liProfileUrl.trim() };
+    }
+
+    const vars = profileToVars(updatedProfile);
+    const contentDir = updatedProfile.content_dir;
+
+    for (const [rel, content] of moduleManagedFiles(module, vars)) {
+      const { outcome, checksum } = writeManagedFile(cwd, rel, content, newChecksums);
+      newChecksums[rel] = checksum;
+      if (outcome === 'skipped') {
+        skippedFiles.push(rel);
+      } else {
+        added.push(rel);
+      }
+    }
+
+    for (const [relativePath, content] of moduleContentFiles(module, vars, contentDir)) {
+      const fullPath = join(cwd, relativePath);
+      if (!existsSync(fullPath)) {
+        mkdirSync(dirname(fullPath), { recursive: true });
+        writeFileSync(fullPath, content, 'utf8');
+        added.push(relativePath);
+      }
+    }
+
+    if (!updatedProfile.modules.includes(module)) {
+      updatedProfile.modules = [...updatedProfile.modules, module];
+    }
+  }
+
+  for (const module of toRemove) {
+    const managedRels = MODULE_MANAGED_FILES[module] ?? [];
+    for (const rel of managedRels) {
+      const result = removeManagedFileIfUnmodified(cwd, rel, stored);
+      if (result === 'deleted') {
+        deleted.push(rel);
+        delete newChecksums[rel];
+      } else {
+        kept.push(rel);
+      }
+    }
+    updatedProfile.modules = updatedProfile.modules.filter(m => m !== module);
+    if (module === 'linkedin') {
+      delete (updatedProfile as Partial<Profile>).linkedin;
+    }
+  }
+
+  updatedProfile._checksums = newChecksums;
+  writeProfile(cwd, updatedProfile);
+  return { profile: updatedProfile, added, skipped: skippedFiles, deleted, kept };
+}
 
 async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
   const currentModules = profile.modules ?? [];
@@ -504,84 +612,24 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
     return;
   }
 
-  const stored: ChecksumMap = profile._checksums ?? {};
-  const newChecksums: ChecksumMap = { ...stored };
-  const updatedProfile: Profile = { ...profile, modules: [...currentModules] };
-
-  const addedFiles: string[] = [];
-  const skippedFiles: string[] = [];
-  const deletedFiles: string[] = [];
-  const keptFiles: string[] = [];
-
-  // ── Add modules
-  for (const module of toAdd) {
-    // Prompt for LinkedIn URL if not already set
-    if (module === 'linkedin' && !updatedProfile.linkedin?.profile_url) {
-      const url = await p.text({
-        message: "What's your LinkedIn profile URL?",
-        placeholder: 'https://linkedin.com/in/yourname (optional)',
-      });
-      if (p.isCancel(url)) {
-        p.cancel(chalk.hex('#94A3B8')('No changes made.'));
-        return;
-      }
-      if (typeof url === 'string' && url.trim()) {
-        updatedProfile.linkedin = { profile_url: url.trim() };
-      }
+  // Hoist LinkedIn URL prompt before calling the helper
+  let liProfileUrl: string | undefined;
+  if (toAdd.includes('linkedin') && !profile.linkedin?.profile_url) {
+    const url = await p.text({
+      message: "What's your LinkedIn profile URL?",
+      placeholder: 'https://linkedin.com/in/yourname (optional)',
+    });
+    if (p.isCancel(url)) {
+      p.cancel(chalk.hex('#94A3B8')('No changes made.'));
+      return;
     }
-
-    const vars = profileToVars(updatedProfile);
-    const contentDir = updatedProfile.content_dir;
-
-    // Write managed files
-    for (const [rel, content] of moduleManagedFiles(module, vars)) {
-      const { outcome, checksum } = writeManagedFile(cwd, rel, content, stored);
-      newChecksums[rel] = checksum;
-      if (outcome === 'skipped') {
-        skippedFiles.push(rel);
-      } else {
-        addedFiles.push(rel);
-      }
-    }
-
-    // Write content-dir files only if they don't already exist
-    for (const [relativePath, content] of moduleContentFiles(module, vars, contentDir)) {
-      const fullPath = join(cwd, relativePath);
-      if (!existsSync(fullPath)) {
-        mkdirSync(dirname(fullPath), { recursive: true });
-        writeFileSync(fullPath, content, 'utf8');
-        addedFiles.push(relativePath);
-      }
-    }
-
-    updatedProfile.modules = [...updatedProfile.modules, module];
-  }
-
-  // ── Remove modules
-  for (const module of toRemove) {
-    const managedRels = MODULE_MANAGED_FILES[module] ?? [];
-    for (const rel of managedRels) {
-      const result = removeManagedFileIfUnmodified(cwd, rel, stored);
-      if (result === 'deleted') {
-        deletedFiles.push(rel);
-        delete newChecksums[rel];
-      } else {
-        keptFiles.push(rel);
-      }
-    }
-    // Content-dir files are never deleted
-    updatedProfile.modules = updatedProfile.modules.filter(m => m !== module);
-
-    // Remove linkedin data from profile if module removed
-    if (module === 'linkedin') {
-      delete (updatedProfile as Partial<Profile>).linkedin;
+    if (typeof url === 'string' && url.trim()) {
+      liProfileUrl = url.trim();
     }
   }
 
-  updatedProfile._checksums = newChecksums;
-
-  // Write profile.yaml atomically at the very end
-  writeProfile(cwd, updatedProfile);
+  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles } =
+    applyModuleChanges(cwd, profile, toAdd, toRemove, liProfileUrl);
 
   const summaryLines: string[] = [];
   if (addedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Added: ${addedFiles.join(', ')}`));
