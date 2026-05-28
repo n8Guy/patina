@@ -179,7 +179,7 @@ describe('applyModuleChanges — adding linkedin', () => {
   });
 
   it('creates linkedin command files', () => {
-    applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/x');
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity']) {
       expect(exists(`.claude/commands/${cmd}.md`), `${cmd}.md`).toBe(true);
@@ -188,25 +188,25 @@ describe('applyModuleChanges — adding linkedin', () => {
   });
 
   it('adds linkedin to profile.modules', () => {
-    applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/x');
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(loadProfile().modules).toContain('linkedin');
   });
 
   it('stores linkedin profile url', () => {
-    applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/x');
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(loadProfile().linkedin?.profile_url).toBe('https://linkedin.com/in/x');
   });
 
   it('creates content-dir files', () => {
-    applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/x');
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(exists('graph/linkedin/INSTRUCTIONS.md')).toBe(true);
   });
 
   it('records added files and stores checksums', () => {
-    const result = applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/x');
+    const result = applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(result.added).toContain('.claude/commands/li-all.md');
     expect(typeof loadProfile()._checksums!['.claude/commands/li-all.md']).toBe('string');
@@ -233,7 +233,7 @@ describe('applyModuleChanges — adding linkedin', () => {
     // patina will overwrite it (no stored checksum = treated as unmodified)
     // To test the skipped path, we need a stored checksum that doesn't match the file on disk.
     // Set up: install linkedin first, then edit li-all.md so its hash diverges, remove and re-add.
-    applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/x');
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
     const p1 = loadProfile();
 
     // Edit li-all.md so its hash differs from the stored checksum
@@ -244,7 +244,7 @@ describe('applyModuleChanges — adding linkedin', () => {
     const p2 = loadProfile();
 
     // Re-add linkedin — li-all.md should be skipped because hash != stored checksum
-    const result = applyModuleChanges(targetDir, p2, ['linkedin'], [], 'https://linkedin.com/in/x');
+    const result = applyModuleChanges(targetDir, p2, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(result.skipped).toContain('.claude/commands/li-all.md');
     expect(read('.claude/commands/li-all.md')).toBe('my custom edits');
@@ -267,14 +267,14 @@ describe('applyModuleChanges — content-dir and URL preservation', () => {
     // Remove then re-add linkedin
     applyModuleChanges(targetDir, profile, [], ['linkedin']);
     const p2 = loadProfile();
-    applyModuleChanges(targetDir, p2, ['linkedin'], [], 'https://linkedin.com/in/x');
+    applyModuleChanges(targetDir, p2, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(read('graph/linkedin/INSTRUCTIONS.md')).toBe('my edits');
   });
 
   it('does not overwrite an existing LinkedIn URL', () => {
     // Profile already has linkedin URL — add with a different URL should not overwrite
-    const result = applyModuleChanges(targetDir, profile, ['linkedin'], [], 'https://linkedin.com/in/new');
+    const result = applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/new' } });
 
     expect(loadProfile().linkedin?.profile_url).toBe('https://linkedin.com/in/x');
     // The module is not re-added (dedup guard), result has no additions to modules

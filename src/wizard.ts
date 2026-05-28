@@ -6,7 +6,9 @@ import yaml from 'js-yaml';
 import { detectMode, loadProfile } from './detect.js';
 import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
-import { hashFile, MODULE_MANAGED_FILES, type ChecksumMap } from './checksums.js';
+import { hashFile, type ChecksumMap } from './checksums.js';
+import { MODULES, getModule } from './modules/registry.js';
+import type { ModuleAddInputs } from './modules/types.js';
 import type { Editor, ModuleId, Profile, WorkInfo } from './types.js';
 import { validate, formatReport } from './validate.js';
 
@@ -187,18 +189,11 @@ async function runInstall(cwd: string): Promise<void> {
       modules: () =>
         p.multiselect<ModuleId>({
           message: `Which modules do you want to add?${MULTISELECT_HINT}`,
-          options: [
-            {
-              value: 'linkedin',
-              label: 'LinkedIn',
-              hint: chalk.hex('#64748B')('draft and refine your LinkedIn profile'),
-            },
-            {
-              value: 'resume',
-              label: 'Resume',
-              hint: chalk.hex('#64748B')('keep your resume current from your graph'),
-            },
-          ],
+          options: MODULES.map(m => ({
+            value: m.id as ModuleId,
+            label: m.label,
+            hint: chalk.hex('#64748B')(m.hint),
+          })),
           required: false,
         }),
     },
@@ -512,11 +507,11 @@ export function applyModuleChanges(
   profile: Profile,
   toAdd: ModuleId[],
   toRemove: ModuleId[],
-  liProfileUrl?: string,
+  moduleInputs?: Record<string, ModuleAddInputs>,
 ): ModuleChangeResult {
   const stored: ChecksumMap = profile._checksums ?? {};
   const newChecksums: ChecksumMap = { ...stored };
-  const updatedProfile: Profile = { ...profile, modules: [...(profile.modules ?? [])] };
+  let updatedProfile: Profile = { ...profile, modules: [...(profile.modules ?? [])] };
 
   const added: string[] = [];
   const skippedFiles: string[] = [];
@@ -524,8 +519,9 @@ export function applyModuleChanges(
   const kept: string[] = [];
 
   for (const module of toAdd) {
-    if (module === 'linkedin' && !updatedProfile.linkedin?.profile_url && liProfileUrl?.trim()) {
-      updatedProfile.linkedin = { profile_url: liProfileUrl.trim() };
+    const def = getModule(module);
+    if (def?.onAdd) {
+      updatedProfile = def.onAdd(updatedProfile, moduleInputs?.[module] ?? {});
     }
 
     const vars = profileToVars(updatedProfile);
@@ -556,7 +552,8 @@ export function applyModuleChanges(
   }
 
   for (const module of toRemove) {
-    const managedRels = MODULE_MANAGED_FILES[module] ?? [];
+    const def = getModule(module);
+    const managedRels = def?.managedPaths ?? [];
     for (const rel of managedRels) {
       const result = removeManagedFileIfUnmodified(cwd, rel, stored);
       if (result === 'deleted') {
@@ -567,8 +564,8 @@ export function applyModuleChanges(
       }
     }
     updatedProfile.modules = updatedProfile.modules.filter(m => m !== module);
-    if (module === 'linkedin') {
-      delete (updatedProfile as Partial<Profile>).linkedin;
+    if (def?.onRemove) {
+      updatedProfile = def.onRemove(updatedProfile);
     }
   }
 
@@ -582,18 +579,11 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
 
   const selected = await p.multiselect({
     message: `Which modules do you want active?${MULTISELECT_HINT}`,
-    options: [
-      {
-        value: 'linkedin',
-        label: 'LinkedIn',
-        hint: chalk.hex('#64748B')('draft and refine your LinkedIn profile'),
-      },
-      {
-        value: 'resume',
-        label: 'Resume',
-        hint: chalk.hex('#64748B')('keep your resume current from your graph'),
-      },
-    ],
+    options: MODULES.map(m => ({
+      value: m.id as ModuleId,
+      label: m.label,
+      hint: chalk.hex('#64748B')(m.hint),
+    })),
     initialValues: currentModules,
     required: false,
   });
@@ -612,7 +602,9 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
     return;
   }
 
-  // Hoist LinkedIn URL prompt before calling the helper
+  // Hoist module-specific pre-add prompts before calling the helper.
+  // TODO: move per-module prompt collection into ModuleDefinition (e.g. promptsOnAdd) so
+  // wizard.ts doesn't need to check module ids directly for new modules needing pre-add input.
   let liProfileUrl: string | undefined;
   if (toAdd.includes('linkedin') && !profile.linkedin?.profile_url) {
     const url = await p.text({
@@ -629,7 +621,7 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
   }
 
   const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles } =
-    applyModuleChanges(cwd, profile, toAdd, toRemove, liProfileUrl);
+    applyModuleChanges(cwd, profile, toAdd, toRemove, { linkedin: { liProfileUrl } });
 
   const summaryLines: string[] = [];
   if (addedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Added: ${addedFiles.join(', ')}`));
