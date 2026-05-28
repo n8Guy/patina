@@ -1,20 +1,12 @@
-import { mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import yaml from 'js-yaml';
 import { render } from './template.js';
 import { writeManagedFile } from './upgrade.js';
-import { MODULE_CONTENT_FILES, type ChecksumMap } from './checksums.js';
+import { type ChecksumMap } from './checksums.js';
+import { tpl } from './template-loader.js';
+import { getModule } from './modules/registry.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// When compiled, __dirname = dist/ and templates are copied to dist/templates.
-// When running via tsx, __dirname = src/ and templates live in src/templates.
-const TEMPLATES_DIR = join(__dirname, 'templates');
-
-function tpl(relativePath: string): string {
-  return readFileSync(join(TEMPLATES_DIR, relativePath), 'utf8');
-}
 
 function writeRaw(targetDir: string, relativePath: string, content: string): void {
   const full = join(targetDir, relativePath);
@@ -86,28 +78,7 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
  * (command files + manifest).
  */
 export function moduleManagedFiles(module: string, vars: TemplateVars): Array<[string, string]> {
-  if (module === 'linkedin') {
-    const liCmds = [
-      'li-all.md', 'li-about.md', 'li-headline.md', 'li-experience.md',
-      'li-skills.md', 'li-featured.md', 'li-activity.md',
-    ];
-    const files: Array<[string, string]> = liCmds.map(cmd => [
-      `.claude/commands/${cmd}`,
-      render(tpl(`modules/linkedin/commands/${cmd}`), vars),
-    ]);
-    files.push([
-      '.claude/modules/linkedin/manifest.md',
-      render(tpl('modules/linkedin/manifest.md'), vars),
-    ]);
-    return files;
-  }
-  if (module === 'resume') {
-    return [
-      ['.claude/commands/resume-refresh.md', render(tpl('modules/resume/commands/resume-refresh.md'), vars)],
-      ['.claude/modules/resume/manifest.md', render(tpl('modules/resume/manifest.md'), vars)],
-    ];
-  }
-  return [];
+  return getModule(module)?.managedFiles(vars) ?? [];
 }
 
 /**
@@ -115,21 +86,7 @@ export function moduleManagedFiles(module: string, vars: TemplateVars): Array<[s
  * (files under <contentDir>/<module>/). relativePath is relative to targetDir.
  */
 export function moduleContentFiles(module: string, vars: TemplateVars, contentDir: string): Array<[string, string]> {
-  if (module === 'linkedin') {
-    const files = MODULE_CONTENT_FILES['linkedin'] ?? [];
-    return files.map(file => [
-      `${contentDir}/linkedin/${file}`,
-      render(tpl(`modules/linkedin/graph/${file}`), vars),
-    ]);
-  }
-  if (module === 'resume') {
-    const files = MODULE_CONTENT_FILES['resume'] ?? [];
-    return files.map(file => [
-      `${contentDir}/resume/${file}`,
-      render(tpl(`modules/resume/graph/${file}`), vars),
-    ]);
-  }
-  return [];
+  return getModule(module)?.contentFiles(vars, contentDir) ?? [];
 }
 
 export async function scaffold(opts: ScaffoldOptions): Promise<void> {

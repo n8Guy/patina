@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { readFileSync, existsSync } from 'fs';
+import { MODULES } from './modules/registry.js';
 
 export type ChecksumMap = Record<string, string>;
 
@@ -24,45 +25,8 @@ export const MANAGED_FILES = [
   '.mcp.json',
 ] as const;
 
-export const LINKEDIN_MANAGED_FILES = [
-  '.claude/commands/li-all.md',
-  '.claude/commands/li-about.md',
-  '.claude/commands/li-headline.md',
-  '.claude/commands/li-experience.md',
-  '.claude/commands/li-skills.md',
-  '.claude/commands/li-featured.md',
-  '.claude/commands/li-activity.md',
-] as const;
+export const MODULE_MANAGED_FILES: Record<string, readonly string[]> =
+  Object.fromEntries(MODULES.map(m => [m.id, m.managedPaths]));
 
-export const RESUME_MANAGED_FILES = [
-  '.claude/commands/resume-refresh.md',
-] as const;
-
-export const MODULE_MANAGED_FILES: Record<string, readonly string[]> = {
-  linkedin: [
-    ...LINKEDIN_MANAGED_FILES,
-    '.claude/modules/linkedin/manifest.md',
-  ],
-  resume: [
-    ...RESUME_MANAGED_FILES,
-    '.claude/modules/resume/manifest.md',
-  ],
-};
-
-export const MODULE_CONTENT_FILES: Record<string, readonly string[]> = {
-  linkedin: [
-    'INSTRUCTIONS.md',
-    'LinkedIn Current State.md',
-    'LinkedIn About.md',
-    'LinkedIn Headline.md',
-    'LinkedIn Experience.md',
-    'LinkedIn Skills.md',
-    'LinkedIn Featured.md',
-    'LinkedIn Activity.md',
-  ],
-  resume: [
-    'INSTRUCTIONS.md',
-    'Resume Working Draft.md',
-    'Resume Last Submitted.md',
-  ],
-};
+export const MODULE_CONTENT_FILES: Record<string, readonly string[]> =
+  Object.fromEntries(MODULES.map(m => [m.id, m.contentFileNames]));
