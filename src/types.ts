@@ -1,5 +1,3 @@
-import type { ChecksumMap } from './checksums.js';
-
 export type Editor = 'obsidian' | 'vscode' | 'other';
 
 export type ValidationCheckId = 'wiki-links' | 'exclusions' | 'skill-notes';
@@ -43,7 +41,6 @@ export interface Profile {
   linkedin?: {
     profile_url: string;
   };
-  _checksums?: ChecksumMap;
 }
 
 export interface ScaffoldOptions {

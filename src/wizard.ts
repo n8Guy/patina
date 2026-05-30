@@ -7,6 +7,7 @@ import { detectMode, loadProfile } from './detect.js';
 import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
 import { hashFile, type ChecksumMap } from './checksums.js';
+import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { MODULES, getModule } from './modules/registry.js';
 import type { ModuleAddInputs } from './modules/types.js';
 import type { Editor, ModuleId, Profile, WorkInfo } from './types.js';
@@ -365,7 +366,7 @@ export function applyProfileUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const stored: ChecksumMap = profile._checksums ?? {};
+  const stored: ChecksumMap = readState(cwd, profile).checksums;
   const newChecksums: ChecksumMap = {};
 
   const files = [
@@ -392,9 +393,10 @@ export function applyProfileUpdate(
     }
   }
 
-  updatedProfile._checksums = newChecksums;
-  writeProfile(cwd, updatedProfile);
-  return { profile: updatedProfile, updated, skipped };
+  writeState(cwd, { checksums: newChecksums });
+  const profileToWrite = stripLegacyChecksums(updatedProfile);
+  writeProfile(cwd, profileToWrite);
+  return { profile: profileToWrite, updated, skipped };
 }
 
 async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
@@ -509,7 +511,7 @@ export function applyModuleChanges(
   toRemove: ModuleId[],
   moduleInputs?: Record<string, ModuleAddInputs>,
 ): ModuleChangeResult {
-  const stored: ChecksumMap = profile._checksums ?? {};
+  const stored: ChecksumMap = readState(cwd, profile).checksums;
   const newChecksums: ChecksumMap = { ...stored };
   let updatedProfile: Profile = { ...profile, modules: [...(profile.modules ?? [])] };
 
@@ -569,9 +571,10 @@ export function applyModuleChanges(
     }
   }
 
-  updatedProfile._checksums = newChecksums;
-  writeProfile(cwd, updatedProfile);
-  return { profile: updatedProfile, added, skipped: skippedFiles, deleted, kept };
+  writeState(cwd, { checksums: newChecksums });
+  const finalProfile = stripLegacyChecksums(updatedProfile);
+  writeProfile(cwd, finalProfile);
+  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept };
 }
 
 async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
