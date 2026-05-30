@@ -4,4 +4,4 @@ dist/
 .DS_Store
 .current-issue.md
 .implementation-plan.md
-.claude/
+.claude/settings.local.json
