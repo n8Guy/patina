@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import yaml from 'js-yaml';
 import { scaffold } from '../scaffold.js';
 import { hashContent } from '../checksums.js';
+import { readState } from '../state.js';
 import { applyProfileUpdate, applyModuleChanges } from '../wizard.js';
 import type { Profile, ScaffoldOptions } from '../types.js';
 
@@ -44,6 +45,10 @@ function opts(overrides: Partial<ScaffoldOptions> = {}): ScaffoldOptions {
 
 function loadProfile(): Profile {
   return yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+}
+
+function loadState() {
+  return readState(targetDir);
 }
 
 function read(rel: string): string {
@@ -163,8 +168,7 @@ describe('applyProfileUpdate — updating personal info', () => {
       companyDescription: '',
     });
 
-    const updated = loadProfile();
-    expect(updated._checksums!['CLAUDE.md']).toBe(hashContent(read('CLAUDE.md')));
+    expect(loadState().checksums['CLAUDE.md']).toBe(hashContent(read('CLAUDE.md')));
   });
 });
 
@@ -209,7 +213,7 @@ describe('applyModuleChanges — adding linkedin', () => {
     const result = applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
 
     expect(result.added).toContain('.claude/commands/li-all.md');
-    expect(typeof loadProfile()._checksums!['.claude/commands/li-all.md']).toBe('string');
+    expect(typeof loadState().checksums['.claude/commands/li-all.md']).toBe('string');
   });
 
   it('omits linkedin url when none provided', () => {
@@ -324,14 +328,14 @@ describe('applyModuleChanges — removing linkedin', () => {
     expect(exists('graph/linkedin/INSTRUCTIONS.md')).toBe(true);
   });
 
-  it('drops removed-file checksums from profile', () => {
+  it('drops removed-file checksums from state', () => {
     writeFileSync(join(targetDir, '.claude/commands/li-all.md'), 'user edit', 'utf8');
 
     applyModuleChanges(targetDir, profile, [], ['linkedin']);
 
-    const updated = loadProfile();
-    expect(updated._checksums!).not.toHaveProperty('.claude/commands/li-about.md');
-    expect(updated._checksums!).toHaveProperty('.claude/commands/li-all.md');
+    const state = loadState();
+    expect(state.checksums).not.toHaveProperty('.claude/commands/li-about.md');
+    expect(state.checksums).toHaveProperty('.claude/commands/li-all.md');
   });
 
   it('returns the updated profile with correct modules array', () => {
@@ -448,7 +452,7 @@ describe('writeManagedFile respects checksums (via applyProfileUpdate)', () => {
   });
 
   it('preserves the original checksum for skipped files', () => {
-    const originalChecksum = profile._checksums!['CLAUDE.md'];
+    const originalChecksum = loadState().checksums['CLAUDE.md'];
 
     writeFileSync(join(targetDir, 'CLAUDE.md'), 'I edited this', 'utf8');
 
@@ -463,6 +467,54 @@ describe('writeManagedFile respects checksums (via applyProfileUpdate)', () => {
       companyDescription: '',
     });
 
-    expect(loadProfile()._checksums!['CLAUDE.md']).toBe(originalChecksum);
+    expect(loadState().checksums['CLAUDE.md']).toBe(originalChecksum);
+  });
+});
+
+// ── Migration: legacy profile.yaml with _checksums ────────────────────────────
+
+describe('migration — legacy profile.yaml with _checksums', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts());
+    profile = loadProfile();
+
+    // Simulate a legacy workspace: embed _checksums back into profile.yaml
+    // and delete .patina-state.json
+    const { rmSync: rm } = await import('fs');
+    const { join: j } = await import('path');
+    rm(j(targetDir, '.patina-state.json'), { force: true });
+    const legacyProfile = { ...profile, _checksums: loadState().checksums };
+    writeFileSync(
+      join(targetDir, 'profile.yaml'),
+      (await import('js-yaml')).dump(legacyProfile),
+      'utf8'
+    );
+    // Reload profile from the legacy file (includes _checksums on disk)
+    profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+  });
+
+  it('migrates checksums on first applyProfileUpdate and cleans profile.yaml', () => {
+    expect(existsSync(join(targetDir, '.patina-state.json'))).toBe(false);
+
+    applyProfileUpdate(targetDir, profile, {
+      name: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design product experiences.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'Acme Corp',
+      website: 'https://acme.com',
+      companyDescription: 'A software company.',
+    });
+
+    // .patina-state.json now exists with checksums
+    expect(existsSync(join(targetDir, '.patina-state.json'))).toBe(true);
+    expect(typeof loadState().checksums['CLAUDE.md']).toBe('string');
+
+    // profile.yaml no longer contains _checksums
+    const updatedProfile = loadProfile() as Profile & { _checksums?: unknown };
+    expect(updatedProfile._checksums).toBeUndefined();
   });
 });

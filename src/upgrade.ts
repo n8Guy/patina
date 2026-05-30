@@ -18,7 +18,7 @@ export interface UpgradeResult {
  * - If the file exists and its hash matches the stored checksum: update it.
  * - If the file exists and has been modified by the user: skip it.
  *
- * Returns the outcome and the new checksum (for storage in profile.yaml).
+ * Returns the outcome and the new checksum (for storage in .patina-state.json).
  */
 export function writeManagedFile(
   targetDir: string,

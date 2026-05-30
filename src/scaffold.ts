@@ -6,6 +6,7 @@ import { writeManagedFile } from './upgrade.js';
 import { type ChecksumMap } from './checksums.js';
 import { tpl } from './template-loader.js';
 import { getModule } from './modules/registry.js';
+import { writeState, STATE_FILENAME } from './state.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
 
 function writeRaw(targetDir: string, relativePath: string, content: string): void {
@@ -154,13 +155,12 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     }
   }
 
-  // ── profile.yaml (written last — includes checksums)
-  const profile: Profile = {
-    ...tempProfile,
-    _checksums: checksums,
-  } as Profile & { _checksums: ChecksumMap };
-  writeRaw(targetDir, 'profile.yaml', yaml.dump(profile));
+  // ── profile.yaml (clean — no internal state)
+  writeRaw(targetDir, 'profile.yaml', yaml.dump(tempProfile));
+
+  // ── .patina-state.json (internal state, gitignored)
+  writeState(targetDir, { checksums });
 
   // ── .gitignore
-  writeRaw(targetDir, '.gitignore', '.obsidian/\n.DS_Store\n');
+  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\n`);
 }

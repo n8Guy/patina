@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import yaml from 'js-yaml';
 import { scaffold } from '../scaffold.js';
 import { hashContent } from '../checksums.js';
+import { readState } from '../state.js';
 import type { ScaffoldOptions, Profile } from '../types.js';
 
 let tmp: string;
@@ -52,8 +53,12 @@ function exists(relativePath: string): boolean {
   return existsSync(join(targetDir, relativePath));
 }
 
-function profile(): Profile & { _checksums?: Record<string, string> } {
-  return yaml.load(read('profile.yaml')) as Profile & { _checksums?: Record<string, string> };
+function profile(): Profile {
+  return yaml.load(read('profile.yaml')) as Profile;
+}
+
+function loadState() {
+  return readState(targetDir);
 }
 
 // ── Core files ────────────────────────────────────────────────────────────────
@@ -92,18 +97,22 @@ describe('scaffold — core files', () => {
     expect(profile().modules).toEqual([]);
   });
 
-  it('profile.yaml stores checksums for managed files', () => {
-    const p = profile();
-    expect(p._checksums).toBeDefined();
-    expect(typeof p._checksums!['CLAUDE.md']).toBe('string');
-    expect(typeof p._checksums!['.claude/commands/add.md']).toBe('string');
-    expect(typeof p._checksums!['.claude/commands/reflect.md']).toBe('string');
+  it('profile.yaml has no _checksums field', () => {
+    const p = profile() as Profile & { _checksums?: unknown };
+    expect(p._checksums).toBeUndefined();
+  });
+
+  it('.patina-state.json exists and stores checksums for managed files', () => {
+    const state = loadState();
+    expect(typeof state.checksums['CLAUDE.md']).toBe('string');
+    expect(typeof state.checksums['.claude/commands/add.md']).toBe('string');
+    expect(typeof state.checksums['.claude/commands/reflect.md']).toBe('string');
   });
 
   it('stored checksum matches actual file content', () => {
-    const p = profile();
+    const state = loadState();
     const actual = hashContent(read('CLAUDE.md'));
-    expect(p._checksums!['CLAUDE.md']).toBe(actual);
+    expect(state.checksums['CLAUDE.md']).toBe(actual);
   });
 
   it('creates CLAUDE.md', () => {
@@ -140,6 +149,10 @@ describe('scaffold — core files', () => {
 
   it('creates .gitignore', () => {
     expect(exists('.gitignore')).toBe(true);
+  });
+
+  it('.gitignore includes .patina-state.json', () => {
+    expect(read('.gitignore')).toContain('.patina-state.json');
   });
 });
 
@@ -268,10 +281,10 @@ describe('scaffold — linkedin module', () => {
     expect(read('graph/linkedin/INSTRUCTIONS.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('stores linkedin command checksums in profile.yaml', () => {
-    const p = profile();
-    expect(typeof p._checksums!['.claude/commands/li-all.md']).toBe('string');
-    expect(typeof p._checksums!['.claude/modules/linkedin/manifest.md']).toBe('string');
+  it('stores linkedin command checksums in .patina-state.json', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/commands/li-all.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/linkedin/manifest.md']).toBe('string');
   });
 
   it('stores linkedin profile url in profile.yaml', () => {
