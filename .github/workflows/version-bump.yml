@@ -1,0 +1,68 @@
+name: Version Bump
+
+# Reads the "## Version Bump" field from the merged PR body and pushes a
+# version commit back to main. That commit then triggers publish.yml.
+#
+# PR bodies written by the commit skill always include:
+#   ## Version Bump
+#   <major | minor | patch | none>
+#
+# If the field is absent or set to "none", this job exits without making changes.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+
+      - name: Extract version bump type from PR body
+        id: bump_type
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          BUMP=$(printf '%s' "$PR_BODY" \
+            | grep -A1 "^## Version Bump" \
+            | grep -v "^## Version Bump" \
+            | head -1 \
+            | tr -d '[:space:]' \
+            | tr '[:upper:]' '[:lower:]')
+          if [[ "$BUMP" != "major" && "$BUMP" != "minor" && "$BUMP" != "patch" ]]; then
+            echo "No valid bump type found (got: '${BUMP}') — skipping."
+            BUMP="none"
+          fi
+          echo "type=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version and push
+        if: steps.bump_type.outputs.type != 'none'
+        # Pass bump type via env var — never interpolate step outputs directly
+        # into run: blocks, as that bypasses shell quoting.
+        env:
+          BUMP_TYPE: ${{ steps.bump_type.outputs.type }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          npm version "$BUMP_TYPE" --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          git add package.json
+          git commit -m "chore: bump version to ${VERSION}"
+          git push origin main

@@ -1,9 +1,15 @@
 name: Publish to npm
 
+# Triggers on every push to main (i.e. after a PR merge).
+# The publish step is a no-op when the version in package.json is already on NPM,
+# so merges without a version bump are safe.
+#
+# Required secret: NPM_TOKEN — an NPM "Automation" token with publish rights.
+# Add it at: Settings → Secrets and variables → Actions → New repository secret.
+
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -33,8 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
-      # registry-url MUST be repeated here (not just in the test job).
+      # registry-url MUST be set here (not just in the test job).
       # setup-node writes an .npmrc that maps NODE_AUTH_TOKEN to the registry auth.
       # Without this, NODE_AUTH_TOKEN is ignored and npm publish fails with 401.
       - uses: actions/setup-node@v4
@@ -47,9 +57,25 @@ jobs:
 
       - run: npm run build
 
+      - name: Check if version is already published
+        id: version_check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED=$(npm view "my-patina@${VERSION}" version 2>/dev/null || true)
+          if [ "$PUBLISHED" = "$VERSION" ]; then
+            echo "Version ${VERSION} is already on NPM — skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version ${VERSION} is new — will publish."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Verify package contents
+        if: steps.version_check.outputs.skip == 'false'
         run: npm pack --dry-run
 
-      - run: npm publish --access public --provenance
+      - name: Publish to NPM
+        if: steps.version_check.outputs.skip == 'false'
+        run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
