@@ -1,0 +1,51 @@
+name: Auto-approve owner PRs
+
+# Posts an approving review on any PR opened by the repo owner.
+# This lets branch protection ("require approval") remain meaningful for
+# contributors without blocking the maintainer's own PRs.
+#
+# Security notes:
+#   - Uses plain `pull_request` (NOT `pull_request_target`).
+#     `pull_request_target` exposes secrets to untrusted fork code — a
+#     privilege-escalation footgun. `pull_request` is safe: secrets are only
+#     available when the PR is from the same repo (i.e. the owner's own branches).
+#   - The `if` condition restricts this to same-repo PRs authored by the repo owner,
+#     so fork PRs and contributor PRs are never auto-approved.
+#   - Re-approving on `synchronize` is intentional: if branch protection dismisses
+#     stale reviews on push, the approval is re-posted to keep the PR mergeable.
+#   - GitHub does not allow self-approval: the GitHub App token must belong to an
+#     identity DISTINCT from the PR author. The app (patina-bot) is a different
+#     identity from the repo owner, so it can approve the owner's PRs.
+#
+# One-time setup required before this workflow will work:
+#   See version-bump.yml for the full setup steps — APP_ID and APP_PRIVATE_KEY
+#   secrets are shared. No bypass list needed for auto-approve (posting a review
+#   is a normal API call, not a push).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  auto-approve:
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        id: app-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Approve PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr review "$PR_URL" --approve --body "Auto-approved: PR authored by repo owner."

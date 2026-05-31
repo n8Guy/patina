@@ -1,13 +1,40 @@
 name: Version Bump
 
-# Reads the "## Version Bump" field from the merged PR body and pushes a
-# version commit back to main. That commit then triggers publish.yml.
+# After a PR merges to main, this workflow decides whether to bump package.json version.
 #
-# PR bodies written by the commit skill always include:
-#   ## Version Bump
-#   <major | minor | patch | none>
+# Strategy:
+#   1. Compare package.json version at HEAD vs HEAD~1.
+#      - If already changed in the PR: skip (developer bumped manually).
+#      - If unchanged: read "## Version Bump" from the merged PR body.
 #
-# If the field is absent or set to "none", this job exits without making changes.
+# PR body "## Version Bump" formats both supported:
+#   Inline:    ## Version Bump: patch
+#   Next-line: ## Version Bump
+#              patch
+#
+# Loud failure: if the heading is present but the value is unrecognized, exit 1.
+# Silent none:  if the heading is absent entirely, default to "none" (no bump).
+#
+# One-time setup required before this workflow will work:
+#   1. Create a GitHub App (no second account needed):
+#      github.com → Settings → Developer settings → GitHub Apps → New GitHub App
+#      - Name: patina-bot (or any name)
+#      - Homepage URL: your repo URL (required field, not otherwise used)
+#      - Uncheck "Active" under Webhooks
+#      - Permissions: Repository permissions → Contents: Read and write
+#                                            → Pull requests: Read and write
+#      - Where can this GitHub App be installed? → Only on this account
+#      → Create GitHub App
+#   2. Note the App ID on the app's settings page.
+#      Scroll to "Private keys" → Generate a private key → save the .pem file.
+#   3. Install the app on this repo:
+#      App settings page → Install App → your account → Only select repositories → this repo
+#   4. Add two repo secrets (Settings → Secrets and variables → Actions):
+#      APP_ID          — the numeric App ID from step 2
+#      APP_PRIVATE_KEY — full contents of the .pem file (including header/footer lines)
+#   5. No branch-protection bypass needed — this workflow pushes to a bot branch,
+#      opens a PR, has github-actions[bot] approve it, then merges via the GitHub API.
+#      (The bypass list is Enterprise-only and not required for this flow.)
 
 on:
   pull_request:
@@ -19,50 +46,119 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read       # checkout only; content writes go via the app token
+  pull-requests: write # github-actions[bot] approval in the bump step
 
 jobs:
   bump:
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
+      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        id: app-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
+          token: ${{ steps.app-token.outputs.token }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: 24.x
 
+      - name: Detect version change
+        id: version_check
+        run: |
+          VERSION_HEAD=$(node -p "require('./package.json').version")
+          VERSION_PREV=$(git show HEAD~1:package.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "")
+          if [ "$VERSION_HEAD" != "$VERSION_PREV" ]; then
+            echo "Version already changed in PR (${VERSION_PREV} → ${VERSION_HEAD}) — skipping bump."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version unchanged (${VERSION_HEAD}) — will check PR body."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Extract version bump type from PR body
         id: bump_type
+        if: steps.version_check.outputs.changed == 'false'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          BUMP=$(printf '%s' "$PR_BODY" \
-            | grep -A1 "^## Version Bump" \
-            | grep -v "^## Version Bump" \
-            | head -1 \
-            | tr -d '[:space:]' \
-            | tr '[:upper:]' '[:lower:]')
-          if [[ "$BUMP" != "major" && "$BUMP" != "minor" && "$BUMP" != "patch" ]]; then
-            echo "No valid bump type found (got: '${BUMP}') — skipping."
-            BUMP="none"
-          fi
-          echo "type=$BUMP" >> "$GITHUB_OUTPUT"
+          # Extract value: try inline form first (## Version Bump: patch),
+          # then next-line form (## Version Bump\npatch).
+          SECTION=$(printf '%s' "$PR_BODY" | grep -i "^## Version Bump" | head -1)
 
-      - name: Bump version and push
-        if: steps.bump_type.outputs.type != 'none'
-        # Pass bump type via env var — never interpolate step outputs directly
-        # into run: blocks, as that bypasses shell quoting.
+          if [ -z "$SECTION" ]; then
+            # Heading absent entirely — silently skip.
+            echo "No '## Version Bump' section found — defaulting to none."
+            echo "type=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Try inline: "## Version Bump: patch" (lowercase first; avoids GNU-only sed I flag)
+          SECTION_LOWER=$(printf '%s' "$SECTION" | tr '[:upper:]' '[:lower:]')
+          BUMP=$(printf '%s' "$SECTION_LOWER" \
+            | sed -n 's/^## version bump:[[:space:]]*//p' \
+            | tr -d '[:space:]')
+
+          # Fall back to next-line form if inline was empty.
+          if [ -z "$BUMP" ]; then
+            BUMP=$(printf '%s' "$PR_BODY" \
+              | grep -A1 "^## Version Bump" \
+              | grep -v "^## Version Bump" \
+              | head -1 \
+              | tr -d '[:space:]' \
+              | tr '[:upper:]' '[:lower:]')
+          fi
+
+          if [[ "$BUMP" == "major" || "$BUMP" == "minor" || "$BUMP" == "patch" || "$BUMP" == "none" ]]; then
+            echo "Bump type: $BUMP"
+            echo "type=$BUMP" >> "$GITHUB_OUTPUT"
+          else
+            echo "ERROR: '## Version Bump' found but value '${BUMP}' is not valid."
+            echo "Expected: major, minor, patch, or none."
+            echo "Check the PR body format — the value must appear either inline"
+            echo "(## Version Bump: patch) or on the line immediately following the heading."
+            exit 1
+          fi
+
+      - name: Bump version, open PR, and merge
+        if: steps.version_check.outputs.changed == 'false' && steps.bump_type.outputs.type != 'none'
         env:
           BUMP_TYPE: ${{ steps.bump_type.outputs.type }}
+          # APP_TOKEN    = the GitHub App (patina-bot) — pushes, creates, and merges the PR.
+          # ACTIONS_TOKEN = github-actions[bot]        — approves the PR (app cannot self-approve).
+          #                 Requires pull-requests: write, granted by the workflow permissions block.
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          ACTIONS_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           npm version "$BUMP_TYPE" --no-git-tag-version
           VERSION=$(node -p "require('./package.json').version")
+          BRANCH="bot/version-bump-${VERSION}"
+
+          # Remove any leftover branch from a prior aborted run (idempotent).
+          git push origin ":${BRANCH}" 2>/dev/null || true
+
+          git checkout -b "$BRANCH"
           git add package.json
           git commit -m "chore: bump version to ${VERSION}"
-          git push origin main
+          git push origin "$BRANCH"
+
+          # Each gh call names its token explicitly so the active identity is unmissable.
+          PR_URL=$(GH_TOKEN="$APP_TOKEN" gh pr create \
+            --title "chore: bump version to ${VERSION}" \
+            --body "Automated version bump to \`${VERSION}\` (${BUMP_TYPE}) — triggered by the previous PR's \`## Version Bump\` directive." \
+            --base main \
+            --head "$BRANCH")
+          GH_TOKEN="$ACTIONS_TOKEN" gh pr review "$PR_URL" --approve \
+            --body "Auto-approved: automated version bump."
+          GH_TOKEN="$APP_TOKEN" gh pr merge "$PR_URL" --merge --delete-branch
