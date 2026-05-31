@@ -4,8 +4,12 @@ name: Publish to npm
 # The publish step is a no-op when the version in package.json is already on NPM,
 # so merges without a version bump are safe.
 #
-# Required secret: NPM_TOKEN — an NPM "Automation" token with publish rights.
-# Add it at: Settings → Secrets and variables → Actions → New repository secret.
+# Required secrets:
+#   NPM_TOKEN — an NPM "Automation" token with publish rights.
+#               Add it at: Settings → Secrets and variables → Actions → New repository secret.
+#
+# Note: no app token needed here. version-bump.yml merges via the GitHub App, which fires
+# a real push event on main and triggers this workflow. Checkout uses GITHUB_TOKEN (read-only).
 
 on:
   push:
