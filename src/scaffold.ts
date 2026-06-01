@@ -21,6 +21,26 @@ function touch(targetDir: string, relativePath: string): void {
   writeFileSync(full, '', 'utf8');
 }
 
+export const MANIFEST_REQUIRED_FIELDS = ['name', 'label', 'reflect_hook', 'description', 'installed'] as const;
+
+function extractFrontmatter(content: string): Record<string, unknown> | null {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) return null;
+  const parsed = yaml.load(match[1]);
+  if (typeof parsed !== 'object' || parsed === null) return null;
+  return parsed as Record<string, unknown>;
+}
+
+export function validateManifestFrontmatter(moduleName: string, content: string): void {
+  const fm = extractFrontmatter(content);
+  if (!fm) throw new Error(`Module "${moduleName}" manifest has missing or unparseable frontmatter`);
+  for (const field of MANIFEST_REQUIRED_FIELDS) {
+    if (!fm[field]) {
+      throw new Error(`Module "${moduleName}" manifest is missing required field "${field}"`);
+    }
+  }
+}
+
 // ── Exported helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -135,6 +155,11 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     ...baseManagedFiles(vars, editor, targetDir),
     ...modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
+
+  for (const module of modules) {
+    const manifestEntry = managedFiles.find(([p]) => p === `.claude/modules/${module}/manifest.md`);
+    if (manifestEntry) validateManifestFrontmatter(module, manifestEntry[1]);
+  }
 
   for (const [relativePath, content] of managedFiles) {
     const { checksum } = writeManagedFile(targetDir, relativePath, content, {});
