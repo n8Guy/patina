@@ -10,14 +10,19 @@ import { hashFile, hashContent, type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, removeSection, renderSection } from './sections.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { MODULES, getModule } from './modules/registry.js';
+import { availableLaunchTasks, pruneLaunchTasks, renderLaunchSection, launchSelectionError, type AvailableLaunchTask } from './launch-tasks.js';
+import { render } from './template.js';
 import type { ModuleAddInputs } from './modules/types.js';
 import type { Editor, ModuleId, Profile, WorkInfo } from './types.js';
 import { validate, formatReport } from './validate.js';
 
-// @clack/prompts supports hint on text inputs at runtime but the type definitions omit it.
+// @clack/prompts supports hint on text inputs and validate on multiselect at runtime but the type definitions omit them.
 declare module '@clack/prompts' {
   interface TextOptions {
     hint?: string;
+  }
+  interface MultiSelectOptions<Value> {
+    validate?: (value: Value[]) => string | undefined;
   }
 }
 
@@ -67,6 +72,81 @@ function label(text: string): string {
 
 const MULTISELECT_HINT = `\n  ${chalk.hex('#64748B')('↑↓ to move  ·  space to select  ·  enter to confirm')}`;
 const OPTIONAL_HINT = ` ${chalk.dim.italic('optional, but helps a lot — hit enter to skip')}`;
+
+// ─── Launch tasks ─────────────────────────────────────────────────────────────
+
+/**
+ * Write or remove the launch fence in CLAUDE.md and mutate checksums in-place.
+ * Callers must initialise checksums from stored state before calling so that
+ * section-level lookups and user-edit detection are consistent.
+ */
+function applyLaunchBlock(
+  cwd: string,
+  launchTasks: string[],
+  modules: ModuleId[],
+  vars: ReturnType<typeof profileToVars>,
+  checksums: ChecksumMap,
+  overwrite?: Set<string>,
+): { updated: string[]; skipped: string[]; keptSections: string[] } {
+  const updated: string[] = [];
+  const skipped: string[] = [];
+  const keptSections: string[] = [];
+
+  const rawLaunch = renderLaunchSection(launchTasks, modules);
+
+  if (rawLaunch) {
+    const block = renderSection('launch', render(rawLaunch, vars));
+    const result = writeManagedFile(cwd, 'CLAUDE.md', block, checksums, overwrite);
+    checksums['CLAUDE.md'] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `CLAUDE.md:${s.id}`;
+      if (s.outcome !== 'skipped') checksums[sKey] = s.newChecksum;
+      // else: checksums[sKey] already holds the preserved stored value
+      else keptSections.push(sKey);
+    }
+    if (result.outcome === 'skipped') skipped.push('CLAUDE.md');
+    else updated.push('CLAUDE.md');
+  } else {
+    const claudePath = join(cwd, 'CLAUDE.md');
+    if (existsSync(claudePath)) {
+      const before = readFileSync(claudePath, 'utf8');
+      const editedIds = inspectSections('CLAUDE.md', before, checksums);
+      if (!editedIds.includes('launch') || overwrite?.has('launch')) {
+        const after = removeSection('launch', before);
+        if (after !== before) {
+          writeFileSync(claudePath, after, 'utf8');
+          checksums['CLAUDE.md'] = hashContent(after);
+          delete checksums['CLAUDE.md:launch'];
+          updated.push('CLAUDE.md');
+        }
+      } else {
+        keptSections.push('CLAUDE.md:launch');
+        skipped.push('CLAUDE.md');
+      }
+    }
+  }
+
+  return { updated, skipped, keptSections };
+}
+
+async function promptLaunchTasks(
+  avail: AvailableLaunchTask[],
+  initial: string[],
+): Promise<string[]> {
+  const selected = await p.multiselect({
+    message: `Which tasks should run every time you launch Patina?${MULTISELECT_HINT}`,
+    options: avail.map(t => ({
+      value: t.nsId,
+      label: t.label,
+      hint: chalk.hex('#64748B')(t.source),
+    })),
+    initialValues: initial,
+    required: false,
+    validate: launchSelectionError,
+  });
+  if (p.isCancel(selected)) onCancel();
+  return Array.isArray(selected) ? selected as string[] : [];
+}
 
 // ─── Main ────────────────────────────────────────────────────────────────────
 
@@ -214,6 +294,20 @@ async function runInstall(cwd: string): Promise<void> {
     liProfileUrl = typeof url === 'string' ? url : '';
   }
 
+  // ── Launch tasks
+  let launchTasks: string[] = [];
+  const availTasks = availableLaunchTasks(modules);
+  if (availTasks.length > 0) {
+    const setupLaunch = await p.confirm({
+      message: 'Would you like to set up launch tasks?',
+      initialValue: false,
+    });
+    if (p.isCancel(setupLaunch)) onCancel();
+    if (setupLaunch) {
+      launchTasks = await promptLaunchTasks(availTasks, []);
+    }
+  }
+
   // ── Scaffold
   const slug = slugify(identity.patinaName);
   const targetDir = resolve(cwd, slug);
@@ -241,6 +335,7 @@ async function runInstall(cwd: string): Promise<void> {
       modules,
       liProfileUrl,
       contentDir: 'graph',
+      launchTasks,
     });
     s.stop(chalk.green('Done.'));
   } catch (err) {
@@ -314,10 +409,11 @@ async function runUpdate(cwd: string): Promise<void> {
 
   p.note(
     [
-      `${chalk.hex('#64748B')('Name:')}    ${profile.name}`,
-      `${chalk.hex('#64748B')('Title:')}   ${profile.title || '—'}`,
-      `${chalk.hex('#64748B')('Company:')} ${profile.work?.company_name || '—'}`,
-      `${chalk.hex('#64748B')('Modules:')} ${profile.modules?.join(', ') || 'none'}`,
+      `${chalk.hex('#64748B')('Name:')}         ${profile.name}`,
+      `${chalk.hex('#64748B')('Title:')}        ${profile.title || '—'}`,
+      `${chalk.hex('#64748B')('Company:')}      ${profile.work?.company_name || '—'}`,
+      `${chalk.hex('#64748B')('Modules:')}      ${profile.modules?.join(', ') || 'none'}`,
+      `${chalk.hex('#64748B')('Launch tasks:')} ${profile.launch_tasks?.length ?? 0}`,
     ].join('\n'),
     label('Current profile')
   );
@@ -327,6 +423,7 @@ async function runUpdate(cwd: string): Promise<void> {
     options: [
       { value: 'profile', label: 'Update personal info' },
       { value: 'modules', label: 'Add or remove modules' },
+      { value: 'launch-tasks', label: 'Set up launch tasks', hint: chalk.hex('#64748B')('tasks Claude runs every session') },
       { value: 'validate', label: 'Run health check', hint: chalk.hex('#64748B')('check for broken links and excluded items') },
       { value: 'nothing', label: 'Nothing — just checking' },
     ],
@@ -341,6 +438,8 @@ async function runUpdate(cwd: string): Promise<void> {
     await runUpdateProfile(cwd, profile);
   } else if (action === 'modules') {
     await runUpdateModules(cwd, profile);
+  } else if (action === 'launch-tasks') {
+    await runUpdateLaunchTasks(cwd, profile);
   } else if (action === 'validate') {
     await runValidate(cwd, profile);
   }
@@ -443,6 +542,17 @@ export function applyProfileUpdate(
         }
       }
     }
+  }
+
+  // Re-render launch block so CONTENT_DIR references stay current after a profile update.
+  // newChecksums has the fresh CLAUDE.md checksum at this point (written by baseManagedFiles above).
+  if (updatedProfile.launch_tasks?.length) {
+    const launchResult = applyLaunchBlock(
+      cwd, updatedProfile.launch_tasks, updatedProfile.modules, vars, newChecksums, overwrite,
+    );
+    updated.push(...launchResult.updated);
+    skipped.push(...launchResult.skipped);
+    keptSections.push(...launchResult.keptSections);
   }
 
   for (const [rel, hash] of Object.entries(stored)) {
@@ -725,6 +835,10 @@ export function applyModuleChanges(
     }
   }
 
+  // Prune orphaned launch tasks (tasks from modules that have just been removed)
+  const prunedTasks = pruneLaunchTasks(updatedProfile.launch_tasks, updatedProfile.modules);
+  updatedProfile = { ...updatedProfile, launch_tasks: prunedTasks.length ? prunedTasks : undefined };
+
   // Regenerate base files once (with final module list so CLAUDE.md Modules section is correct)
   const finalVars = profileToVars(updatedProfile);
   for (const [rel, content] of baseManagedFiles(finalVars, updatedProfile.editor, cwd)) {
@@ -740,10 +854,88 @@ export function applyModuleChanges(
     }
   }
 
+  // Re-render launch block so CLAUDE.md reflects orphan-pruned task list
+  const launchResult = applyLaunchBlock(cwd, updatedProfile.launch_tasks ?? [], updatedProfile.modules, finalVars, newChecksums);
+  keptSections.push(...launchResult.keptSections);
+
   writeState(cwd, { checksums: newChecksums });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
   return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections };
+}
+
+// ─── Branch C: Set up launch tasks ──────────────────────────────────────────
+
+export interface LaunchTaskUpdateResult {
+  profile: Profile;
+  updated: string[];
+  skipped: string[];
+  keptSections: string[];
+}
+
+export function applyLaunchTaskUpdate(
+  cwd: string,
+  profile: Profile,
+  launchTasks: string[],
+  overwrite?: Set<string>,
+): LaunchTaskUpdateResult {
+  const updatedProfile: Profile = {
+    ...profile,
+    launch_tasks: launchTasks.length ? launchTasks : undefined,
+  };
+
+  const vars = profileToVars(updatedProfile);
+  const stored: ChecksumMap = readState(cwd, profile).checksums;
+  // Start from stored so section-level lookups inside applyLaunchBlock are consistent.
+  const newChecksums: ChecksumMap = { ...stored };
+
+  const { updated, skipped, keptSections } = applyLaunchBlock(
+    cwd, launchTasks, profile.modules ?? [], vars, newChecksums, overwrite,
+  );
+
+  writeState(cwd, { checksums: newChecksums });
+  const profileToWrite = stripLegacyChecksums(updatedProfile);
+  writeProfile(cwd, profileToWrite);
+  return { profile: profileToWrite, updated, skipped, keptSections };
+}
+
+async function runUpdateLaunchTasks(cwd: string, profile: Profile): Promise<void> {
+  const avail = availableLaunchTasks(profile.modules ?? []);
+  const initial = pruneLaunchTasks(profile.launch_tasks, profile.modules ?? []);
+
+  // Pre-flight: check if the launch section has been user-edited
+  const overwriteSet = new Set<string>();
+  const claudePath = join(cwd, 'CLAUDE.md');
+  if (existsSync(claudePath)) {
+    const storedChecksums = readState(cwd, profile).checksums;
+    const existingContent = readFileSync(claudePath, 'utf8');
+    const editedIds = inspectSections('CLAUDE.md', existingContent, storedChecksums);
+    if (editedIds.includes('launch')) {
+      const confirmed = await p.confirm({
+        message: `Section 'launch' in CLAUDE.md has been manually edited. Overwrite?`,
+        initialValue: false,
+      });
+      if (p.isCancel(confirmed)) onCancel();
+      if (confirmed) overwriteSet.add('launch');
+    }
+  }
+
+  const selected = await promptLaunchTasks(avail, initial);
+  const { updated, skipped, keptSections } = applyLaunchTaskUpdate(cwd, profile, selected, overwriteSet);
+
+  const summaryLines: string[] = [];
+  if (updated.length > 0) {
+    summaryLines.push(chalk.hex('#94A3B8')(`Updated: ${updated.join(', ')}`));
+  }
+  if (keptSections.length > 0) {
+    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${keptSections.join(', ')}`));
+  }
+  if (skipped.length > 0) {
+    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skipped.join(', ')}`));
+  }
+
+  p.note(summaryLines.join('\n') || 'No changes.', label('Done'));
+  p.outro(chalk.hex('#94A3B8')('Launch tasks updated.'));
 }
 
 async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {

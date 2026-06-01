@@ -39,6 +39,7 @@ export interface Profile {
   content_dir: string;
   created: string;
   staleness_threshold_days?: number;
+  launch_tasks?: string[];
   linkedin?: {
     profile_url: string;
   };
@@ -56,6 +57,7 @@ export interface ScaffoldOptions {
   modules: ModuleId[];
   liProfileUrl: string;
   contentDir: string;
+  launchTasks?: string[];
 }
 
 export interface TemplateVars {

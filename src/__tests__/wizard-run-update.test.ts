@@ -6,7 +6,7 @@ import yaml from 'js-yaml';
 import { scaffold } from '../scaffold.js';
 import { hashContent } from '../checksums.js';
 import { readState } from '../state.js';
-import { applyProfileUpdate, applyModuleChanges } from '../wizard.js';
+import { applyProfileUpdate, applyModuleChanges, applyLaunchTaskUpdate } from '../wizard.js';
 import type { Profile, ScaffoldOptions } from '../types.js';
 
 let tmp: string;
@@ -650,6 +650,156 @@ describe('applyProfileUpdate — section checksums', () => {
     // The new profile content should be inside the fence
     expect(claudeMd).toContain('John Smith');
     expect(claudeMd).toContain('NewCorp');
+  });
+});
+
+// ── Group 6: applyLaunchTaskUpdate ────────────────────────────────────────────
+
+describe('applyLaunchTaskUpdate — adding tasks', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+  });
+
+  it('writes CLAUDE.md launch fence', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/today-focus']);
+    const content = read('CLAUDE.md');
+    expect(content).toContain('<!-- patina:launch:start -->');
+    expect(content).toContain('<!-- patina:launch:end -->');
+  });
+
+  it('CLAUDE.md contains the task text', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/today-focus']);
+    expect(read('CLAUDE.md')).toContain('Ask the user what they want to focus on today');
+  });
+
+  it('profile.yaml has launch_tasks', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/today-focus']);
+    expect(loadProfile().launch_tasks).toEqual(['base/today-focus']);
+  });
+
+  it('state stores CLAUDE.md:launch checksum', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/today-focus']);
+    expect(typeof loadState().checksums['CLAUDE.md:launch']).toBe('string');
+  });
+
+  it('returns updated in result', () => {
+    const result = applyLaunchTaskUpdate(targetDir, profile, ['base/today-focus']);
+    expect(result.updated).toContain('CLAUDE.md');
+  });
+
+  it('CLAUDE.md has no unreplaced template variables', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/recent-notes']);
+    expect(read('CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+});
+
+describe('applyLaunchTaskUpdate — removing all tasks', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ launchTasks: ['base/today-focus'] }));
+    profile = loadProfile();
+  });
+
+  it('removes patina:launch fence from CLAUDE.md', () => {
+    applyLaunchTaskUpdate(targetDir, profile, []);
+    expect(read('CLAUDE.md')).not.toContain('patina:launch');
+  });
+
+  it('profile.yaml has no launch_tasks key', () => {
+    applyLaunchTaskUpdate(targetDir, profile, []);
+    expect(loadProfile().launch_tasks).toBeUndefined();
+  });
+
+  it('state no longer has CLAUDE.md:launch', () => {
+    applyLaunchTaskUpdate(targetDir, profile, []);
+    expect(loadState().checksums['CLAUDE.md:launch']).toBeUndefined();
+  });
+});
+
+describe('applyLaunchTaskUpdate — user-edited launch fence', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ launchTasks: ['base/today-focus'] }));
+    profile = loadProfile();
+    // Edit the launch section manually
+    const before = readFileSync(join(targetDir, 'CLAUDE.md'), 'utf8');
+    const edited = before.replace(
+      /<!-- patina:launch:start -->([\s\S]*?)<!-- patina:launch:end -->/,
+      '<!-- patina:launch:start -->\nMy custom launch instructions\n<!-- patina:launch:end -->'
+    );
+    writeFileSync(join(targetDir, 'CLAUDE.md'), edited, 'utf8');
+  });
+
+  it('preserves user-edited launch block when overwrite not requested', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/recent-notes']);
+    expect(read('CLAUDE.md')).toContain('My custom launch instructions');
+  });
+
+  it('records launch in keptSections', () => {
+    const result = applyLaunchTaskUpdate(targetDir, profile, ['base/recent-notes']);
+    expect(result.keptSections).toContain('CLAUDE.md:launch');
+  });
+
+  it('overwrites when overwrite set contains "launch"', () => {
+    applyLaunchTaskUpdate(targetDir, profile, ['base/recent-notes'], new Set(['launch']));
+    expect(read('CLAUDE.md')).not.toContain('My custom launch instructions');
+    expect(read('CLAUDE.md')).toContain('modified in the last 7 days');
+  });
+});
+
+describe('applyLaunchTaskUpdate — no pre-existing launch section', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+  });
+
+  it('no error when profile has no launch_tasks and tasks are set to empty', () => {
+    expect(() => applyLaunchTaskUpdate(targetDir, profile, [])).not.toThrow();
+  });
+
+  it('no patina:launch fence when removing tasks that were not there', () => {
+    applyLaunchTaskUpdate(targetDir, profile, []);
+    expect(read('CLAUDE.md')).not.toContain('patina:launch');
+  });
+});
+
+describe('applyModuleChanges — launch task orphan pruning', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/x', launchTasks: ['linkedin/open-drafts', 'base/today-focus'] }));
+    profile = loadProfile();
+  });
+
+  it('prunes linkedin launch task when linkedin is removed', () => {
+    applyModuleChanges(targetDir, profile, [], ['linkedin']);
+    expect(loadProfile().launch_tasks).not.toContain('linkedin/open-drafts');
+  });
+
+  it('keeps base launch task after linkedin is removed', () => {
+    applyModuleChanges(targetDir, profile, [], ['linkedin']);
+    const lt = loadProfile().launch_tasks;
+    expect(lt).toContain('base/today-focus');
+  });
+
+  it('CLAUDE.md launch fence no longer contains linkedin task after removal', () => {
+    applyModuleChanges(targetDir, profile, [], ['linkedin']);
+    const content = read('CLAUDE.md');
+    expect(content).not.toContain('LinkedIn section drafts');
+  });
+
+  it('adding a module does NOT auto-select its launch tasks', () => {
+    // Start clean (no linkedin), add linkedin
+    const profileNoLi = { ...profile, modules: [] as Profile['modules'], launch_tasks: undefined };
+    applyModuleChanges(targetDir, profileNoLi, ['linkedin'], []);
+    expect(loadProfile().launch_tasks).toBeUndefined();
   });
 });
 

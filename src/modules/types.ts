@@ -2,6 +2,12 @@ import type { TemplateVars, Profile } from '../types.js';
 
 export type FileEntry = [string, string];
 
+export interface LaunchTaskDefinition {
+  id: string;       // e.g. 'open-drafts'; module/base prefix added by convention
+  label: string;    // shown in wizard multiselect
+  template: string; // markdown instruction injected into CLAUDE.md launch block
+}
+
 /** Inputs available to onAdd — collected before the helper is called. */
 export interface ModuleAddInputs {
   [key: string]: string | undefined;
@@ -35,4 +41,8 @@ export interface ModuleDefinition {
    * that patina appends when this module is installed.
    */
   readmeBlock?(vars: TemplateVars): string;
+  /**
+   * Optional: launch tasks this module contributes to the catalog.
+   */
+  launchTasks?: readonly LaunchTaskDefinition[];
 }
