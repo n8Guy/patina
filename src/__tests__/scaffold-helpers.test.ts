@@ -143,6 +143,39 @@ describe('baseManagedFiles', () => {
     expect(paths).not.toContain('.mcp.json');
   });
 
+  it('includes inbox/.gitkeep, inbox/.processed.json, and inbox.md', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const paths = files.map(([rel]) => rel);
+    expect(paths).toContain('inbox/.gitkeep');
+    expect(paths).toContain('inbox/.processed.json');
+    expect(paths).toContain('.claude/commands/inbox.md');
+  });
+
+  it('inbox/.gitkeep is an empty string', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const gitkeep = files.find(([rel]) => rel === 'inbox/.gitkeep');
+    expect(gitkeep).toBeDefined();
+    expect(gitkeep![1]).toBe('');
+  });
+
+  it('inbox/.processed.json seeds as an empty JSON array', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const processed = files.find(([rel]) => rel === 'inbox/.processed.json');
+    expect(processed).toBeDefined();
+    expect(JSON.parse(processed![1])).toEqual([]);
+  });
+
+  it('inbox.md has no unreplaced template variables', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const inboxMd = files.find(([rel]) => rel === '.claude/commands/inbox.md');
+    expect(inboxMd).toBeDefined();
+    expect(inboxMd![1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
   it('README.md content has patina:base fence', () => {
     const vars = profileToVars(makeProfile());
     const files = baseManagedFiles(vars, 'vscode');

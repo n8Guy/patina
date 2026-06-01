@@ -507,6 +507,60 @@ describe('scaffold — without launch tasks', () => {
   });
 });
 
+// ── Inbox ─────────────────────────────────────────────────────────────────────
+
+describe('scaffold — inbox', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates inbox/.gitkeep', () => {
+    expect(exists('inbox/.gitkeep')).toBe(true);
+  });
+
+  it('creates inbox/.processed.json', () => {
+    expect(exists('inbox/.processed.json')).toBe(true);
+  });
+
+  it('inbox/.processed.json parses to an empty array', () => {
+    const content = read('inbox/.processed.json');
+    expect(JSON.parse(content)).toEqual([]);
+  });
+
+  it('creates .claude/commands/inbox.md', () => {
+    expect(exists('.claude/commands/inbox.md')).toBe(true);
+  });
+
+  it('inbox.md contains the content dir and no unreplaced template variables', () => {
+    const content = read('.claude/commands/inbox.md');
+    expect(content).toContain('graph/');
+    expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('.patina-state.json has checksums for all three inbox files', () => {
+    const state = loadState();
+    expect(typeof state.checksums['inbox/.gitkeep']).toBe('string');
+    expect(typeof state.checksums['inbox/.processed.json']).toBe('string');
+    expect(typeof state.checksums['.claude/commands/inbox.md']).toBe('string');
+  });
+
+  it('CLAUDE.md contains /inbox command reference', () => {
+    expect(read('CLAUDE.md')).toContain('/inbox');
+  });
+
+  it('CLAUDE.md mentions inbox/.processed.json', () => {
+    expect(read('CLAUDE.md')).toContain('inbox/.processed.json');
+  });
+
+  it('CLAUDE.md contains startup inbox check phrasing', () => {
+    expect(read('CLAUDE.md')).toContain('Process now');
+  });
+
+  it('.gitignore includes inbox/.processed.json', () => {
+    expect(read('.gitignore')).toContain('inbox/.processed.json');
+  });
+});
+
 // ── Template rendering ────────────────────────────────────────────────────────
 
 describe('scaffold — template rendering', () => {

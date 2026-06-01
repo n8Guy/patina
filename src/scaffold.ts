@@ -91,6 +91,14 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
     ['.claude/settings.json', tpl('.claude/settings.json')],
     ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
     ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
+    // Inlined as literals rather than template files to avoid dotfile packaging risk
+    // (.gitkeep and .processed.json may be skipped by glob copies into dist/).
+    ['inbox/.gitkeep', ''],
+    // Seeds as []; writeManagedFile preserves user/Claude entries on update via the
+    // hash-skip path (stored hash != current hash → skip). Deleting resets tracking
+    // with no data loss.
+    ['inbox/.processed.json', '[]\n'],
+    ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), vars)],
   ];
 
   if (editor === 'obsidian' && targetDir) {
@@ -238,5 +246,5 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeState(targetDir, { checksums });
 
   // ── .gitignore
-  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\n`);
+  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n`);
 }

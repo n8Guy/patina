@@ -29,6 +29,18 @@ The graph is the source of truth. Nothing gets added to generated content unless
   posts/      — generated content ready to share
 ```
 
+## The inbox
+
+`inbox/` is a drop zone for files you want to add to your graph without running `/add` manually on each one. Drop files there between sessions and process them on your next startup, or run `/inbox` at any time.
+
+`inbox/.processed.json` tracks which files have been processed. Each entry records:
+- `filename` — path relative to `inbox/` (e.g. `doc.pdf`, or `2026-05/doc.pdf`)
+- `status` — `success` or `failed`
+- `processed_at` — ISO 8601 timestamp
+- `resulting_note_paths` — array of note paths written during processing
+
+Deleting `inbox/.processed.json` simply resets tracking with no data loss — your notes remain in `{{CONTENT_DIR}}/notes/`.
+
 ## How it works
 
 **Adding evidence:** Run `/add` and describe something you've done. Claude asks a few questions and writes a note to `{{CONTENT_DIR}}/notes/`.
@@ -59,7 +71,22 @@ List items not modified in the last **{{STALENESS_THRESHOLD}} days**, grouped by
 - **Skills** — stale skill slugs
 - **Posts** — stale draft slugs
 
-Skip any area with nothing stale. If everything is fresh, say so in one line. Keep the report brief — one line per area. Then ask:
+Skip any area with nothing stale. If everything is fresh, say so in one line. Keep the report brief — one line per area.
+
+**If this is a non-interactive or headless session, skip the inbox check below and do not ask any startup questions — stop after the staleness report.**
+
+Next, check the inbox. Read `inbox/.processed.json` (treat missing or unparseable as `[]`). List all files in `inbox/` excluding `.gitkeep` and `.processed.json`. Identify any whose path relative to `inbox/` is not recorded in the registry with status `success`.
+
+If unprocessed files exist, list their filenames (up to 5; if more, show the first 5 and "… and N more") and ask:
+
+> Found unprocessed files in `inbox/`: [filenames]. Process now, or run `/inbox` later?
+
+- **"Now"** — run the `/inbox` flow. Once processing is complete, continue below.
+- **"Later"** — fully non-blocking, continue below immediately.
+
+If the inbox is clear, skip this prompt entirely.
+
+Finally, execute any tasks listed in the **## Launch tasks** section at the end of this file (if present). Then ask:
 
 > What are we working on today?
 
@@ -69,6 +96,7 @@ Skip any area with nothing stale. If everything is fresh, say so in one line. Ke
 |---------|-------------|
 | `/add <description>` | Add a skill, project, or experience to your graph |
 | `/reflect [slug]` | Review your graph for gaps, completions, and stale skills — also runs all installed module hooks |
+| `/inbox` | Process all files dropped in `inbox/` through `/add` automatically |
 
 ## Modules
 

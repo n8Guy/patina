@@ -803,6 +803,113 @@ describe('applyModuleChanges — launch task orphan pruning', () => {
   });
 });
 
+// ── inbox/.processed.json preservation on update ─────────────────────────────
+
+describe('applyProfileUpdate — inbox/.processed.json preserved on update', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts());
+    profile = loadProfile();
+  });
+
+  it('preserves non-empty .processed.json entries across a profile update', () => {
+    // Simulate Claude writing a registry entry after processing a file
+    const entry = {
+      filename: 'doc.pdf',
+      status: 'success',
+      processed_at: '2026-01-15T09:32:00.000Z',
+      resulting_note_paths: ['graph/notes/doc.md'],
+    };
+    writeFileSync(
+      join(targetDir, 'inbox/.processed.json'),
+      JSON.stringify([entry], null, 2) + '\n',
+      'utf8'
+    );
+
+    // Run a profile update — the file hash now differs from the stored checksum,
+    // so writeManagedFile should skip it (hash-skip path).
+    applyProfileUpdate(targetDir, profile, {
+      name: 'John Smith',
+      title: 'Staff Engineer',
+      roleDescription: '',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'NewCorp',
+      website: '',
+      companyDescription: '',
+    });
+
+    const after = JSON.parse(read('inbox/.processed.json'));
+    expect(after).toHaveLength(1);
+    expect(after[0].filename).toBe('doc.pdf');
+    expect(after[0].status).toBe('success');
+  });
+});
+
+// ── Upgrade path: pre-inbox install gets inbox files on first update ──────────
+
+describe('applyProfileUpdate — upgrade path: creates inbox files for pre-inbox installs', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts());
+    profile = loadProfile();
+
+    // Simulate a pre-inbox install: remove inbox files and their checksums
+    rmSync(join(targetDir, 'inbox'), { recursive: true, force: true });
+    rmSync(join(targetDir, '.claude', 'commands', 'inbox.md'), { force: true });
+    const state = loadState();
+    delete state.checksums['inbox/.gitkeep'];
+    delete state.checksums['inbox/.processed.json'];
+    delete state.checksums['.claude/commands/inbox.md'];
+    writeFileSync(join(targetDir, '.patina-state.json'), JSON.stringify(state), 'utf8');
+  });
+
+  it('creates inbox/.gitkeep on first applyProfileUpdate after upgrade', () => {
+    applyProfileUpdate(targetDir, profile, {
+      name: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design product experiences.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'Acme Corp',
+      website: 'https://acme.com',
+      companyDescription: 'A software company.',
+    });
+    expect(existsSync(join(targetDir, 'inbox', '.gitkeep'))).toBe(true);
+  });
+
+  it('creates inbox/.processed.json seeded as [] on first applyProfileUpdate after upgrade', () => {
+    applyProfileUpdate(targetDir, profile, {
+      name: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design product experiences.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'Acme Corp',
+      website: 'https://acme.com',
+      companyDescription: 'A software company.',
+    });
+    const content = JSON.parse(read('inbox/.processed.json'));
+    expect(content).toEqual([]);
+  });
+
+  it('creates .claude/commands/inbox.md on first applyProfileUpdate after upgrade', () => {
+    applyProfileUpdate(targetDir, profile, {
+      name: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design product experiences.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'Acme Corp',
+      website: 'https://acme.com',
+      companyDescription: 'A software company.',
+    });
+    expect(existsSync(join(targetDir, '.claude', 'commands', 'inbox.md'))).toBe(true);
+  });
+});
+
 // ── Migration: legacy profile.yaml with _checksums ────────────────────────────
 
 describe('migration — legacy profile.yaml with _checksums', () => {
@@ -848,5 +955,60 @@ describe('migration — legacy profile.yaml with _checksums', () => {
     // profile.yaml no longer contains _checksums
     const updatedProfile = loadProfile() as Profile & { _checksums?: unknown };
     expect(updatedProfile._checksums).toBeUndefined();
+  });
+});
+
+// ── Migration: legacy install + populated inbox preserved ─────────────────────
+
+describe('migration — populated inbox/.processed.json survives legacy migration', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts());
+    profile = loadProfile();
+
+    // Pre-populate .processed.json with a real entry
+    const entry = {
+      filename: 'report.pdf',
+      status: 'success',
+      processed_at: '2026-01-20T10:00:00.000Z',
+      resulting_note_paths: ['graph/notes/report.md'],
+    };
+    const entryJson = JSON.stringify([entry], null, 2) + '\n';
+    writeFileSync(join(targetDir, 'inbox/.processed.json'), entryJson, 'utf8');
+
+    // Simulate legacy workspace: embed the current state (which stores the original '[]' hash
+    // for inbox/.processed.json) in profile.yaml, then delete .patina-state.json.
+    // writeManagedFile sees: storedHash = hash('[]\n'), currentHash = hash(entryJson) → mismatch → skip.
+    const stateBeforeDelete = loadState();
+
+    const { rmSync: rm } = await import('fs');
+    const { join: j } = await import('path');
+    rm(j(targetDir, '.patina-state.json'), { force: true });
+    const legacyProfile = { ...profile, _checksums: stateBeforeDelete.checksums };
+    writeFileSync(
+      join(targetDir, 'profile.yaml'),
+      (await import('js-yaml')).dump(legacyProfile),
+      'utf8'
+    );
+    profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+  });
+
+  it('preserves inbox/.processed.json entries during legacy migration', () => {
+    applyProfileUpdate(targetDir, profile, {
+      name: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design product experiences.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'Acme Corp',
+      website: 'https://acme.com',
+      companyDescription: 'A software company.',
+    });
+
+    const after = JSON.parse(read('inbox/.processed.json'));
+    expect(after).toHaveLength(1);
+    expect(after[0].filename).toBe('report.pdf');
+    expect(after[0].status).toBe('success');
   });
 });
