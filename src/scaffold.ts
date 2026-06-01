@@ -60,6 +60,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string): Template
     EDITOR: profile.editor,
     LI_PROFILE_URL: liProfileUrl ?? profile.linkedin?.profile_url ?? '',
     TODAY: today,
+    STALENESS_THRESHOLD: (() => { const d = Number(profile.staleness_threshold_days ?? 30); return String(Number.isFinite(d) && d > 0 ? d : 30); })(),
   };
 }
 
@@ -133,18 +134,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     ...(modules.includes('linkedin') && liProfileUrl ? { linkedin: { profile_url: liProfileUrl } } : {}),
   };
 
-  const vars: TemplateVars = {
-    PATINA_NAME: patinaName,
-    USER_NAME: userName,
-    USER_TITLE: title ?? '',
-    ROLE_DESCRIPTION: roleDescription,
-    COMPANY_NAME: work.company_name,
-    COMPANY_DESCRIPTION: work.company_description ?? '',
-    CONTENT_DIR: contentDir,
-    EDITOR: editor,
-    LI_PROFILE_URL: liProfileUrl,
-    TODAY: today,
-  };
+  const vars = profileToVars(tempProfile, liProfileUrl);
 
   mkdirSync(targetDir, { recursive: true });
 

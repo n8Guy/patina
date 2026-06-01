@@ -85,6 +85,29 @@ describe('profileToVars', () => {
     const vars = profileToVars(makeProfile());
     expect(vars.TODAY).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it('defaults STALENESS_THRESHOLD to "30" when not set', () => {
+    const vars = profileToVars(makeProfile());
+    expect(vars.STALENESS_THRESHOLD).toBe('30');
+  });
+
+  it('uses staleness_threshold_days from profile when set', () => {
+    const profile = makeProfile({ staleness_threshold_days: 60 });
+    const vars = profileToVars(profile);
+    expect(vars.STALENESS_THRESHOLD).toBe('60');
+  });
+
+  it('falls back to "30" for negative staleness_threshold_days', () => {
+    const profile = makeProfile({ staleness_threshold_days: -5 });
+    const vars = profileToVars(profile);
+    expect(vars.STALENESS_THRESHOLD).toBe('30');
+  });
+
+  it('falls back to "30" for zero staleness_threshold_days', () => {
+    const profile = makeProfile({ staleness_threshold_days: 0 });
+    const vars = profileToVars(profile);
+    expect(vars.STALENESS_THRESHOLD).toBe('30');
+  });
 });
 
 // ── baseManagedFiles ──────────────────────────────────────────────────────────
@@ -152,6 +175,22 @@ describe('baseManagedFiles', () => {
     const files = baseManagedFiles(vars, 'vscode');
     const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
     expect(claudeMd[1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('CLAUDE.md renders custom staleness threshold', () => {
+    const profile = makeProfile({ staleness_threshold_days: 60 });
+    const vars = profileToVars(profile);
+    const files = baseManagedFiles(vars, 'vscode');
+    const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
+    expect(claudeMd[1]).toContain('60 days');
+    expect(claudeMd[1]).not.toContain('30 days');
+  });
+
+  it('CLAUDE.md renders default staleness threshold when not set', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
+    expect(claudeMd[1]).toContain('30 days');
   });
 });
 

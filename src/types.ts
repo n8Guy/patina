@@ -38,6 +38,7 @@ export interface Profile {
   modules: ModuleId[];
   content_dir: string;
   created: string;
+  staleness_threshold_days?: number;
   linkedin?: {
     profile_url: string;
   };
@@ -68,5 +69,6 @@ export interface TemplateVars {
   EDITOR: string;
   LI_PROFILE_URL: string;
   TODAY: string;
+  STALENESS_THRESHOLD: string;
   [key: string]: string;
 }

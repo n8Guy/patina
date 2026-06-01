@@ -142,6 +142,13 @@ describe('scaffold — core files', () => {
     expect(content).toContain('<!-- patina:profile:end -->');
   });
 
+  it('CLAUDE.md contains staleness init hook with default threshold', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('On session start');
+    expect(content).toContain('30 days');
+    expect(content).toContain('What are we working on today?');
+  });
+
   it('creates .claude/settings.json', () => {
     expect(exists('.claude/settings.json')).toBe(true);
   });

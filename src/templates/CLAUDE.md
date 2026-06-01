@@ -44,6 +44,25 @@ The graph is the source of truth. Nothing gets added to generated content unless
 - Never delete skill files automatically. Surface them to the user and wait for confirmation.
 - `{{CONTENT_DIR}}/notes/exclusions.md` overrides everything. If something is listed there, it must not appear in any generated output.
 
+## On session start
+
+Before anything else, scan the graph for stale content and surface a brief report.
+
+Read the file modification times for all three areas — skip `.gitkeep`, `README.md`, and `exclusions.md` in every directory:
+- `{{CONTENT_DIR}}/notes/`
+- `{{CONTENT_DIR}}/skills/`
+- `{{CONTENT_DIR}}/posts/`
+
+List items not modified in the last **{{STALENESS_THRESHOLD}} days**, grouped by area:
+
+- **Notes** — stale note slugs
+- **Skills** — stale skill slugs
+- **Posts** — stale draft slugs
+
+Skip any area with nothing stale. If everything is fresh, say so in one line. Keep the report brief — one line per area. Then ask:
+
+> What are we working on today?
+
 ## Slash commands
 
 | Command | What it does |
