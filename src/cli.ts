@@ -11,7 +11,8 @@ const program = new Command();
 // Hardcoded to 'patina' for brand consistency in help output.
 program
   .name('patina')
-  .description('Personal professional knowledge graph — setup and management');
+  .description('Personal professional knowledge graph — setup and management')
+  .allowExcessArguments(true);
 
 program
   .command('validate')
