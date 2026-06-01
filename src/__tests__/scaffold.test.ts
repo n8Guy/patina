@@ -452,6 +452,61 @@ describe('scaffold — README.md with linkedin module', () => {
   });
 });
 
+// ── Launch tasks ──────────────────────────────────────────────────────────────
+
+describe('scaffold — with launch tasks', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ launchTasks: ['base/today-focus'] }));
+  });
+
+  it('profile.yaml has launch_tasks', () => {
+    expect(profile().launch_tasks).toEqual(['base/today-focus']);
+  });
+
+  it('CLAUDE.md contains patina:launch fence', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('<!-- patina:launch:start -->');
+    expect(content).toContain('<!-- patina:launch:end -->');
+  });
+
+  it('CLAUDE.md contains the rendered task text', () => {
+    expect(read('CLAUDE.md')).toContain('Ask the user what they want to focus on today');
+  });
+
+  it('.patina-state.json has CLAUDE.md:launch checksum', () => {
+    const state = loadState();
+    expect(typeof state.checksums['CLAUDE.md:launch']).toBe('string');
+  });
+
+  it('CLAUDE.md contains no unreplaced template variables in launch section', () => {
+    expect(read('CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+});
+
+describe('scaffold — launch tasks with content_dir substitution', () => {
+  it('expands {{CONTENT_DIR}} in task templates', async () => {
+    await scaffold(opts({ launchTasks: ['base/recent-notes'], contentDir: 'mygraph' }));
+    const content = read('CLAUDE.md');
+    expect(content).toContain('mygraph/notes/');
+    expect(content).not.toContain('{{CONTENT_DIR}}');
+  });
+});
+
+describe('scaffold — without launch tasks', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('profile.yaml has no launch_tasks', () => {
+    expect(profile().launch_tasks).toBeUndefined();
+  });
+
+  it('CLAUDE.md has no patina:launch fence', () => {
+    const content = read('CLAUDE.md');
+    expect(content).not.toContain('patina:launch');
+  });
+});
+
 // ── Template rendering ────────────────────────────────────────────────────────
 
 describe('scaffold — template rendering', () => {

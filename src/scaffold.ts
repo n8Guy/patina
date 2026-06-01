@@ -8,6 +8,7 @@ import { tpl } from './template-loader.js';
 import { getModule } from './modules/registry.js';
 import { renderSection, hasFences } from './sections.js';
 import { writeState, STATE_FILENAME } from './state.js';
+import { renderLaunchSection } from './launch-tasks.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
 
 function writeRaw(targetDir: string, relativePath: string, content: string): void {
@@ -127,6 +128,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const {
     targetDir, patinaName, userName, title, roleDescription,
     jobDescriptionUrl, work, editor, modules, liProfileUrl, contentDir,
+    launchTasks = [],
   } = opts;
 
   const today = new Date().toISOString().split('T')[0];
@@ -143,6 +145,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     modules,
     content_dir: contentDir,
     created: today,
+    ...(launchTasks.length ? { launch_tasks: launchTasks } : {}),
     ...(modules.includes('linkedin') && liProfileUrl ? { linkedin: { profile_url: liProfileUrl } } : {}),
   };
 
@@ -197,6 +200,20 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
       for (const s of result.sections ?? []) {
         checksums[`README.md:${s.id}`] = s.newChecksum;
       }
+    }
+  }
+
+  // ── Append launch block (two-phase: render then expand vars)
+  // Phase 1 produces raw task templates; phase 2 expands {{CONTENT_DIR}} etc.
+  // render() is single-pass so we must expand before inserting into the fence.
+  const rawLaunch = renderLaunchSection(launchTasks, modules);
+  const expandedLaunch = rawLaunch ? render(rawLaunch, vars) : null;
+  if (expandedLaunch) {
+    const launchBlock = renderSection('launch', expandedLaunch);
+    const result = writeManagedFile(targetDir, 'CLAUDE.md', launchBlock, checksums);
+    checksums['CLAUDE.md'] = result.checksum;
+    for (const s of result.sections ?? []) {
+      checksums[`CLAUDE.md:${s.id}`] = s.newChecksum;
     }
   }
 

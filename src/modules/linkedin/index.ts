@@ -71,6 +71,14 @@ export const linkedinModule = {
     return updated;
   },
 
+  launchTasks: [
+    {
+      id: 'open-drafts',
+      label: 'Show open LinkedIn drafts',
+      template: '- Show any LinkedIn section drafts in `{{CONTENT_DIR}}/linkedin/` that have content to review.',
+    },
+  ] as const,
+
   readmeBlock(vars: TemplateVars): string {
     return [
       '## LinkedIn module',

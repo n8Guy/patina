@@ -40,6 +40,14 @@ export const resumeModule = {
     ]);
   },
 
+  launchTasks: [
+    {
+      id: 'resume-stale-check',
+      label: 'Flag resume if it may be out of date',
+      template: '- Compare `{{CONTENT_DIR}}/resume/Resume Working Draft.md` against recent notes and flag if the resume looks out of date.',
+    },
+  ] as const,
+
   readmeBlock(vars: TemplateVars): string {
     return [
       '## Resume module',
