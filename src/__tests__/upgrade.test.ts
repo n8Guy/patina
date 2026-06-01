@@ -6,6 +6,16 @@ import { writeManagedFile, mergeProfile } from '../upgrade.js';
 import { hashContent } from '../checksums.js';
 import type { Profile } from '../types.js';
 
+const FENCED_CONTENT = [
+  '# Header',
+  '',
+  '<!-- patina:profile:start -->',
+  'wizard-written profile section',
+  '<!-- patina:profile:end -->',
+  '',
+  'Footer text.',
+].join('\n');
+
 let tmp: string;
 
 beforeEach(() => {
@@ -69,6 +79,106 @@ describe('writeManagedFile', () => {
     const stored = { 'file.md': 'stored-hash-abc' };
     const { checksum } = writeManagedFile(tmp, 'file.md', 'new', stored);
     expect(checksum).toBe('stored-hash-abc');
+  });
+});
+
+// ── writeManagedFile — fenced content ─────────────────────────────────────────
+
+describe('writeManagedFile — fenced content', () => {
+  it('adds a new fenced file and returns outcome=added with sections', () => {
+    const { outcome, sections } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, {});
+    expect(outcome).toBe('added');
+    expect(sections).toBeDefined();
+    expect(sections).toHaveLength(1);
+    expect(sections![0].id).toBe('profile');
+    expect(sections![0].outcome).toBe('added');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toBe(FENCED_CONTENT);
+  });
+
+  it('Case B migration: existing file has no fences, stored hash matches → outcome updated, fences introduced', () => {
+    const original = 'plain content, no fences';
+    writeFileSync(join(tmp, 'CLAUDE.md'), original);
+    const stored = { 'CLAUDE.md': hashContent(original) };
+
+    const { outcome, sections } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, stored);
+    expect(outcome).toBe('updated');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toBe(FENCED_CONTENT);
+    expect(sections).toBeDefined();
+    expect(sections![0].outcome).toBe('added');
+  });
+
+  it('Case B migration: no stored hash → outcome updated, fences introduced', () => {
+    const original = 'plain content, no fences';
+    writeFileSync(join(tmp, 'CLAUDE.md'), original);
+
+    const { outcome } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, {});
+    expect(outcome).toBe('updated');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toBe(FENCED_CONTENT);
+  });
+
+  it('Case B migration: stored hash mismatches (user edited) → outcome skipped', () => {
+    const userContent = 'user has modified this file heavily';
+    writeFileSync(join(tmp, 'CLAUDE.md'), userContent);
+    const stored = { 'CLAUDE.md': hashContent('original content before user edit') };
+
+    const { outcome } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, stored);
+    expect(outcome).toBe('skipped');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toBe(userContent);
+  });
+
+  it('normal fenced path: existing file has matching section, no user edit → section updated', () => {
+    const originalInner = 'wizard-written profile section';
+    writeFileSync(join(tmp, 'CLAUDE.md'), FENCED_CONTENT);
+    const stored = { 'CLAUDE.md:profile': hashContent(originalInner) };
+
+    const newContent = FENCED_CONTENT.replace(originalInner, 'updated wizard content');
+    const { outcome, sections } = writeManagedFile(tmp, 'CLAUDE.md', newContent, stored);
+    expect(outcome).toBe('updated');
+    expect(sections).toBeDefined();
+    expect(sections![0].outcome).toBe('updated');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toContain('updated wizard content');
+  });
+
+  it('normal fenced path: user-edited section, no overwrite → section skipped', () => {
+    const userInner = 'user has modified the profile section';
+    const fileWithUserEdit = FENCED_CONTENT.replace('wizard-written profile section', userInner);
+    writeFileSync(join(tmp, 'CLAUDE.md'), fileWithUserEdit);
+    const stored = { 'CLAUDE.md:profile': hashContent('wizard-written profile section') };
+
+    const { sections } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, stored);
+    expect(sections![0].outcome).toBe('skipped');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toContain(userInner);
+  });
+
+  it('normal fenced path: user-edited section, overwrite includes it → section updated', () => {
+    const userInner = 'user has modified the profile section';
+    const fileWithUserEdit = FENCED_CONTENT.replace('wizard-written profile section', userInner);
+    writeFileSync(join(tmp, 'CLAUDE.md'), fileWithUserEdit);
+    const stored = { 'CLAUDE.md:profile': hashContent('wizard-written profile section') };
+
+    const { sections } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, stored, new Set(['profile']));
+    expect(sections![0].outcome).toBe('updated');
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toContain('wizard-written profile section');
+  });
+
+  it('user removes fence delimiters manually → Case B migration fires, safe skip on mismatch', () => {
+    // Simulate: fences were introduced on a previous run (stored section checksum exists)
+    // then user manually removed the fence markers from the file.
+    const fenceFreeContent = 'wizard-written profile section\n\nSome other user content.';
+    writeFileSync(join(tmp, 'CLAUDE.md'), fenceFreeContent);
+
+    // State has both a whole-file hash (stale — from when fences existed) and a section hash
+    const staleWholeFileHash = hashContent('some-previous-fenced-content');
+    const stored = {
+      'CLAUDE.md': staleWholeFileHash,
+      'CLAUDE.md:profile': hashContent('wizard-written profile section'),
+    };
+
+    // Current file hash differs from stale whole-file hash → Case B: user-edited → skip
+    const { outcome } = writeManagedFile(tmp, 'CLAUDE.md', FENCED_CONTENT, stored);
+    expect(outcome).toBe('skipped');
+    // File must be left untouched — no corruption, no fence injection
+    expect(readFileSync(join(tmp, 'CLAUDE.md'), 'utf8')).toBe(fenceFreeContent);
   });
 });
 

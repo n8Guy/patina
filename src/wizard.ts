@@ -1,12 +1,13 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { dirname, join, resolve } from 'path';
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import yaml from 'js-yaml';
 import { detectMode, loadProfile } from './detect.js';
 import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
 import { hashFile, type ChecksumMap } from './checksums.js';
+import { hasFences, inspectSections } from './sections.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { MODULES, getModule } from './modules/registry.js';
 import type { ModuleAddInputs } from './modules/types.js';
@@ -270,6 +271,10 @@ function writeProfile(cwd: string, profile: Profile): void {
 /**
  * Delete a managed file only if the user has not modified it since it was
  * written (i.e. the current hash matches the stored checksum).
+ *
+ * For fenced files: if any section has been user-edited (inspectSections returns
+ * non-empty), skip deletion. If all sections match stored checksums, proceed.
+ *
  * Returns 'deleted' or 'kept'.
  */
 export function removeManagedFileIfUnmodified(
@@ -279,6 +284,20 @@ export function removeManagedFileIfUnmodified(
 ): 'deleted' | 'kept' {
   const fullPath = join(targetDir, rel);
   if (!existsSync(fullPath)) return 'deleted'; // already gone
+
+  const fileContent = readFileSync(fullPath, 'utf8');
+
+  // For fenced files, check section-level edits
+  if (hasFences(fileContent)) {
+    const editedIds = inspectSections(rel, fileContent, stored);
+    if (editedIds.length > 0) {
+      return 'kept'; // user has edited at least one section
+    }
+    unlinkSync(fullPath);
+    return 'deleted';
+  }
+
+  // For fence-free files, use whole-file hash comparison
   const currentHash = hashFile(fullPath);
   const storedHash = stored[rel];
   if (storedHash && currentHash !== storedHash) {
@@ -344,12 +363,14 @@ export interface ProfileUpdateResult {
   profile: Profile;
   updated: string[];
   skipped: string[];
+  keptSections: string[];
 }
 
 export function applyProfileUpdate(
   cwd: string,
   profile: Profile,
   fields: ProfileFields,
+  overwrite?: Set<string>,
 ): ProfileUpdateResult {
   const updatedProfile: Profile = {
     ...profile,
@@ -376,11 +397,20 @@ export function applyProfileUpdate(
 
   const updated: string[] = [];
   const skipped: string[] = [];
+  const keptSections: string[] = [];
 
   for (const [rel, content] of files) {
-    const { outcome, checksum } = writeManagedFile(cwd, rel, content, stored);
-    newChecksums[rel] = checksum;
-    if (outcome === 'skipped') {
+    const result = writeManagedFile(cwd, rel, content, stored, overwrite);
+    newChecksums[rel] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `${rel}:${s.id}`;
+      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+      else {
+        newChecksums[sKey] = stored[sKey] ?? '';
+        keptSections.push(sKey);
+      }
+    }
+    if (result.outcome === 'skipped') {
       skipped.push(rel);
     } else {
       updated.push(rel);
@@ -396,7 +426,7 @@ export function applyProfileUpdate(
   writeState(cwd, { checksums: newChecksums });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
-  return { profile: profileToWrite, updated, skipped };
+  return { profile: profileToWrite, updated, skipped, keptSections };
 }
 
 async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
@@ -471,7 +501,7 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
     { onCancel }
   );
 
-  const { updated, skipped } = applyProfileUpdate(cwd, profile, {
+  const fields: ProfileFields = {
     name: identity.name,
     title: identity.title ?? '',
     roleDescription: identity.roleDescription ?? '',
@@ -480,11 +510,55 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
     companyName: work.companyName ?? '',
     website: work.website ?? '',
     companyDescription: work.companyDescription ?? '',
-  });
+  };
+
+  // Pre-flight: inspect managed files for user-edited fenced sections and prompt before writing.
+  const overwriteSet = new Set<string>();
+  const previewProfile: Profile = {
+    ...profile,
+    name: fields.name.trim(),
+    title: fields.title.trim(),
+    role_description: fields.roleDescription.trim() || undefined,
+    job_description_url: fields.jobDescriptionUrl.trim() || undefined,
+    work: {
+      self_employed: fields.selfEmployed,
+      company_name: fields.companyName.trim() || (fields.selfEmployed ? 'Freelance' : ''),
+      website: fields.website.trim() || undefined,
+      company_description: fields.companyDescription.trim() || undefined,
+    },
+  };
+  const previewVars = profileToVars(previewProfile);
+  const storedChecksums = readState(cwd, profile).checksums;
+  const previewFiles = [
+    ...baseManagedFiles(previewVars, previewProfile.editor, cwd),
+    ...previewProfile.modules.flatMap(m => moduleManagedFiles(m, previewVars)),
+  ];
+  for (const [rel, content] of previewFiles) {
+    if (hasFences(content)) {
+      const fullPath = join(cwd, rel);
+      if (existsSync(fullPath)) {
+        const existingContent = readFileSync(fullPath, 'utf8');
+        const editedIds = inspectSections(rel, existingContent, storedChecksums);
+        for (const sectionId of editedIds) {
+          const confirmed = await p.confirm({
+            message: `Section '${sectionId}' in ${rel} has been manually edited. Overwrite?`,
+            initialValue: false,
+          });
+          if (p.isCancel(confirmed)) onCancel();
+          if (confirmed) overwriteSet.add(sectionId);
+        }
+      }
+    }
+  }
+
+  const { updated, skipped, keptSections } = applyProfileUpdate(cwd, profile, fields, overwriteSet);
 
   const summaryLines: string[] = [];
   if (updated.length > 0) {
     summaryLines.push(chalk.hex('#94A3B8')(`Updated: ${updated.join(', ')}`));
+  }
+  if (keptSections.length > 0) {
+    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${keptSections.join(', ')}`));
   }
   if (skipped.length > 0) {
     summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skipped.join(', ')}`));
@@ -502,6 +576,7 @@ export interface ModuleChangeResult {
   skipped: string[];
   deleted: string[];
   kept: string[];
+  keptSections: string[];
 }
 
 export function applyModuleChanges(
@@ -519,6 +594,7 @@ export function applyModuleChanges(
   const skippedFiles: string[] = [];
   const deleted: string[] = [];
   const kept: string[] = [];
+  const keptSections: string[] = [];
 
   for (const module of toAdd) {
     const def = getModule(module);
@@ -530,9 +606,17 @@ export function applyModuleChanges(
     const contentDir = updatedProfile.content_dir;
 
     for (const [rel, content] of moduleManagedFiles(module, vars)) {
-      const { outcome, checksum } = writeManagedFile(cwd, rel, content, newChecksums);
-      newChecksums[rel] = checksum;
-      if (outcome === 'skipped') {
+      const result = writeManagedFile(cwd, rel, content, newChecksums);
+      newChecksums[rel] = result.checksum;
+      for (const s of result.sections ?? []) {
+        const sKey = `${rel}:${s.id}`;
+        if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+        else {
+          newChecksums[sKey] = newChecksums[sKey] ?? '';
+          keptSections.push(sKey);
+        }
+      }
+      if (result.outcome === 'skipped') {
         skippedFiles.push(rel);
       } else {
         added.push(rel);
@@ -561,6 +645,11 @@ export function applyModuleChanges(
       if (result === 'deleted') {
         deleted.push(rel);
         delete newChecksums[rel];
+        // Remove any orphaned section-level checksum keys for this file
+        const prefix = rel + ':';
+        for (const key of Object.keys(newChecksums)) {
+          if (key.startsWith(prefix)) delete newChecksums[key];
+        }
       } else {
         kept.push(rel);
       }
@@ -574,7 +663,7 @@ export function applyModuleChanges(
   writeState(cwd, { checksums: newChecksums });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
-  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept };
+  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections };
 }
 
 async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
@@ -623,11 +712,12 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
     }
   }
 
-  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles } =
+  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles, keptSections: keptSectionKeys } =
     applyModuleChanges(cwd, profile, toAdd, toRemove, { linkedin: { liProfileUrl } });
 
   const summaryLines: string[] = [];
   if (addedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Added: ${addedFiles.join(', ')}`));
+  if (keptSectionKeys.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${keptSectionKeys.join(', ')}`));
   if (skippedFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skippedFiles.join(', ')}`));
   if (deletedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Removed: ${deletedFiles.join(', ')}`));
   if (keptFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edited files: ${keptFiles.join(', ')}`));

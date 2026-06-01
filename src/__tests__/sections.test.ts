@@ -1,0 +1,378 @@
+import { describe, it, expect } from 'vitest';
+import { hasFences, parseSections, renderSection, mergeSections, inspectSections } from '../sections.js';
+import { hashContent } from '../checksums.js';
+
+// ── hasFences ─────────────────────────────────────────────────────────────────
+
+describe('hasFences', () => {
+  it('returns false for fence-free content', () => {
+    expect(hasFences('Hello world')).toBe(false);
+    expect(hasFences('')).toBe(false);
+    expect(hasFences('# Some markdown\n\nWith paragraphs.')).toBe(false);
+  });
+
+  it('returns false when start marker has no matching end', () => {
+    expect(hasFences('<!-- patina:profile:start -->\nsome content')).toBe(false);
+  });
+
+  it('returns true when a complete fence pair is present', () => {
+    const content = '<!-- patina:profile:start -->\nhello\n<!-- patina:profile:end -->';
+    expect(hasFences(content)).toBe(true);
+  });
+
+  it('returns true when fences are embedded in longer content', () => {
+    const content = [
+      '# Preamble',
+      '',
+      '<!-- patina:profile:start -->',
+      'inner',
+      '<!-- patina:profile:end -->',
+      '',
+      'After the fence.',
+    ].join('\n');
+    expect(hasFences(content)).toBe(true);
+  });
+});
+
+// ── parseSections ─────────────────────────────────────────────────────────────
+
+describe('parseSections', () => {
+  it('returns empty array for content with no fences', () => {
+    expect(parseSections('no fences here')).toEqual([]);
+    expect(parseSections('')).toEqual([]);
+  });
+
+  it('parses a single section correctly', () => {
+    const content = '<!-- patina:profile:start -->\nhello world\n<!-- patina:profile:end -->';
+    const sections = parseSections(content);
+    expect(sections).toHaveLength(1);
+    expect(sections[0].id).toBe('profile');
+    expect(sections[0].inner).toBe('hello world');
+  });
+
+  it('sets start and end indices correctly', () => {
+    const content = '<!-- patina:profile:start -->\nhello\n<!-- patina:profile:end -->';
+    const sections = parseSections(content);
+    expect(sections[0].start).toBe(0);
+    expect(sections[0].end).toBe(content.length);
+  });
+
+  it('parses multiple sections', () => {
+    const content = [
+      '<!-- patina:profile:start -->',
+      'profile content',
+      '<!-- patina:profile:end -->',
+      '',
+      '<!-- patina:skills:start -->',
+      'skills content',
+      '<!-- patina:skills:end -->',
+    ].join('\n');
+
+    const sections = parseSections(content);
+    expect(sections).toHaveLength(2);
+    expect(sections[0].id).toBe('profile');
+    expect(sections[0].inner).toBe('profile content');
+    expect(sections[1].id).toBe('skills');
+    expect(sections[1].inner).toBe('skills content');
+  });
+
+  it('normalizes CRLF to LF in inner content', () => {
+    const content = '<!-- patina:profile:start -->\r\nhello\r\nworld\r\n<!-- patina:profile:end -->';
+    const sections = parseSections(content);
+    expect(sections).toHaveLength(1);
+    expect(sections[0].inner).toBe('hello\nworld');
+  });
+
+  it('ignores a start marker with no matching end', () => {
+    const content = '<!-- patina:profile:start -->\nsome content';
+    expect(parseSections(content)).toHaveLength(0);
+  });
+
+  it('ignores an end marker with no matching start', () => {
+    const content = 'some content\n<!-- patina:profile:end -->';
+    expect(parseSections(content)).toHaveLength(0);
+  });
+
+  it('handles multiline inner content', () => {
+    const content = [
+      '<!-- patina:profile:start -->',
+      'line one',
+      'line two',
+      'line three',
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+    const sections = parseSections(content);
+    expect(sections[0].inner).toBe('line one\nline two\nline three');
+  });
+
+  it('parses ids with hyphens and numbers', () => {
+    const content = '<!-- patina:my-section-1:start -->\ncontent\n<!-- patina:my-section-1:end -->';
+    const sections = parseSections(content);
+    expect(sections[0].id).toBe('my-section-1');
+  });
+});
+
+// ── renderSection ─────────────────────────────────────────────────────────────
+
+describe('renderSection', () => {
+  it('produces correct format with start and end markers', () => {
+    const result = renderSection('profile', 'inner content');
+    expect(result).toBe(
+      '<!-- patina:profile:start -->\ninner content\n<!-- patina:profile:end -->'
+    );
+  });
+
+  it('round-trips through parseSections', () => {
+    const inner = 'some\nmultiline\ncontent';
+    const rendered = renderSection('profile', inner);
+    const parsed = parseSections(rendered);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].id).toBe('profile');
+    expect(parsed[0].inner).toBe(inner);
+  });
+});
+
+// ── mergeSections ─────────────────────────────────────────────────────────────
+
+describe('mergeSections', () => {
+  it('replaces a section when overwrite set contains its id', () => {
+    const existing = [
+      'Before.',
+      '<!-- patina:profile:start -->',
+      'old content',
+      '<!-- patina:profile:end -->',
+      'After.',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'new content' },
+      { 'CLAUDE.md:profile': hashContent('old content') },
+      'CLAUDE.md',
+      new Set(['profile'])
+    );
+
+    expect(content).toContain('new content');
+    expect(content).not.toContain('old content');
+    expect(sections[0].outcome).toBe('updated');
+  });
+
+  it('skips a user-edited section (hash differs from stored) when NOT in overwrite', () => {
+    const userEditedInner = 'user edited this';
+    const originalHash = hashContent('original content');
+
+    const existing = [
+      '<!-- patina:profile:start -->',
+      userEditedInner,
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'wizard wants to write this' },
+      { 'CLAUDE.md:profile': originalHash },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    // Content should be unchanged (skipped)
+    expect(content).toContain(userEditedInner);
+    expect(content).not.toContain('wizard wants to write this');
+    expect(sections[0].outcome).toBe('skipped');
+    expect(sections[0].newChecksum).toBe(originalHash); // preserved stored checksum
+  });
+
+  it('updates a wizard-unmodified section (hash matches stored)', () => {
+    const existingInner = 'original content';
+
+    const existing = [
+      '<!-- patina:profile:start -->',
+      existingInner,
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'new wizard content' },
+      { 'CLAUDE.md:profile': hashContent(existingInner) },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    expect(content).toContain('new wizard content');
+    expect(content).not.toContain(existingInner);
+    expect(sections[0].outcome).toBe('updated');
+    expect(sections[0].newChecksum).toBe(hashContent('new wizard content'));
+  });
+
+  it('updates a section with no stored checksum (treats as unmodified)', () => {
+    const existing = [
+      '<!-- patina:profile:start -->',
+      'some content',
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'new content' },
+      {},  // no stored checksum
+      'CLAUDE.md',
+      new Set()
+    );
+
+    expect(content).toContain('new content');
+    expect(sections[0].outcome).toBe('updated');
+  });
+
+  it('appends a new section not present in the existing file', () => {
+    const existing = 'Some existing text without fences.\n';
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'brand new profile section' },
+      {},
+      'CLAUDE.md',
+      new Set()
+    );
+
+    expect(content).toContain('Some existing text without fences.');
+    expect(content).toContain('<!-- patina:profile:start -->');
+    expect(content).toContain('brand new profile section');
+    expect(content).toContain('<!-- patina:profile:end -->');
+    expect(sections[0].outcome).toBe('added');
+  });
+
+  it('leaves sections not in newSections unchanged', () => {
+    const existingInner = 'existing skills content';
+    const existing = [
+      '<!-- patina:profile:start -->',
+      'profile content',
+      '<!-- patina:profile:end -->',
+      '',
+      '<!-- patina:skills:start -->',
+      existingInner,
+      '<!-- patina:skills:end -->',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'updated profile' },
+      { 'CLAUDE.md:profile': hashContent('profile content'), 'CLAUDE.md:skills': hashContent(existingInner) },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    expect(content).toContain(existingInner);
+    const skillsOutcome = sections.find(s => s.id === 'skills');
+    expect(skillsOutcome?.outcome).toBe('unchanged');
+    expect(skillsOutcome?.newChecksum).toBe(hashContent(existingInner));
+  });
+
+  it('preserves all out-of-fence text exactly (before, between, after)', () => {
+    const existing = [
+      'Text before first fence.',
+      '<!-- patina:profile:start -->',
+      'profile content',
+      '<!-- patina:profile:end -->',
+      'Text between fences.',
+      '<!-- patina:skills:start -->',
+      'skills content',
+      '<!-- patina:skills:end -->',
+      'Text after last fence.',
+    ].join('\n');
+
+    const { content } = mergeSections(
+      existing,
+      { profile: 'new profile', skills: 'new skills' },
+      {
+        'CLAUDE.md:profile': hashContent('profile content'),
+        'CLAUDE.md:skills': hashContent('skills content'),
+      },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    expect(content).toContain('Text before first fence.');
+    expect(content).toContain('Text between fences.');
+    expect(content).toContain('Text after last fence.');
+    expect(content).toContain('new profile');
+    expect(content).toContain('new skills');
+  });
+});
+
+// ── inspectSections ───────────────────────────────────────────────────────────
+
+describe('inspectSections', () => {
+  it('returns empty array when no sections are user-edited', () => {
+    const inner = 'profile content';
+    const existing = [
+      '<!-- patina:profile:start -->',
+      inner,
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const result = inspectSections(
+      'CLAUDE.md',
+      existing,
+      { 'CLAUDE.md:profile': hashContent(inner) }
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('returns edited section ids when content differs from stored hash', () => {
+    const existing = [
+      '<!-- patina:profile:start -->',
+      'user edited this content',
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const result = inspectSections(
+      'CLAUDE.md',
+      existing,
+      { 'CLAUDE.md:profile': hashContent('original content') }
+    );
+    expect(result).toContain('profile');
+  });
+
+  it('treats missing stored checksum as not-edited', () => {
+    const existing = [
+      '<!-- patina:profile:start -->',
+      'some content',
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const result = inspectSections('CLAUDE.md', existing, {});
+    expect(result).toEqual([]);
+  });
+
+  it('returns only the ids of sections that were edited', () => {
+    const profileInner = 'original profile';
+    const skillsInner = 'user edited skills';
+
+    const existing = [
+      '<!-- patina:profile:start -->',
+      profileInner,
+      '<!-- patina:profile:end -->',
+      '',
+      '<!-- patina:skills:start -->',
+      skillsInner,
+      '<!-- patina:skills:end -->',
+    ].join('\n');
+
+    const result = inspectSections(
+      'CLAUDE.md',
+      existing,
+      {
+        'CLAUDE.md:profile': hashContent(profileInner),
+        'CLAUDE.md:skills': hashContent('original skills'), // skills was edited
+      }
+    );
+    expect(result).not.toContain('profile');
+    expect(result).toContain('skills');
+  });
+
+  it('returns empty array for fence-free content', () => {
+    const result = inspectSections('CLAUDE.md', 'no fences here', {});
+    expect(result).toEqual([]);
+  });
+});

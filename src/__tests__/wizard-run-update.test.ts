@@ -471,6 +471,59 @@ describe('writeManagedFile respects checksums (via applyProfileUpdate)', () => {
   });
 });
 
+// ── Group 5b: section checksums stored after profile update ──────────────────
+
+describe('applyProfileUpdate — section checksums', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+  });
+
+  it('stores CLAUDE.md:profile checksum in state after profile update', () => {
+    applyProfileUpdate(targetDir, profile, {
+      name: 'John Smith',
+      title: 'Staff Engineer',
+      roleDescription: 'Builds things.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'NewCorp',
+      website: '',
+      companyDescription: '',
+    });
+
+    const state = loadState();
+    expect(typeof state.checksums['CLAUDE.md:profile']).toBe('string');
+  });
+
+  it('preserves out-of-fence content after profile update rewrites the profile section', () => {
+    // The profile update rewrites the fenced section but should not touch content outside fences
+    applyProfileUpdate(targetDir, profile, {
+      name: 'John Smith',
+      title: 'Staff Engineer',
+      roleDescription: '',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'NewCorp',
+      website: '',
+      companyDescription: '',
+    });
+
+    const claudeMd = read('CLAUDE.md');
+    // Content outside the fence should still be present
+    expect(claudeMd).toContain('## What patina is');
+    expect(claudeMd).toContain('## Folder structure');
+    expect(claudeMd).toContain('## How it works');
+    // The fence markers should still be present
+    expect(claudeMd).toContain('<!-- patina:profile:start -->');
+    expect(claudeMd).toContain('<!-- patina:profile:end -->');
+    // The new profile content should be inside the fence
+    expect(claudeMd).toContain('John Smith');
+    expect(claudeMd).toContain('NewCorp');
+  });
+});
+
 // ── Migration: legacy profile.yaml with _checksums ────────────────────────────
 
 describe('migration — legacy profile.yaml with _checksums', () => {
