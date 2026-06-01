@@ -24,6 +24,9 @@ export const MANAGED_FILES = [
   '.claude/commands/add.md',
   '.claude/commands/reflect.md',
   '.mcp.json',
+  'inbox/.gitkeep',
+  'inbox/.processed.json',
+  '.claude/commands/inbox.md',
 ] as const;
 
 export const MODULE_MANAGED_FILES: Record<string, readonly string[]> =
