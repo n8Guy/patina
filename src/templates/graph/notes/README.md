@@ -12,7 +12,7 @@ Notes here are **first-class evidence** — weighted the same as weekly summarie
 
 ## How to add a note
 
-Run `/include <description>` and Claude will ask clarifying questions and write the note for you.
+Run `/add <description>` and Claude will ask clarifying questions and write the note for you.
 
 ## File naming
 
