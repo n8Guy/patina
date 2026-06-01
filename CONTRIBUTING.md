@@ -145,33 +145,47 @@ All PRs must pass the full test suite. For new features, add tests. The scaffold
 
 ## Releases
 
-The maintainer handles releases. Publishing is automated via GitHub Actions — it triggers on any tag matching `v*`.
+The maintainer handles releases. Publishing is fully automated via GitHub Actions — no manual tagging or version commits needed.
 
-### Release flow
+### How releases work
 
-> **Owner only:** `main` is branch-protected. The owner bypasses protection for version bump commits only — the exception in the branch policy covers this. Non-owner contributors cannot cut releases.
+Releases are driven by the `## Version Bump` directive in merged PR bodies. When a PR merges to `main`:
 
-1. Ensure `main` is up to date:
-   ```bash
-   git checkout main && git pull
-   ```
-2. Verify the package contents locally before tagging:
-   ```bash
-   npm run build && npm pack --dry-run
-   ```
-   Confirm the tarball includes `README.md`, `LICENSE`, `package.json`, and `dist/**`.
-3. Bump the version and create the git tag in one step:
-   ```bash
-   npm version <patch|minor|major>
-   ```
-   This commits the version bump to `main` and creates the `v*` tag locally.
-4. Push the commit and tag directly to `main`:
-   ```bash
-   git push --follow-tags
-   ```
-5. GitHub Actions runs the `publish` workflow automatically:
-   - `test` job: installs deps and runs the full test suite on Node 20 and 22
-   - `publish` job: runs only if all tests pass — builds, verifies package contents, then publishes to npm with provenance
+1. `version-bump.yml` reads the `## Version Bump` value from the merged PR body.
+2. If a valid bump type is found, the workflow bumps `package.json`, opens a bot PR, and merges it to `main`. The bot PR is excluded from this flow by an internal guard — it will not re-trigger another bump.
+3. That merge triggers `publish.yml`, which runs the test suite and publishes to npm (a no-op if the version is already on npm, so accidental double-merges are safe).
+
+> **Owner only:** PRs to `main` require maintainer approval before merge. Non-owner contributors cannot cut releases.
+
+### Version Bump directive
+
+Add this to your PR body to request a release when the PR merges. Use the inline form — no blank line between the heading and value:
+
+```
+## Version Bump: patch
+```
+
+Or the next-line form (no blank line):
+
+```
+## Version Bump
+patch
+```
+
+Accepted values:
+
+| Value | When to use |
+|-------|-------------|
+| `major` | Breaking changes |
+| `minor` | New backwards-compatible features |
+| `patch` | Bug fixes and minor updates |
+| `none` | No release needed |
+
+Omitting the `## Version Bump` section entirely also defaults to `none`.
+
+### Emergency releases
+
+For urgent releases outside the normal PR flow, manually update the `version` field in `package.json` in your PR. The workflow detects the version change and skips the `## Version Bump` directive entirely; `publish.yml` publishes automatically when the PR merges to `main`. This path is owner-only.
 
 ### NPM_TOKEN prerequisite
 
