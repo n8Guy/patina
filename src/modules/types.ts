@@ -30,4 +30,9 @@ export interface ModuleDefinition {
    * Called after file deletions, before profile.yaml is saved.
    */
   onRemove?(profile: Profile): Profile;
+  /**
+   * Optional: return the inner markdown content for the README.md fenced block
+   * that patina appends when this module is installed.
+   */
+  readmeBlock?(vars: TemplateVars): string;
 }

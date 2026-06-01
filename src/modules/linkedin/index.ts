@@ -12,6 +12,7 @@ const LI_COMMANDS = [
 const LI_MANAGED_PATHS = [
   ...LI_COMMANDS.map(c => `.claude/commands/${c}`),
   '.claude/modules/linkedin/manifest.md',
+  '.claude/modules/linkedin/CLAUDE.md',
 ] as const;
 
 const CONTENT_FILE_NAMES = [
@@ -43,6 +44,10 @@ export const linkedinModule = {
       '.claude/modules/linkedin/manifest.md',
       render(tpl('modules/linkedin/manifest.md'), vars),
     ]);
+    files.push([
+      '.claude/modules/linkedin/CLAUDE.md',
+      render(tpl('modules/linkedin/CLAUDE.md'), vars),
+    ]);
     return files;
   },
 
@@ -64,5 +69,39 @@ export const linkedinModule = {
     const updated = { ...profile };
     delete (updated as Partial<Profile>).linkedin;
     return updated;
+  },
+
+  readmeBlock(vars: TemplateVars): string {
+    return [
+      '## LinkedIn module',
+      '',
+      'Drafts and refines your LinkedIn profile from your graph.',
+      '',
+      '### Folder additions',
+      '',
+      '```',
+      `${vars.CONTENT_DIR}/linkedin/`,
+      '  INSTRUCTIONS.md              — module rules and guidance',
+      '  LinkedIn Current State.md    — your current live profile copy',
+      '  LinkedIn About.md            — draft for the About section',
+      '  LinkedIn Headline.md         — draft for your headline',
+      '  LinkedIn Experience.md       — draft for your experience entries',
+      '  LinkedIn Skills.md           — draft for your skills section',
+      '  LinkedIn Featured.md         — draft for featured content',
+      '  LinkedIn Activity.md         — draft for activity/posts section',
+      '```',
+      '',
+      '### Commands',
+      '',
+      '| Command | What it does |',
+      '|---------|-------------|',
+      '| `/li-all` | Run all LinkedIn section drafts in sequence |',
+      '| `/li-about` | Draft or refine your LinkedIn About section |',
+      '| `/li-headline` | Draft or refine your LinkedIn headline |',
+      '| `/li-experience` | Draft or refine your LinkedIn experience entries |',
+      '| `/li-skills` | Draft or refine your LinkedIn skills section |',
+      '| `/li-featured` | Draft or refine your LinkedIn featured content |',
+      '| `/li-activity` | Draft or refine your LinkedIn activity section |',
+    ].join('\n');
   },
 } satisfies ModuleDefinition;

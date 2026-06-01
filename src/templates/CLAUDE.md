@@ -69,3 +69,9 @@ Skip any area with nothing stale. If everything is fresh, say so in one line. Ke
 |---------|-------------|
 | `/add <description>` | Add a skill, project, or experience to your graph |
 | `/reflect [slug]` | Review your graph for gaps, completions, and stale skills — also runs all installed module hooks |
+
+## Modules
+
+<!-- patina:modules:start -->
+{{MODULES_SECTION}}
+<!-- patina:modules:end -->

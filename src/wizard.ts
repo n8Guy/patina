@@ -6,8 +6,8 @@ import yaml from 'js-yaml';
 import { detectMode, loadProfile } from './detect.js';
 import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
-import { hashFile, type ChecksumMap } from './checksums.js';
-import { hasFences, inspectSections } from './sections.js';
+import { hashFile, hashContent, type ChecksumMap } from './checksums.js';
+import { hasFences, inspectSections, removeSection, renderSection } from './sections.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { MODULES, getModule } from './modules/registry.js';
 import type { ModuleAddInputs } from './modules/types.js';
@@ -417,6 +417,34 @@ export function applyProfileUpdate(
     }
   }
 
+  // Re-render module README blocks so vars like CONTENT_DIR stay current after a profile update
+  for (const module of updatedProfile.modules) {
+    const def = getModule(module);
+    if (def?.readmeBlock) {
+      const readmePath = join(cwd, 'README.md');
+      const readmeExists = existsSync(readmePath);
+      const readmeHasFences = readmeExists ? hasFences(readFileSync(readmePath, 'utf8')) : false;
+      if (!readmeExists || readmeHasFences) {
+        const block = renderSection(module, def.readmeBlock(vars));
+        const result = writeManagedFile(cwd, 'README.md', block, newChecksums, overwrite);
+        newChecksums['README.md'] = result.checksum;
+        for (const s of result.sections ?? []) {
+          const sKey = `README.md:${s.id}`;
+          if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+          else {
+            newChecksums[sKey] = stored[sKey] ?? '';
+            keptSections.push(sKey);
+          }
+        }
+        if (result.outcome === 'skipped') {
+          skipped.push(`README.md:${module}`);
+        } else if (result.outcome !== 'updated' || result.sections?.some(s => s.id === module && s.outcome !== 'unchanged')) {
+          updated.push(`README.md:${module}`);
+        }
+      }
+    }
+  }
+
   for (const [rel, hash] of Object.entries(stored)) {
     if (!(rel in newChecksums)) {
       newChecksums[rel] = hash;
@@ -632,6 +660,24 @@ export function applyModuleChanges(
       }
     }
 
+    // Append README.md block for this module (migration guard: only if README has fences or doesn't exist)
+    if (def?.readmeBlock) {
+      const readmePath = join(cwd, 'README.md');
+      const readmeExists = existsSync(readmePath);
+      const readmeHasFences = readmeExists ? hasFences(readFileSync(readmePath, 'utf8')) : false;
+      if (!readmeExists || readmeHasFences) {
+        const block = renderSection(module, def.readmeBlock(vars));
+        const result = writeManagedFile(cwd, 'README.md', block, newChecksums);
+        newChecksums['README.md'] = result.checksum;
+        for (const s of result.sections ?? []) {
+          newChecksums[`README.md:${s.id}`] = s.newChecksum;
+        }
+        if (result.outcome !== 'skipped') added.push(`README.md:${module}`);
+      } else {
+        kept.push('README.md');
+      }
+    }
+
     if (!updatedProfile.modules.includes(module)) {
       updatedProfile.modules = [...updatedProfile.modules, module];
     }
@@ -654,9 +700,43 @@ export function applyModuleChanges(
         kept.push(rel);
       }
     }
+
+    // Remove README.md block for this module (only if section is unmodified)
+    const readmePath = join(cwd, 'README.md');
+    if (existsSync(readmePath)) {
+      const before = readFileSync(readmePath, 'utf8');
+      const editedIds = inspectSections('README.md', before, stored);
+      if (!editedIds.includes(module)) {
+        const after = removeSection(module, before);
+        if (after !== before) {
+          writeFileSync(readmePath, after, 'utf8');
+          newChecksums['README.md'] = hashContent(after);
+          delete newChecksums[`README.md:${module}`];
+          deleted.push(`README.md:${module}`);
+        }
+      } else {
+        keptSections.push(`README.md:${module}`);
+      }
+    }
+
     updatedProfile.modules = updatedProfile.modules.filter(m => m !== module);
     if (def?.onRemove) {
       updatedProfile = def.onRemove(updatedProfile);
+    }
+  }
+
+  // Regenerate base files once (with final module list so CLAUDE.md Modules section is correct)
+  const finalVars = profileToVars(updatedProfile);
+  for (const [rel, content] of baseManagedFiles(finalVars, updatedProfile.editor, cwd)) {
+    const result = writeManagedFile(cwd, rel, content, newChecksums);
+    newChecksums[rel] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `${rel}:${s.id}`;
+      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+      else {
+        newChecksums[sKey] = newChecksums[sKey] ?? '';
+        keptSections.push(sKey);
+      }
     }
   }
 
@@ -693,6 +773,18 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
     p.outro(chalk.hex('#94A3B8')('No changes — modules unchanged.'));
     return;
   }
+
+  // Show planned file changes
+  const changeLines: string[] = [];
+  for (const m of toAdd) {
+    const def = getModule(m);
+    changeLines.push(`Adding ${def?.label ?? m}: appends a section to README.md, adds a link to CLAUDE.md`);
+  }
+  for (const m of toRemove) {
+    const def = getModule(m);
+    changeLines.push(`Removing ${def?.label ?? m}: removes its section from README.md and its link from CLAUDE.md`);
+  }
+  p.note(changeLines.join('\n'), label('Planned changes'));
 
   // Hoist module-specific pre-add prompts before calling the helper.
   // TODO: move per-module prompt collection into ModuleDefinition (e.g. promptsOnAdd) so

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import yaml from 'js-yaml';
 import { render } from './template.js';
@@ -6,6 +6,7 @@ import { writeManagedFile } from './upgrade.js';
 import { type ChecksumMap } from './checksums.js';
 import { tpl } from './template-loader.js';
 import { getModule } from './modules/registry.js';
+import { renderSection, hasFences } from './sections.js';
 import { writeState, STATE_FILENAME } from './state.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
 
@@ -49,6 +50,15 @@ export function validateManifestFrontmatter(moduleName: string, content: string)
  */
 export function profileToVars(profile: Profile, liProfileUrl?: string): TemplateVars {
   const today = new Date().toISOString().split('T')[0];
+  const modulesSection = (profile.modules ?? []).length
+    ? profile.modules
+        .map(id => {
+          const def = getModule(id);
+          const label = def?.label ?? id;
+          return `- [${label} module context](.claude/modules/${id}/CLAUDE.md)`;
+        })
+        .join('\n')
+    : '_No modules installed._';
   return {
     PATINA_NAME: profile.patina_name,
     USER_NAME: profile.name,
@@ -61,6 +71,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string): Template
     LI_PROFILE_URL: liProfileUrl ?? profile.linkedin?.profile_url ?? '',
     TODAY: today,
     STALENESS_THRESHOLD: (() => { const d = Number(profile.staleness_threshold_days ?? 30); return String(Number.isFinite(d) && d > 0 ? d : 30); })(),
+    MODULES_SECTION: modulesSection,
   };
 }
 
@@ -74,6 +85,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string): Template
  */
 export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?: string): Array<[string, string]> {
   const files: Array<[string, string]> = [
+    ['README.md', render(tpl('README.md'), vars)],
     ['CLAUDE.md', render(tpl('CLAUDE.md'), vars)],
     ['.claude/settings.json', tpl('.claude/settings.json')],
     ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
@@ -141,8 +153,24 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const checksums: ChecksumMap = {};
 
   // ── Managed files (tracked for safe upgrades)
+  // README.md migration guard: if a fence-free README already exists with no stored checksum,
+  // skip writing it to avoid overwriting a hand-crafted file.
+  const baseFiles = baseManagedFiles(vars, editor, targetDir);
+  const readmePath = join(targetDir, 'README.md');
+  const filteredBaseFiles = baseFiles.filter(([rel]) => {
+    if (rel === 'README.md') {
+      if (existsSync(readmePath)) {
+        const existing = readFileSync(readmePath, 'utf8');
+        if (!hasFences(existing)) {
+          return false; // skip fence-free existing README
+        }
+      }
+    }
+    return true;
+  });
+
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles(vars, editor, targetDir),
+    ...filteredBaseFiles,
     ...modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
@@ -156,6 +184,19 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     checksums[relativePath] = result.checksum;
     for (const s of result.sections ?? []) {
       checksums[`${relativePath}:${s.id}`] = s.newChecksum;
+    }
+  }
+
+  // ── Append module README blocks
+  for (const module of modules) {
+    const def = getModule(module);
+    if (def?.readmeBlock) {
+      const block = renderSection(module, def.readmeBlock(vars));
+      const result = writeManagedFile(targetDir, 'README.md', block, checksums);
+      checksums['README.md'] = result.checksum;
+      for (const s of result.sections ?? []) {
+        checksums[`README.md:${s.id}`] = s.newChecksum;
+      }
     }
   }
 
