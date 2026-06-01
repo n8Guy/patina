@@ -2,6 +2,7 @@
 
 This file is loaded automatically each session to give you context about who you're working with and how this patina is organised.
 
+<!-- patina:profile:start -->
 ## Who you're working with
 
 **Name:** {{USER_NAME}}
@@ -11,6 +12,7 @@ This file is loaded automatically each session to give you context about who you
 {{ROLE_DESCRIPTION}}
 
 {{COMPANY_DESCRIPTION}}
+<!-- patina:profile:end -->
 
 ## What patina is
 

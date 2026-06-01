@@ -109,6 +109,11 @@ describe('scaffold — core files', () => {
     expect(typeof state.checksums['.claude/commands/reflect.md']).toBe('string');
   });
 
+  it('.patina-state.json stores a section checksum for CLAUDE.md:profile', () => {
+    const state = loadState();
+    expect(typeof state.checksums['CLAUDE.md:profile']).toBe('string');
+  });
+
   it('stored checksum matches actual file content', () => {
     const state = loadState();
     const actual = hashContent(read('CLAUDE.md'));
@@ -129,6 +134,12 @@ describe('scaffold — core files', () => {
 
   it('CLAUDE.md contains no unreplaced template variables', () => {
     expect(read('CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('CLAUDE.md contains profile fence markers', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('<!-- patina:profile:start -->');
+    expect(content).toContain('<!-- patina:profile:end -->');
   });
 
   it('creates .claude/settings.json', () => {

@@ -162,8 +162,11 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   }
 
   for (const [relativePath, content] of managedFiles) {
-    const { checksum } = writeManagedFile(targetDir, relativePath, content, {});
-    checksums[relativePath] = checksum;
+    const result = writeManagedFile(targetDir, relativePath, content, {});
+    checksums[relativePath] = result.checksum;
+    for (const s of result.sections ?? []) {
+      checksums[`${relativePath}:${s.id}`] = s.newChecksum;
+    }
   }
 
   // ── Content directory (never touched on upgrade)
