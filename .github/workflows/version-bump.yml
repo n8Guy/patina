@@ -161,4 +161,4 @@ jobs:
             --head "$BRANCH")
           GH_TOKEN="$ACTIONS_TOKEN" gh pr review "$PR_URL" --approve \
             --body "Auto-approved: automated version bump."
-          GH_TOKEN="$APP_TOKEN" gh pr merge "$PR_URL" --merge --delete-branch
+          GH_TOKEN="$APP_TOKEN" gh pr merge "$PR_URL" --merge --delete-branch --auto
