@@ -310,6 +310,80 @@ describe('scaffold — no linkedin module', () => {
   });
 });
 
+// ── Multi-module scaffold ─────────────────────────────────────────────────────
+
+describe('scaffold — multiple modules (linkedin + resume)', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin', 'resume'], liProfileUrl: 'https://linkedin.com/in/janedoe' }));
+  });
+
+  it('writes all linkedin command files', () => {
+    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity']) {
+      expect(exists(`.claude/commands/${cmd}.md`), `${cmd}.md`).toBe(true);
+    }
+  });
+
+  it('writes linkedin manifest', () => {
+    expect(exists('.claude/modules/linkedin/manifest.md')).toBe(true);
+  });
+
+  it('writes resume command file', () => {
+    expect(exists('.claude/commands/resume-refresh.md')).toBe(true);
+  });
+
+  it('writes resume manifest', () => {
+    expect(exists('.claude/modules/resume/manifest.md')).toBe(true);
+  });
+
+  it('writes all resume content files', () => {
+    for (const file of ['INSTRUCTIONS.md', 'Resume Working Draft.md', 'Resume Last Submitted.md']) {
+      expect(exists(`graph/resume/${file}`), file).toBe(true);
+    }
+  });
+
+  it('writes all linkedin content files', () => {
+    const files = [
+      'INSTRUCTIONS.md',
+      'LinkedIn Current State.md',
+      'LinkedIn About.md',
+      'LinkedIn Headline.md',
+      'LinkedIn Experience.md',
+      'LinkedIn Skills.md',
+      'LinkedIn Featured.md',
+      'LinkedIn Activity.md',
+    ];
+    for (const file of files) {
+      expect(exists(`graph/linkedin/${file}`), file).toBe(true);
+    }
+  });
+
+  it('stores checksums for both modules in .patina-state.json', () => {
+    // Only managed files are checksummed; content-dir files are written with writeRaw and intentionally untracked
+    const state = loadState();
+    expect(typeof state.checksums['.claude/commands/li-all.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/linkedin/manifest.md']).toBe('string');
+    expect(typeof state.checksums['.claude/commands/resume-refresh.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/resume/manifest.md']).toBe('string');
+  });
+
+  it('profile.yaml lists both modules', () => {
+    expect(profile().modules).toEqual(expect.arrayContaining(['linkedin', 'resume']));
+    expect(profile().modules).toHaveLength(2);
+  });
+
+  it('profile.yaml preserves linkedin profile url alongside resume', () => {
+    expect(profile().linkedin?.profile_url).toBe('https://linkedin.com/in/janedoe');
+  });
+
+  it('resume does not leak files into graph/linkedin/', () => {
+    expect(exists('graph/linkedin/Resume Working Draft.md')).toBe(false);
+  });
+
+  it('linkedin does not leak files into graph/resume/', () => {
+    expect(exists('graph/resume/LinkedIn About.md')).toBe(false);
+  });
+});
+
 // ── Template rendering ────────────────────────────────────────────────────────
 
 describe('scaffold — template rendering', () => {
