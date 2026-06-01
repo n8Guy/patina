@@ -137,7 +137,16 @@ Present the subagent's findings to the user.
 
 ## Phase 4: Determine Change Type
 
-Analyze the changes and the issue to determine the change type. Pick **exactly one**:
+Check `.current-issue.md` for a `## Change Type` section — the `/issue` skill writes a hint there when the issue is created.
+
+- **If a hint exists and is one of the three valid values:** Use it as the working value. Then validate it against the actual diff (`git diff <main-branch>...HEAD`):
+  - If the hint is the literal placeholder text (`<exactly one of: Breaking Change | New Feature | Bug Fix>`) or any other non-enumerated value, treat it as no hint.
+  - When the diff contains a single clear change type, override if it contradicts the hint.
+  - When the diff contains mixed change types, use the highest-severity type present: **Breaking Change > New Feature > Bug Fix**. Override the hint if the highest-severity type in the diff is more severe than the hint.
+  - If the diff is consistent with the hint, keep the hint value.
+- **If no hint exists:** Analyze the diff directly and pick the best fit using the same severity ordering for mixed diffs.
+
+Final value must be **exactly one** of:
 
 - **Breaking Change** — API changes, removed features, schema migrations that break backwards compat
 - **New Feature** — new functionality, new screens, new endpoints, new modules

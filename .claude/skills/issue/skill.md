@@ -25,6 +25,7 @@ If the arguments contain `--f` (without `--r`), activate **fast mode** for Creat
 - **Skip Step 3** — do not ask clarifying questions; use best-effort judgment on intent, scope, and acceptance criteria
 - **Skip Step 4** — do not invoke persona agents or present an impact table
 - **Skip Step 5** — do not suggest decomposition; create a single issue as described
+- **Still perform Step 5b** — determine the change type and include it in the issue body; this step requires no user interaction
 - **Skip Step 7** — do not create a README issue even if no docs exist
 - **Omit the Persona Impact section** from the issue body
 
@@ -165,6 +166,18 @@ If the issue is complex, consider breaking it into smaller issues. Signs it shou
 
 If you recommend splitting, create issues in dependency order and explain the sequence.
 
+### Step 5b: Determine Change Type
+
+> **Fast mode (`--f`):** Still perform this step — it requires no user interaction and the hint is always included in the issue body.
+
+Analyze the intent of the issue and pick **exactly one** change type:
+
+- **Breaking Change** — API changes, removed features, schema migrations that break backwards compat
+- **New Feature** — new functionality, new screens, new endpoints, new modules
+- **Bug Fix** — corrections, patches, non-functional fixes
+
+This is a hint stored in the issue body so that `/commit` can validate it later against the actual changes. Use best-effort judgment based on the description.
+
 ### Step 6: Create the GitHub Issue(s)
 
 > **Fast mode (`--f`):** Omit the `## Persona Impact` section from the issue body.
@@ -192,6 +205,10 @@ Use the script at `.claude/skills/issue/create-issue.sh` to create issues. For e
 - [ ] [Specific, verifiable outcome]
 - [ ] [Specific, verifiable outcome]
 
+## Change Type
+<exactly one of: Breaking Change | New Feature | Bug Fix>
+*(hint — will be validated against actual changes at commit time)*
+
 ## Persona Impact
 
 | Persona | Impact | Key Concern |
@@ -215,6 +232,10 @@ Use the script at `.claude/skills/issue/create-issue.sh` to create issues. For e
 ## Acceptance Criteria
 - [ ] [Specific, verifiable outcome]
 - [ ] [Specific, verifiable outcome]
+
+## Change Type
+<exactly one of: Breaking Change | New Feature | Bug Fix>
+*(hint — will be validated against actual changes at commit time)*
 
 ## Additional Context
 [Any relevant links, architecture notes, dependencies, or design docs]
@@ -370,6 +391,7 @@ Produce a revised title and revised body based on the guidance. Follow these rul
 - **Preserve all existing sections** that are not targeted by the guidance. If the live issue body contains sections beyond the standard template (e.g. triage notes, bot-generated content), carry them forward verbatim. If the live issue has a `## Depends On` section, remove it — relationships are tracked via GitHub's native Relationships feature, not in the body.
 - **Only modify sections** that the guidance explicitly calls for.
 - **Preserve the original title** unless the guidance explicitly asks to change it.
+- **Update `## Change Type`** if the guidance changes the nature of the work (e.g., scope expands from a bug fix to a new feature). If the live issue has no `## Change Type` section, do not add one.
 - Show the user a clear before/after for each changed section. If the title changed, show both the old and new title.
 
 Use `AskUserQuestion` to confirm:
