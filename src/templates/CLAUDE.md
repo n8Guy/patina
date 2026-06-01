@@ -29,7 +29,7 @@ The graph is the source of truth. Nothing gets added to generated content unless
 
 ## How it works
 
-**Adding evidence:** Run `/include` and describe something you've done. Claude asks a few questions and writes a note to `{{CONTENT_DIR}}/notes/`.
+**Adding evidence:** Run `/add` and describe something you've done. Claude asks a few questions and writes a note to `{{CONTENT_DIR}}/notes/`.
 
 **Reviewing skills:** Run `/skill-search` to audit your notes for skill gaps, project completions, and stale entries.
 
