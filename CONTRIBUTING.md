@@ -40,6 +40,8 @@ Use one of these prefixes:
 
 Examples: `feature/update-wizard`, `fix/windows-path-mcp`, `module/resume`
 
+> **Note:** Branches created by the `/implement` workflow use the format `issue-<N>-<slug>` (e.g. `issue-39-feat-add-cli-subcommand-parser`). This is intentional — those branches are bot-managed and do not follow the prefix convention above.
+
 ### Keep branches short-lived
 
 Open a PR as soon as you have something reviewable — even if it's not finished. Draft PRs are fine. Long-lived branches diverge and get painful.
