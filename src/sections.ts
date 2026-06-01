@@ -169,6 +169,48 @@ export function mergeSections(
 }
 
 /**
+ * Remove the fenced block with the given id from content.
+ * - If the id is not present, returns content unchanged.
+ * - Collapses double blank lines at the seam to a single blank line.
+ * - No trailing blank-line artifact if block was at end.
+ */
+export function removeSection(id: string, content: string): string {
+  const sections = parseSections(content);
+  const section = sections.find(s => s.id === id);
+  if (!section) return content;
+
+  const { start, end } = section;
+
+  let before = content.slice(0, start);
+  // Remove trailing newlines (including any blank lines immediately before the fence)
+  before = before.replace(/(\r?\n)+$/, '');
+
+  // Strip all leading blank lines from the text after the block
+  let after = content.slice(end);
+  // Remove leading newlines (including blank lines immediately after the fence)
+  after = after.replace(/^(\r?\n)+/, '');
+
+  let result: string;
+  if (before === '' && after === '') {
+    result = '';
+  } else if (before === '') {
+    // Block was at start; after content becomes the full result
+    result = after;
+  } else if (after === '') {
+    // Block was at end; before content becomes the full result
+    result = before;
+  } else {
+    // Block was in the middle — join with a single blank line
+    result = before + '\n\n' + after;
+  }
+
+  // Normalize: collapse any runs of 3+ newlines down to 2
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result;
+}
+
+/**
  * Returns the ids of sections in `existing` whose inner content hash differs
  * from storedChecksums[relativePath + ':' + id]. Missing stored hash → not edited.
  */

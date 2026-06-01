@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasFences, parseSections, renderSection, mergeSections, inspectSections } from '../sections.js';
+import { hasFences, parseSections, renderSection, mergeSections, inspectSections, removeSection } from '../sections.js';
 import { hashContent } from '../checksums.js';
 
 // ── hasFences ─────────────────────────────────────────────────────────────────
@@ -374,5 +374,112 @@ describe('inspectSections', () => {
   it('returns empty array for fence-free content', () => {
     const result = inspectSections('CLAUDE.md', 'no fences here', {});
     expect(result).toEqual([]);
+  });
+});
+
+// ── removeSection ─────────────────────────────────────────────────────────────
+
+describe('removeSection', () => {
+  it('removes a single block and leaves surrounding text intact', () => {
+    const content = [
+      'Before the fence.',
+      '<!-- patina:linkedin:start -->',
+      'linkedin content',
+      '<!-- patina:linkedin:end -->',
+      'After the fence.',
+    ].join('\n');
+
+    const result = removeSection('linkedin', content);
+    expect(result).toContain('Before the fence.');
+    expect(result).toContain('After the fence.');
+    expect(result).not.toContain('linkedin content');
+    expect(result).not.toContain('patina:linkedin');
+  });
+
+  it('collapses seam to a single blank line when block is in the middle', () => {
+    const content = [
+      'Section A.',
+      '',
+      '<!-- patina:linkedin:start -->',
+      'linkedin content',
+      '<!-- patina:linkedin:end -->',
+      '',
+      'Section B.',
+    ].join('\n');
+
+    const result = removeSection('linkedin', content);
+    expect(result).toContain('Section A.');
+    expect(result).toContain('Section B.');
+    // Should not have triple blank lines
+    expect(result).not.toMatch(/\n{3,}/);
+  });
+
+  it('produces no trailing blank-line artifact when block is at end of file', () => {
+    const content = [
+      'Some content.',
+      '',
+      '<!-- patina:linkedin:start -->',
+      'linkedin content',
+      '<!-- patina:linkedin:end -->',
+    ].join('\n');
+
+    const result = removeSection('linkedin', content);
+    expect(result).toContain('Some content.');
+    expect(result).not.toContain('linkedin content');
+    // No excessive trailing newlines
+    expect(result).not.toMatch(/\n{2,}$/);
+  });
+
+  it('returns content unchanged when id is not present', () => {
+    const content = 'Some text without any fences.';
+    expect(removeSection('linkedin', content)).toBe(content);
+
+    const fencedContent = [
+      '<!-- patina:resume:start -->',
+      'resume content',
+      '<!-- patina:resume:end -->',
+    ].join('\n');
+    expect(removeSection('linkedin', fencedContent)).toBe(fencedContent);
+  });
+
+  it('handles block at start of file', () => {
+    const content = [
+      '<!-- patina:linkedin:start -->',
+      'linkedin content',
+      '<!-- patina:linkedin:end -->',
+      '',
+      'After content.',
+    ].join('\n');
+
+    const result = removeSection('linkedin', content);
+    expect(result).toContain('After content.');
+    expect(result).not.toContain('linkedin content');
+  });
+
+  it('handles only fence in file — preserves surrounding non-fence text', () => {
+    const content = [
+      '<!-- patina:linkedin:start -->',
+      'linkedin content',
+      '<!-- patina:linkedin:end -->',
+    ].join('\n');
+
+    const result = removeSection('linkedin', content);
+    expect(result).not.toContain('patina:linkedin');
+    expect(result).not.toContain('linkedin content');
+  });
+
+  it('round-trips: renderSection + mergeSections + removeSection returns to original', () => {
+    const original = 'Base content.\n';
+    const section = renderSection('linkedin', 'linkedin inner');
+
+    // Merge to add the section
+    const { content: withSection } = mergeSections(original, { linkedin: 'linkedin inner' }, {}, 'README.md', new Set());
+    expect(withSection).toContain('linkedin inner');
+
+    // Remove to get back to original
+    const restored = removeSection('linkedin', withSection);
+    // The restored content should contain the original text
+    expect(restored).toContain('Base content.');
+    expect(restored).not.toContain('linkedin inner');
   });
 });

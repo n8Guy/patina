@@ -18,6 +18,7 @@ export const CONTENT_SUBDIRS = ['notes', 'skills', 'posts'] as const;
 // Files patina manages and can safely update if the user hasn't modified them.
 // graph/** is intentionally excluded — patina never touches user content.
 export const MANAGED_FILES = [
+  'README.md',
   'CLAUDE.md',
   '.claude/settings.json',
   '.claude/commands/add.md',

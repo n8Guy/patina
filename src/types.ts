@@ -70,5 +70,6 @@ export interface TemplateVars {
   LI_PROFILE_URL: string;
   TODAY: string;
   STALENESS_THRESHOLD: string;
+  MODULES_SECTION: string;
   [key: string]: string;
 }

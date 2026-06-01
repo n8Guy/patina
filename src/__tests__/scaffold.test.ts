@@ -402,6 +402,56 @@ describe('scaffold — multiple modules (linkedin + resume)', () => {
   });
 });
 
+// ── README.md ─────────────────────────────────────────────────────────────────
+
+describe('scaffold — README.md', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates README.md', () => {
+    expect(exists('README.md')).toBe(true);
+  });
+
+  it('README.md contains the patina:base fence', () => {
+    const content = read('README.md');
+    expect(content).toContain('<!-- patina:base:start -->');
+    expect(content).toContain('<!-- patina:base:end -->');
+  });
+
+  it('state has checksums for README.md and README.md:base', () => {
+    const state = loadState();
+    expect(typeof state.checksums['README.md']).toBe('string');
+    expect(typeof state.checksums['README.md:base']).toBe('string');
+  });
+});
+
+describe('scaffold — README.md with linkedin module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/janedoe' }));
+  });
+
+  it('README.md contains patina:linkedin block', () => {
+    const content = read('README.md');
+    expect(content).toContain('<!-- patina:linkedin:start -->');
+    expect(content).toContain('<!-- patina:linkedin:end -->');
+  });
+
+  it('CLAUDE.md modules section links to linkedin CLAUDE.md', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('.claude/modules/linkedin/CLAUDE.md');
+  });
+
+  it('creates .claude/modules/linkedin/CLAUDE.md', () => {
+    expect(exists('.claude/modules/linkedin/CLAUDE.md')).toBe(true);
+  });
+
+  it('state has README.md:linkedin checksum', () => {
+    const state = loadState();
+    expect(typeof state.checksums['README.md:linkedin']).toBe('string');
+  });
+});
+
 // ── Template rendering ────────────────────────────────────────────────────────
 
 describe('scaffold — template rendering', () => {

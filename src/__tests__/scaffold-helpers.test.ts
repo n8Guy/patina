@@ -108,21 +108,54 @@ describe('profileToVars', () => {
     const vars = profileToVars(profile);
     expect(vars.STALENESS_THRESHOLD).toBe('30');
   });
+
+  it('MODULES_SECTION is non-empty string', () => {
+    const vars = profileToVars(makeProfile());
+    expect(typeof vars.MODULES_SECTION).toBe('string');
+    expect(vars.MODULES_SECTION.length).toBeGreaterThan(0);
+  });
+
+  it('MODULES_SECTION returns placeholder when no modules installed', () => {
+    const vars = profileToVars(makeProfile({ modules: [] }));
+    expect(vars.MODULES_SECTION).toBe('_No modules installed._');
+  });
+
+  it('MODULES_SECTION contains linkedin link when linkedin module active', () => {
+    const vars = profileToVars(makeProfile({ modules: ['linkedin'] }));
+    expect(vars.MODULES_SECTION).toContain('LinkedIn');
+    expect(vars.MODULES_SECTION).toContain('.claude/modules/linkedin/CLAUDE.md');
+  });
 });
 
 // ── baseManagedFiles ──────────────────────────────────────────────────────────
 
 describe('baseManagedFiles', () => {
-  it('returns CLAUDE.md, settings.json, add.md, reflect.md for vscode', () => {
+  it('returns README.md, CLAUDE.md, settings.json, add.md, reflect.md for vscode', () => {
     const profile = makeProfile({ editor: 'vscode' });
     const vars = profileToVars(profile);
     const files = baseManagedFiles(vars, 'vscode');
     const paths = files.map(([rel]) => rel);
+    expect(paths).toContain('README.md');
     expect(paths).toContain('CLAUDE.md');
     expect(paths).toContain('.claude/settings.json');
     expect(paths).toContain('.claude/commands/add.md');
     expect(paths).toContain('.claude/commands/reflect.md');
     expect(paths).not.toContain('.mcp.json');
+  });
+
+  it('README.md content has patina:base fence', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const readmeEntry = files.find(([rel]) => rel === 'README.md')!;
+    expect(readmeEntry[1]).toContain('<!-- patina:base:start -->');
+    expect(readmeEntry[1]).toContain('<!-- patina:base:end -->');
+  });
+
+  it('README.md content has no unreplaced template variables', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const readmeEntry = files.find(([rel]) => rel === 'README.md')!;
+    expect(readmeEntry[1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
   it('includes .mcp.json when editor is obsidian and targetDir provided', () => {
@@ -197,10 +230,10 @@ describe('baseManagedFiles', () => {
 // ── moduleManagedFiles ────────────────────────────────────────────────────────
 
 describe('moduleManagedFiles — linkedin', () => {
-  it('returns 8 files (7 commands + manifest)', () => {
+  it('returns 9 files (7 commands + manifest + CLAUDE.md)', () => {
     const vars = profileToVars(makeProfile());
     const files = moduleManagedFiles('linkedin', vars);
-    expect(files).toHaveLength(8);
+    expect(files).toHaveLength(9);
   });
 
   it('includes all 7 li command files', () => {
@@ -215,6 +248,12 @@ describe('moduleManagedFiles — linkedin', () => {
     const vars = profileToVars(makeProfile());
     const paths = moduleManagedFiles('linkedin', vars).map(([rel]) => rel);
     expect(paths).toContain('.claude/modules/linkedin/manifest.md');
+  });
+
+  it('includes CLAUDE.md at .claude/modules/linkedin/CLAUDE.md', () => {
+    const vars = profileToVars(makeProfile());
+    const paths = moduleManagedFiles('linkedin', vars).map(([rel]) => rel);
+    expect(paths).toContain('.claude/modules/linkedin/CLAUDE.md');
   });
 
   it('renders the content dir into command content', () => {
@@ -239,10 +278,10 @@ describe('moduleManagedFiles — linkedin', () => {
 });
 
 describe('moduleManagedFiles — resume', () => {
-  it('returns 2 files (1 command + manifest)', () => {
+  it('returns 3 files (1 command + CLAUDE.md + manifest)', () => {
     const vars = profileToVars(makeProfile());
     const files = moduleManagedFiles('resume', vars);
-    expect(files).toHaveLength(2);
+    expect(files).toHaveLength(3);
   });
 
   it('includes resume-refresh command', () => {
@@ -255,6 +294,12 @@ describe('moduleManagedFiles — resume', () => {
     const vars = profileToVars(makeProfile());
     const paths = moduleManagedFiles('resume', vars).map(([rel]) => rel);
     expect(paths).toContain('.claude/modules/resume/manifest.md');
+  });
+
+  it('includes CLAUDE.md at .claude/modules/resume/CLAUDE.md', () => {
+    const vars = profileToVars(makeProfile());
+    const paths = moduleManagedFiles('resume', vars).map(([rel]) => rel);
+    expect(paths).toContain('.claude/modules/resume/CLAUDE.md');
   });
 
   it('renders the content dir into command content', () => {

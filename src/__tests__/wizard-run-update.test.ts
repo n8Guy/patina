@@ -405,6 +405,135 @@ describe('applyModuleChanges — removing resume', () => {
   });
 });
 
+// ── Group 4b: applyModuleChanges — README and CLAUDE.md patching ─────────────
+
+describe('applyModuleChanges — README.md and CLAUDE.md on add/remove', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+  });
+
+  it('README gains patina:linkedin block after adding linkedin', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+
+    const readme = read('README.md');
+    expect(readme).toContain('<!-- patina:linkedin:start -->');
+    expect(readme).toContain('<!-- patina:linkedin:end -->');
+  });
+
+  it('CLAUDE.md modules section links to linkedin after adding linkedin', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+
+    const claudeMd = read('CLAUDE.md');
+    expect(claudeMd).toContain('LinkedIn');
+    expect(claudeMd).toContain('.claude/modules/linkedin/CLAUDE.md');
+  });
+
+  it('.claude/modules/linkedin/CLAUDE.md exists after adding linkedin', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+
+    expect(exists('.claude/modules/linkedin/CLAUDE.md')).toBe(true);
+  });
+
+  it('README no longer contains patina:linkedin after removing linkedin', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['linkedin']);
+
+    const readme = read('README.md');
+    expect(readme).not.toContain('patina:linkedin');
+  });
+
+  it('patina:base section preserved after removing linkedin', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['linkedin']);
+
+    const readme = read('README.md');
+    expect(readme).toContain('<!-- patina:base:start -->');
+    expect(readme).toContain('<!-- patina:base:end -->');
+  });
+
+  it('no trailing blank-line artifact after removing linkedin at end', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['linkedin']);
+
+    const readme = read('README.md');
+    expect(readme).not.toMatch(/\n{3,}$/);
+  });
+
+  it('CLAUDE.md no longer links linkedin after removing it', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['linkedin']);
+
+    const claudeMd = read('CLAUDE.md');
+    expect(claudeMd).not.toContain('.claude/modules/linkedin/CLAUDE.md');
+  });
+
+  it('README still has patina:linkedin after adding both then removing resume', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin', 'resume'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['resume']);
+
+    const readme = read('README.md');
+    expect(readme).toContain('patina:linkedin');
+    expect(readme).not.toContain('patina:resume');
+  });
+
+  it('CLAUDE.md links only LinkedIn after resume is removed', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin', 'resume'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['resume']);
+
+    const claudeMd = read('CLAUDE.md');
+    expect(claudeMd).toContain('LinkedIn');
+    expect(claudeMd).not.toContain('.claude/modules/resume/CLAUDE.md');
+  });
+
+  it('user-edited patina:linkedin block is kept when removing linkedin', () => {
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    // Edit the linkedin section in README.md
+    const readmeBefore = read('README.md');
+    const edited = readmeBefore.replace(
+      /<!-- patina:linkedin:start -->([\s\S]*?)<!-- patina:linkedin:end -->/,
+      '<!-- patina:linkedin:start -->\nMy custom edits\n<!-- patina:linkedin:end -->'
+    );
+    writeFileSync(join(targetDir, 'README.md'), edited, 'utf8');
+
+    const result = applyModuleChanges(targetDir, p1, [], ['linkedin']);
+
+    const readmeAfter = read('README.md');
+    expect(readmeAfter).toContain('My custom edits');
+    expect(result.keptSections).toContain('README.md:linkedin');
+  });
+
+  it('out-of-fence text survives add/remove cycle', () => {
+    // Add user text outside fences in README.md
+    const readmeBefore = read('README.md');
+    writeFileSync(join(targetDir, 'README.md'), readmeBefore + '\n\nMy personal notes here.\n', 'utf8');
+
+    applyModuleChanges(targetDir, profile, ['linkedin'], [], { linkedin: { liProfileUrl: 'https://linkedin.com/in/x' } });
+    const p1 = loadProfile();
+
+    applyModuleChanges(targetDir, p1, [], ['linkedin']);
+
+    const readme = read('README.md');
+    expect(readme).toContain('My personal notes here.');
+  });
+});
+
 // ── Group 5: writeManagedFile respects checksums (via applyProfileUpdate) ─────
 
 describe('writeManagedFile respects checksums (via applyProfileUpdate)', () => {
