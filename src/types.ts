@@ -43,6 +43,7 @@ export interface Profile {
   linkedin?: {
     profile_url: string;
   };
+  _demo?: boolean;
 }
 
 export interface ScaffoldOptions {
@@ -58,6 +59,9 @@ export interface ScaffoldOptions {
   liProfileUrl: string;
   contentDir: string;
   launchTasks?: string[];
+  demo?: boolean;
+  /** ISO date string in YYYY-MM-DD format. Defaults to today. Used in demo mode for determinism. */
+  today?: string;
 }
 
 export interface TemplateVars {

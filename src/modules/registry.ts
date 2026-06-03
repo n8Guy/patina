@@ -9,6 +9,14 @@ import { resumeModule } from './resume/index.js';
 //      avoid a circular type dependency with checksums.ts → registry.ts → types.ts).
 export const MODULES = [linkedinModule, resumeModule] as const;
 
+// Belt-and-suspenders runtime assertion: catches missing demoContent on any module
+// that satisfies the interface structurally but skips the required method at runtime.
+for (const m of MODULES) {
+  if (typeof (m as ModuleDefinition).demoContent !== 'function') {
+    throw new Error(`Module "${m.id}" is missing a required demoContent export.`);
+  }
+}
+
 const BY_ID = new Map<string, ModuleDefinition>(MODULES.map(m => [m.id, m]));
 
 export function getModule(id: string): ModuleDefinition | undefined {

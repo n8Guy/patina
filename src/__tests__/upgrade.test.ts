@@ -1,9 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import yaml from 'js-yaml';
 import { writeManagedFile, mergeProfile } from '../upgrade.js';
 import { hashContent } from '../checksums.js';
+import { scaffold } from '../scaffold.js';
+import { applyProfileUpdate } from '../wizard.js';
+import { readState } from '../state.js';
+import { DEMO_TODAY } from '../demo/persona.js';
 import type { Profile } from '../types.js';
 
 const FENCED_CONTENT = [
@@ -238,5 +243,121 @@ describe('mergeProfile', () => {
     });
     expect(merged.work.company_name).toBe('Acme');
     expect(merged.work.self_employed).toBe(false);
+  });
+});
+
+// ── upgrade against demo scaffold ─────────────────────────────────────────────
+
+describe('upgrade against demo scaffold', () => {
+  let demoDir: string;
+
+  beforeEach(async () => {
+    demoDir = join(tmp, 'patina-demo');
+    await scaffold({
+      demo: true,
+      today: DEMO_TODAY,
+      modules: ['linkedin', 'resume'],
+      targetDir: demoDir,
+      contentDir: 'graph',
+      patinaName: 'patina-demo',
+      userName: 'Mara Ellison',
+      title: 'Independent Software Consultant',
+      roleDescription: "I'm a backend-leaning full-stack consultant.",
+      jobDescriptionUrl: '',
+      work: {
+        self_employed: true,
+        company_name: 'Ellison Labs',
+        website: 'https://ellisonlabs.dev',
+        company_description: 'Independent consultancy.',
+      },
+      editor: 'vscode',
+      liProfileUrl: 'https://linkedin.com/in/mara-ellison-demo',
+    });
+  });
+
+  function collectContentDir(): Map<string, string> {
+    const map = new Map<string, string>();
+    function walk(d: string): void {
+      if (!existsSync(d)) return;
+      for (const entry of readdirSync(d, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          walk(join(d, entry.name));
+        } else {
+          const full = join(d, entry.name);
+          map.set(full, readFileSync(full, 'utf8'));
+        }
+      }
+    }
+    walk(join(demoDir, 'graph'));
+    return map;
+  }
+
+  it('profile.yaml has _demo: true after scaffold', () => {
+    const p = yaml.load(readFileSync(join(demoDir, 'profile.yaml'), 'utf8')) as Profile;
+    expect((p as Profile & { _demo?: boolean })._demo).toBe(true);
+  });
+
+  it('content-dir files are unchanged after upgrade (applyProfileUpdate)', () => {
+    // Capture content-dir file state before upgrade
+    const beforeUpgrade = collectContentDir();
+
+    // Run upgrade path — same profile data, no changes
+    const profile = yaml.load(readFileSync(join(demoDir, 'profile.yaml'), 'utf8')) as Profile;
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    // Content-dir files must be identical after upgrade
+    const afterUpgrade = collectContentDir();
+    expect([...afterUpgrade.keys()].sort()).toEqual([...beforeUpgrade.keys()].sort());
+    for (const [path, content] of beforeUpgrade) {
+      expect(afterUpgrade.get(path), path).toBe(content);
+    }
+  });
+
+  it('profile.yaml still has _demo: true after upgrade', () => {
+    const profile = yaml.load(readFileSync(join(demoDir, 'profile.yaml'), 'utf8')) as Profile;
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const updated = yaml.load(readFileSync(join(demoDir, 'profile.yaml'), 'utf8')) as Profile;
+    expect((updated as Profile & { _demo?: boolean })._demo).toBe(true);
+  });
+
+  it('checksum map is intact after upgrade (no corruption)', () => {
+    const stateBefore = readState(demoDir);
+    const profile = yaml.load(readFileSync(join(demoDir, 'profile.yaml'), 'utf8')) as Profile;
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const stateAfter = readState(demoDir);
+    // All checksum keys from before upgrade should still exist
+    for (const key of Object.keys(stateBefore.checksums)) {
+      expect(stateAfter.checksums[key], `checksum for ${key}`).toBeDefined();
+      expect(typeof stateAfter.checksums[key]).toBe('string');
+    }
   });
 });

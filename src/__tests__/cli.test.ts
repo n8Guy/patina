@@ -31,4 +31,10 @@ describe('cli dispatch', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('validate');
   });
+
+  it('--help output contains --demo', () => {
+    const result = cli(['--help']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('--demo');
+  });
 });
