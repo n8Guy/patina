@@ -73,7 +73,7 @@ List items not modified in the last **{{STALENESS_THRESHOLD}} days**, grouped by
 
 Skip any area with nothing stale. If everything is fresh, say so in one line. Keep the report brief — one line per area.
 
-**If this is a non-interactive or headless session, skip the inbox check below and do not ask any startup questions — stop after the staleness report.**
+**If this is a non-interactive or headless session, skip all remaining steps in this section (inbox check, pending module setup, and launch tasks) and do not ask any startup questions — stop after the staleness report.**
 
 Next, check the inbox. Read `inbox/.processed.json` (treat missing or unparseable as `[]`). List all files in `inbox/` excluding `.gitkeep` and `.processed.json`. Identify any whose path relative to `inbox/` is not recorded in the registry with status `success`.
 
@@ -85,6 +85,33 @@ If unprocessed files exist, list their filenames (up to 5; if more, show the fir
 - **"Later"** — fully non-blocking, continue below immediately.
 
 If the inbox is clear, skip this prompt entirely.
+
+### Check for pending module setup
+
+Read `.patina-state.json`. If it contains a `deferred_modules` list, check each entry's
+`snooze_until` date against today's date. For each entry where today is on or after
+`snooze_until`:
+
+1. Ask the user in plain language, naming the module's friendly label (not internal IDs or
+   file names): e.g. "I noticed you haven't finished setting up the LinkedIn module — want
+   to do that now?"
+
+2. Offer three responses: yes (set it up now), not now, or remind me later
+   (1 week / 1 month / 3 months).
+
+3. On "yes": collect what the module needs (for LinkedIn: ask for the profile URL), write the
+   value to `profile.yaml`, and remove that module's entry from `deferred_modules` in
+   `.patina-state.json`.
+
+4. On "remind me later": update the entry's `snooze_until` to the chosen interval from today
+   and save `.patina-state.json`.
+
+5. On "not now": leave the entry unchanged. Do not re-ask in this session.
+
+If nothing is due (no entries, or all entries have a future `snooze_until`), say nothing.
+
+User-facing copy must use plain language — no "state file", "deferred flag", "snooze",
+"init hook", or any YAML/JSON key names in the spoken question.
 
 Finally, execute any tasks listed in the **## Launch tasks** section at the end of this file (if present). Then ask:
 

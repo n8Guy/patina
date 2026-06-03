@@ -145,6 +145,51 @@ describe('writeState', () => {
   });
 });
 
+// ── deferred_modules ─────────────────────────────────────────────────────────
+
+describe('deferred_modules round-trip', () => {
+  it('writeState → readState preserves deferred_modules', () => {
+    const deferred = [{ module: 'linkedin' as const, snooze_until: '2026-06-10' }];
+    writeState(tmp, { checksums: {}, deferred_modules: deferred });
+
+    const state = readState(tmp);
+    expect(state.deferred_modules).toEqual(deferred);
+  });
+
+  it('readState returns undefined deferred_modules when field absent from file', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ checksums: {} }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.deferred_modules).toBeUndefined();
+  });
+
+  it('readState handles state file with empty deferred_modules array', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ checksums: {}, deferred_modules: [] }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.deferred_modules).toEqual([]);
+  });
+
+  it('readState ignores non-array deferred_modules values', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ checksums: {}, deferred_modules: 'bad' }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.deferred_modules).toBeUndefined();
+  });
+});
+
 // ── Migration end-to-end ──────────────────────────────────────────────────────
 
 describe('migration end-to-end', () => {

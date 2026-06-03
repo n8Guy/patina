@@ -37,6 +37,19 @@ export interface ModuleDefinition {
    */
   onRemove?(profile: Profile): Profile;
   /**
+   * When true, the wizard offers a "fill out now or later" choice after this
+   * module is selected. If the user picks "now", promptsOnAdd is called.
+   */
+  requiresConfig?: boolean;
+
+  /**
+   * Collect module-specific inputs interactively before onAdd is called.
+   * Only invoked when the user chooses "fill out now" during module selection.
+   * Return value is passed directly to onAdd as ModuleAddInputs.
+   */
+  promptsOnAdd?(): Promise<ModuleAddInputs>;
+
+  /**
    * Optional: return the inner markdown content for the README.md fenced block
    * that patina appends when this module is installed.
    */

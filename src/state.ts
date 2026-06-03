@@ -1,10 +1,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type { ChecksumMap } from './checksums.js';
-import type { Profile } from './types.js';
+import type { DeferredModule, Profile } from './types.js';
 
 export interface PatinaState {
   checksums: ChecksumMap;
+  deferred_modules?: DeferredModule[];
 }
 
 export const STATE_FILENAME = '.patina-state.json';
@@ -47,7 +48,9 @@ export function readState(root: string, profile?: Profile): PatinaState {
       throw new Error(`Corrupt ${STATE_FILENAME}: 'checksums' must be an object at ${statePath}.`);
     }
     const checksums = normalizeChecksums((rawChecksums ?? {}) as ChecksumMap);
-    return { checksums };
+    const rawDeferred = obj.deferred_modules;
+    const deferred_modules = Array.isArray(rawDeferred) ? (rawDeferred as DeferredModule[]) : undefined;
+    return { checksums, ...(deferred_modules !== undefined ? { deferred_modules } : {}) };
   }
 
   // Migration: state file absent — read from legacy profile._checksums if available.
@@ -69,6 +72,7 @@ export function stripLegacyChecksums(profile: Profile): Profile {
 export function writeState(root: string, state: PatinaState): void {
   const normalized: PatinaState = {
     checksums: normalizeChecksums(state.checksums),
+    ...(state.deferred_modules !== undefined ? { deferred_modules: state.deferred_modules } : {}),
   };
   writeFileSync(
     join(root, STATE_FILENAME),

@@ -151,6 +151,13 @@ describe('scaffold — core files', () => {
     expect(content).toContain('What are we working on today?');
   });
 
+  it('CLAUDE.md contains pending module setup init-hook instruction', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('pending module setup');
+    expect(content).toContain('deferred_modules');
+    expect(content).toContain('snooze_until');
+  });
+
   it('creates .claude/settings.json', () => {
     expect(exists('.claude/settings.json')).toBe(true);
   });

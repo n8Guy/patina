@@ -958,6 +958,61 @@ describe('migration — legacy profile.yaml with _checksums', () => {
   });
 });
 
+// ── Deferred module: applyModuleChanges clears entry on module remove ─────────
+
+describe('applyModuleChanges — deferred entry cleared when module removed', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/x' }));
+    profile = loadProfile();
+  });
+
+  it('removes the deferred entry from .patina-state.json when the module is removed', () => {
+    // Seed a deferred entry in the state file
+    const state = loadState();
+    const stateWithDeferred = {
+      ...state,
+      deferred_modules: [{ module: 'linkedin' as const, snooze_until: '2026-06-10' }],
+    };
+    writeFileSync(
+      join(targetDir, '.patina-state.json'),
+      JSON.stringify(stateWithDeferred, null, 2) + '\n',
+      'utf8'
+    );
+
+    applyModuleChanges(targetDir, profile, [], ['linkedin']);
+
+    const finalState = loadState();
+    const remaining = finalState.deferred_modules?.filter(e => e.module === 'linkedin') ?? [];
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('preserves deferred entries for other modules when one is removed', () => {
+    // Seed deferred entries for both linkedin and resume
+    const state = loadState();
+    const stateWithDeferred = {
+      ...state,
+      deferred_modules: [
+        { module: 'linkedin' as const, snooze_until: '2026-06-10' },
+        { module: 'resume' as const, snooze_until: '2026-07-01' },
+      ],
+    };
+    writeFileSync(
+      join(targetDir, '.patina-state.json'),
+      JSON.stringify(stateWithDeferred, null, 2) + '\n',
+      'utf8'
+    );
+
+    applyModuleChanges(targetDir, profile, [], ['linkedin']);
+
+    const finalState = loadState();
+    const resumeEntry = finalState.deferred_modules?.find(e => e.module === 'resume');
+    expect(resumeEntry).toBeDefined();
+    expect(resumeEntry?.snooze_until).toBe('2026-07-01');
+  });
+});
+
 // ── Migration: legacy install + populated inbox preserved ─────────────────────
 
 describe('migration — populated inbox/.processed.json survives legacy migration', () => {
