@@ -29,29 +29,30 @@ declare module '@clack/prompts' {
 // ─── Brand ───────────────────────────────────────────────────────────────────
 
 function printBanner(): void {
-  const gradient = ['#FF6B6B', '#FF8C42', '#FFAB2E', '#C084FC', '#818CF8'];
-  const title = 'patina'
-    .split('')
-    .map((char, i) => chalk.bold.hex(gradient[i % gradient.length])(char))
-    .join('');
+  const colors = ['#FF6B6B', '#FF8C42', '#FFAB2E', '#C084FC', '#818CF8', '#60A5FA'];
+  const art = [
+    ' ██████╗  █████╗ ████████╗██╗███╗  ██╗ █████╗ ',
+    ' ██╔══██╗██╔══██╗╚══██╔══╝██║████╗ ██║██╔══██╗',
+    ' ██████╔╝███████║   ██║   ██║██╔██╗██║███████║',
+    ' ██╔═══╝ ██╔══██║   ██║   ██║██║╚████║██╔══██║',
+    ' ██║     ██║  ██║   ██║   ██║██║ ╚███║██║  ██║',
+    ' ╚═╝     ╚═╝  ╚═╝   ╚═╝   ╚═╝╚═╝  ╚══╝╚═╝  ╚═╝',
+  ];
 
   console.log('');
-  console.log(`  ${title}`);
-  console.log(`  ${chalk.hex('#94A3B8')('your professional story, organized')}`);
+  art.forEach((line, i) => {
+    console.log(chalk.bold.hex(colors[i % colors.length])(line));
+  });
+  console.log('');
+  console.log(chalk.bold.white('  Welcome to Patina'));
   console.log('');
 }
 
 function privacyNote(): string {
   return [
-    chalk.bold.hex('#38BDF8')('Your content stays on your computer. Always.'),
-    chalk.hex('#CBD5E1')(
-      'Everything in your patina — your profile, notes, skills,\n' +
-      'and LinkedIn drafts — lives in a folder on your machine.\n' +
-      'Nothing is sent to the internet, nothing is stored in the\n' +
-      'cloud, and nothing is shared with anyone. You own it all\n' +
-      'and can open, edit, or delete any of it at any time.'
-    ),
-  ].join('\n\n');
+    chalk.bold.hex('#38BDF8')('Everything lives in a folder on your machine.'),
+    chalk.hex('#CBD5E1')('Patina never sends anything anywhere — what you\ndo with that folder is up to you.'),
+  ].join('\n');
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -240,6 +241,7 @@ export async function main(): Promise<void> {
 
 async function runInstall(cwd: string): Promise<void> {
   p.intro(chalk.hex('#94A3B8')("No patina found here — let's create one."));
+  console.log(chalk.hex('#94A3B8')('  This will create a folder on your computer to track your work,\n  career history, and professional story — all saved locally.\n'));
   p.note(privacyNote(), label('Privacy first'));
 
   // ── Identity
