@@ -1,3 +1,5 @@
+import * as p from '@clack/prompts';
+import chalk from 'chalk';
 import { render } from '../../template.js';
 import { tpl } from '../../template-loader.js';
 import type { ModuleDefinition, FileEntry, ModuleAddInputs } from '../types.js';
@@ -30,6 +32,17 @@ export const linkedinModule = {
   id: 'linkedin',
   label: 'LinkedIn',
   hint: 'draft and refine your LinkedIn profile',
+
+  requiresConfig: true,
+
+  async promptsOnAdd(): Promise<ModuleAddInputs> {
+    const url = await p.text({
+      message: "What's your LinkedIn profile URL?",
+      placeholder: 'https://linkedin.com/in/yourname',
+      hint: chalk.hex('#64748B')('optional — you can add this later in profile.yaml'),
+    });
+    return { liProfileUrl: typeof url === 'string' ? url.trim() : '' };
+  },
 
   managedPaths: LI_MANAGED_PATHS,
 

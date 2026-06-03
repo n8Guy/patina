@@ -20,6 +20,11 @@ export interface ValidationResult {
 // from safely importing this type back). When adding a module, also add its id here.
 export type ModuleId = 'linkedin' | 'resume';
 
+export interface DeferredModule {
+  module: ModuleId;
+  snooze_until: string; // YYYY-MM-DD
+}
+
 export interface WorkInfo {
   self_employed: boolean;
   company_name: string;

@@ -8,12 +8,12 @@ import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleCo
 import { writeManagedFile } from './upgrade.js';
 import { hashFile, hashContent, type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, removeSection, renderSection } from './sections.js';
-import { readState, writeState, stripLegacyChecksums } from './state.js';
+import { readState, writeState, stripLegacyChecksums, type PatinaState } from './state.js';
 import { MODULES, getModule } from './modules/registry.js';
 import { availableLaunchTasks, pruneLaunchTasks, renderLaunchSection, launchSelectionError, type AvailableLaunchTask } from './launch-tasks.js';
 import { render } from './template.js';
 import type { ModuleAddInputs } from './modules/types.js';
-import type { Editor, ModuleId, Profile, WorkInfo } from './types.js';
+import type { DeferredModule, Editor, ModuleId, Profile, WorkInfo } from './types.js';
 import { validate, formatReport } from './validate.js';
 
 // @clack/prompts supports hint on text inputs and validate on multiselect at runtime but the type definitions omit them.
@@ -72,6 +72,79 @@ function label(text: string): string {
 
 const MULTISELECT_HINT = `\n  ${chalk.hex('#64748B')('↑↓ to move  ·  space to select  ·  enter to confirm')}`;
 const OPTIONAL_HINT = ` ${chalk.dim.italic('optional, but helps a lot — hit enter to skip')}`;
+
+// ─── Deferred module helpers ──────────────────────────────────────────────────
+
+/**
+ * Returns a date string (YYYY-MM-DD) 7 days from today (or from `today` if provided).
+ * Used as the default snooze when a user picks "fill out later" in the wizard.
+ */
+export function defaultSnoozeUntil(today?: string): string {
+  return snoozeUntilFor('1w', today);
+}
+
+/**
+ * Maps a snooze option to a future ISO date string (YYYY-MM-DD).
+ * Uses calendar months for '1m' and '3m'. Month-boundary clamping: if the
+ * resulting day overshoots the target month (e.g. Jan 31 + 1m → Mar 3),
+ * the date is walked back to the last day of the intended month (Feb 28/29).
+ */
+export function snoozeUntilFor(option: '1w' | '1m' | '3m', today?: string): string {
+  const base = today ? new Date(today + 'T00:00:00Z') : new Date();
+  const result = new Date(base);
+  if (option === '1w') {
+    result.setUTCDate(result.getUTCDate() + 7);
+  } else if (option === '1m') {
+    const targetMonth = result.getUTCMonth() + 1;
+    result.setUTCMonth(targetMonth);
+    // Clamp: if day overflowed (e.g. Jan 31 → Mar 3), roll back to last day of targetMonth
+    if (result.getUTCMonth() !== targetMonth % 12) {
+      result.setUTCDate(0); // last day of previous month
+    }
+  } else {
+    const targetMonth = result.getUTCMonth() + 3;
+    result.setUTCMonth(targetMonth);
+    // Clamp: same logic as above, adjusted for 3-month offset
+    const expectedMonth = (base.getUTCMonth() + 3) % 12;
+    if (result.getUTCMonth() !== expectedMonth) {
+      result.setUTCDate(0);
+    }
+  }
+  return result.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns a new state with the deferred entry for `moduleId` upserted.
+ * If the module already has an entry, it is replaced; otherwise appended.
+ */
+export function addDeferredModule(
+  state: PatinaState,
+  moduleId: ModuleId,
+  snoozeUntil: string,
+): PatinaState {
+  const existing = state.deferred_modules ?? [];
+  const without = existing.filter((e: DeferredModule) => e.module !== moduleId);
+  return {
+    ...state,
+    deferred_modules: [...without, { module: moduleId, snooze_until: snoozeUntil }],
+  };
+}
+
+/**
+ * Returns a new state with the deferred entry for `moduleId` removed.
+ * Sets `deferred_modules: []` (not undefined) when the result is empty
+ * so the key remains present and intent is explicit.
+ */
+export function clearDeferredModule(
+  state: PatinaState,
+  moduleId: ModuleId,
+): PatinaState {
+  const existing = state.deferred_modules ?? [];
+  return {
+    ...state,
+    deferred_modules: existing.filter((e: DeferredModule) => e.module !== moduleId),
+  };
+}
 
 // ─── Launch tasks ─────────────────────────────────────────────────────────────
 
@@ -283,15 +356,28 @@ async function runInstall(cwd: string): Promise<void> {
   );
 
   const modules: ModuleId[] = Array.isArray(setup.modules) ? setup.modules : [];
-  let liProfileUrl = '';
 
-  if (modules.includes('linkedin')) {
-    const url = await p.text({
-      message: "What's your LinkedIn profile URL?",
-      placeholder: 'https://linkedin.com/in/yourname',
-      hint: chalk.hex('#64748B')('optional — you can add this later in profile.yaml'),
+  // ── Per-module now/later prompts (generic — driven by requiresConfig on each module def)
+  const moduleInputs: Record<string, ModuleAddInputs> = {};
+  const deferredModules: DeferredModule[] = [];
+  for (const moduleId of modules.filter(m => getModule(m)?.requiresConfig)) {
+    const def = getModule(moduleId)!;
+    const choice = await p.select({
+      message: `Set up ${def.label} now or fill it out later?`,
+      options: [
+        { value: 'now', label: 'Fill out now' },
+        { value: 'later', label: 'Fill out later', hint: chalk.hex('#64748B')("I'll remind you next session") },
+      ],
     });
-    liProfileUrl = typeof url === 'string' ? url : '';
+    if (p.isCancel(choice)) onCancel();
+    if (choice === 'now') {
+      if (def.promptsOnAdd) {
+        const inputs = await def.promptsOnAdd();
+        moduleInputs[moduleId] = inputs;
+      }
+    } else {
+      deferredModules.push({ module: moduleId, snooze_until: defaultSnoozeUntil() });
+    }
   }
 
   // ── Launch tasks
@@ -322,6 +408,9 @@ async function runInstall(cwd: string): Promise<void> {
     company_description: work.companyDescription?.trim() || undefined,
   };
 
+  // Derive liProfileUrl for scaffold from collected inputs (linkedin may not be selected)
+  const liProfileUrl = (moduleInputs['linkedin']?.liProfileUrl as string | undefined) ?? '';
+
   try {
     await scaffold({
       targetDir,
@@ -337,6 +426,17 @@ async function runInstall(cwd: string): Promise<void> {
       contentDir: 'graph',
       launchTasks,
     });
+
+    // Merge deferred entries into state after scaffold has written .patina-state.json with checksums.
+    // Never clobber the checksums scaffold just wrote — read first, then merge.
+    if (deferredModules.length > 0) {
+      let state = readState(targetDir);
+      for (const entry of deferredModules) {
+        state = addDeferredModule(state, entry.module, entry.snooze_until);
+      }
+      writeState(targetDir, state);
+    }
+
     s.stop(chalk.green('Done.'));
   } catch (err) {
     s.stop(chalk.red('Something went wrong.'));
@@ -486,7 +586,8 @@ export function applyProfileUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const stored: ChecksumMap = readState(cwd, profile).checksums;
+  const existingState = readState(cwd, profile);
+  const stored: ChecksumMap = existingState.checksums;
   const newChecksums: ChecksumMap = {};
 
   const files = [
@@ -561,7 +662,7 @@ export function applyProfileUpdate(
     }
   }
 
-  writeState(cwd, { checksums: newChecksums });
+  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
   return { profile: profileToWrite, updated, skipped, keptSections };
@@ -724,8 +825,17 @@ export function applyModuleChanges(
   toRemove: ModuleId[],
   moduleInputs?: Record<string, ModuleAddInputs>,
 ): ModuleChangeResult {
-  const stored: ChecksumMap = readState(cwd, profile).checksums;
+  const initialState = readState(cwd, profile);
+  const stored: ChecksumMap = initialState.checksums;
   const newChecksums: ChecksumMap = { ...stored };
+  // Carry deferred_modules through; strip entries for removed modules.
+  let deferredModules = initialState.deferred_modules;
+  for (const module of toRemove) {
+    if (deferredModules !== undefined) {
+      const cleared = clearDeferredModule({ checksums: {}, deferred_modules: deferredModules }, module);
+      deferredModules = cleared.deferred_modules;
+    }
+  }
   let updatedProfile: Profile = { ...profile, modules: [...(profile.modules ?? [])] };
 
   const added: string[] = [];
@@ -858,7 +968,7 @@ export function applyModuleChanges(
   const launchResult = applyLaunchBlock(cwd, updatedProfile.launch_tasks ?? [], updatedProfile.modules, finalVars, newChecksums);
   keptSections.push(...launchResult.keptSections);
 
-  writeState(cwd, { checksums: newChecksums });
+  writeState(cwd, { checksums: newChecksums, ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}) });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
   return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections };
@@ -885,7 +995,8 @@ export function applyLaunchTaskUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const stored: ChecksumMap = readState(cwd, profile).checksums;
+  const existingState = readState(cwd, profile);
+  const stored: ChecksumMap = existingState.checksums;
   // Start from stored so section-level lookups inside applyLaunchBlock are consistent.
   const newChecksums: ChecksumMap = { ...stored };
 
@@ -893,7 +1004,7 @@ export function applyLaunchTaskUpdate(
     cwd, launchTasks, profile.modules ?? [], vars, newChecksums, overwrite,
   );
 
-  writeState(cwd, { checksums: newChecksums });
+  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
   return { profile: profileToWrite, updated, skipped, keptSections };
@@ -978,26 +1089,50 @@ async function runUpdateModules(cwd: string, profile: Profile): Promise<void> {
   }
   p.note(changeLines.join('\n'), label('Planned changes'));
 
-  // Hoist module-specific pre-add prompts before calling the helper.
-  // TODO: move per-module prompt collection into ModuleDefinition (e.g. promptsOnAdd) so
-  // wizard.ts doesn't need to check module ids directly for new modules needing pre-add input.
-  let liProfileUrl: string | undefined;
-  if (toAdd.includes('linkedin') && !profile.linkedin?.profile_url) {
-    const url = await p.text({
-      message: "What's your LinkedIn profile URL?",
-      placeholder: 'https://linkedin.com/in/yourname (optional)',
+  // Per-module now/later prompts (generic — driven by requiresConfig on each module def).
+  // Only modules being added and not already configured are prompted.
+  const moduleInputs: Record<string, ModuleAddInputs> = {};
+  const deferredUpdates: Array<{ moduleId: ModuleId; snoozeUntil: string }> = [];
+  const clearDeferred: ModuleId[] = [];
+
+  for (const moduleId of toAdd.filter(m => getModule(m)?.requiresConfig)) {
+    const def = getModule(moduleId)!;
+    const choice = await p.select({
+      message: `Set up ${def.label} now or fill it out later?`,
+      options: [
+        { value: 'now', label: 'Fill out now' },
+        { value: 'later', label: 'Fill out later', hint: chalk.hex('#64748B')("I'll remind you next session") },
+      ],
     });
-    if (p.isCancel(url)) {
+    if (p.isCancel(choice)) {
       p.cancel(chalk.hex('#94A3B8')('No changes made.'));
       return;
     }
-    if (typeof url === 'string' && url.trim()) {
-      liProfileUrl = url.trim();
+    if (choice === 'now') {
+      if (def.promptsOnAdd) {
+        const inputs = await def.promptsOnAdd();
+        moduleInputs[moduleId] = inputs;
+      }
+      clearDeferred.push(moduleId);
+    } else {
+      deferredUpdates.push({ moduleId, snoozeUntil: defaultSnoozeUntil() });
     }
   }
 
   const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles, keptSections: keptSectionKeys } =
-    applyModuleChanges(cwd, profile, toAdd, toRemove, { linkedin: { liProfileUrl } });
+    applyModuleChanges(cwd, profile, toAdd, toRemove, moduleInputs);
+
+  // Merge deferred state changes after applyModuleChanges (which writes state with checksums).
+  if (deferredUpdates.length > 0 || clearDeferred.length > 0) {
+    let state = readState(cwd);
+    for (const { moduleId, snoozeUntil } of deferredUpdates) {
+      state = addDeferredModule(state, moduleId, snoozeUntil);
+    }
+    for (const moduleId of clearDeferred) {
+      state = clearDeferredModule(state, moduleId);
+    }
+    writeState(cwd, state);
+  }
 
   const summaryLines: string[] = [];
   if (addedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Added: ${addedFiles.join(', ')}`));
