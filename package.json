@@ -1,6 +1,6 @@
 {
   "name": "my-patina",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Personal professional knowledge graph — setup and management",
   "type": "module",
   "bin": {
