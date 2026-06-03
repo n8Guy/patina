@@ -9,6 +9,7 @@ import { getModule } from './modules/registry.js';
 import { renderSection, hasFences } from './sections.js';
 import { writeState, STATE_FILENAME } from './state.js';
 import { renderLaunchSection } from './launch-tasks.js';
+import { markDemo as markDemoFn } from './demo/mark.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
 
 function writeRaw(targetDir: string, relativePath: string, content: string): void {
@@ -49,8 +50,8 @@ export function validateManifestFrontmatter(moduleName: string, content: string)
  * Build a TemplateVars object from a Profile. Centralizes the mapping so
  * both scaffold() and runUpdate() produce identical vars.
  */
-export function profileToVars(profile: Profile, liProfileUrl?: string): TemplateVars {
-  const today = new Date().toISOString().split('T')[0];
+export function profileToVars(profile: Profile, liProfileUrl?: string, today?: string): TemplateVars {
+  const resolvedToday = today ?? new Date().toISOString().split('T')[0];
   const modulesSection = (profile.modules ?? []).length
     ? profile.modules
         .map(id => {
@@ -70,7 +71,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string): Template
     CONTENT_DIR: profile.content_dir,
     EDITOR: profile.editor,
     LI_PROFILE_URL: liProfileUrl ?? profile.linkedin?.profile_url ?? '',
-    TODAY: today,
+    TODAY: resolvedToday,
     STALENESS_THRESHOLD: (() => { const d = Number(profile.staleness_threshold_days ?? 30); return String(Number.isFinite(d) && d > 0 ? d : 30); })(),
     MODULES_SECTION: modulesSection,
   };
@@ -132,14 +133,25 @@ export function moduleContentFiles(module: string, vars: TemplateVars, contentDi
   return getModule(module)?.contentFiles(vars, contentDir) ?? [];
 }
 
+/**
+ * In demo mode, inserts `_demo: true` as the first line inside a leading `---` frontmatter block.
+ * Returns content unchanged if no frontmatter is found or demo is false.
+ */
+export function markDemo(content: string, demo: boolean): string {
+  if (!demo) return content;
+  return markDemoFn(content);
+}
+
 export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const {
     targetDir, patinaName, userName, title, roleDescription,
     jobDescriptionUrl, work, editor, modules, liProfileUrl, contentDir,
     launchTasks = [],
+    demo = false,
+    today: todayOverride,
   } = opts;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayOverride ?? new Date().toISOString().split('T')[0];
 
   // Build a temporary Profile object so we can use profileToVars
   const tempProfile: Profile = {
@@ -157,7 +169,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     ...(modules.includes('linkedin') && liProfileUrl ? { linkedin: { profile_url: liProfileUrl } } : {}),
   };
 
-  const vars = profileToVars(tempProfile, liProfileUrl);
+  const vars = profileToVars(tempProfile, liProfileUrl, today);
 
   mkdirSync(targetDir, { recursive: true });
 
@@ -191,7 +203,9 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   }
 
   for (const [relativePath, content] of managedFiles) {
-    const result = writeManagedFile(targetDir, relativePath, content, {});
+    // Apply _demo: true stamp to managed files with YAML frontmatter when in demo mode
+    const fileContent = (demo && content.startsWith('---')) ? markDemo(content, demo) : content;
+    const result = writeManagedFile(targetDir, relativePath, fileContent, {});
     checksums[relativePath] = result.checksum;
     for (const s of result.sections ?? []) {
       checksums[`${relativePath}:${s.id}`] = s.newChecksum;
@@ -230,17 +244,18 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   for (const dir of baseDirs) {
     touch(targetDir, `${contentDir}/${dir}/.gitkeep`);
   }
-  writeRaw(targetDir, `${contentDir}/notes/README.md`, render(tpl('graph/notes/README.md'), vars));
-  writeRaw(targetDir, `${contentDir}/notes/exclusions.md`, render(tpl('graph/notes/exclusions.md'), vars));
+  writeRaw(targetDir, `${contentDir}/notes/README.md`, markDemo(render(tpl('graph/notes/README.md'), vars), demo));
+  writeRaw(targetDir, `${contentDir}/notes/exclusions.md`, markDemo(render(tpl('graph/notes/exclusions.md'), vars), demo));
 
   for (const module of modules) {
     for (const [relativePath, content] of moduleContentFiles(module, vars, contentDir)) {
-      writeRaw(targetDir, relativePath, content);
+      writeRaw(targetDir, relativePath, markDemo(content, demo));
     }
   }
 
   // ── profile.yaml (clean — no internal state)
-  writeRaw(targetDir, 'profile.yaml', yaml.dump(tempProfile));
+  const profileToWrite: Profile = demo ? { ...tempProfile, _demo: true } : tempProfile;
+  writeRaw(targetDir, 'profile.yaml', yaml.dump(profileToWrite));
 
   // ── .patina-state.json (internal state, gitignored)
   writeState(targetDir, { checksums });

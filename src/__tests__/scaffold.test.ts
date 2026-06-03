@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
-import { scaffold } from '../scaffold.js';
+import { scaffold, markDemo } from '../scaffold.js';
 import { hashContent } from '../checksums.js';
 import { readState } from '../state.js';
+import { detectMode } from '../detect.js';
 import type { ScaffoldOptions, Profile } from '../types.js';
+import { DEMO_TODAY } from '../demo/persona.js';
 
 let tmp: string;
 let targetDir: string;
@@ -583,5 +585,194 @@ describe('scaffold — template rendering', () => {
     await scaffold(opts({ contentDir: 'mywork' }));
     expect(exists('mywork/notes/.gitkeep')).toBe(true);
     expect(read('CLAUDE.md')).toContain('mywork/');
+  });
+});
+
+// ── markDemo helper ───────────────────────────────────────────────────────────
+
+describe('markDemo', () => {
+  it('inserts _demo: true as first line inside frontmatter', () => {
+    const content = '---\ndate: 2025-06-01\ntype: note\n---\n\n# Hello\n';
+    const result = markDemo(content, true);
+    expect(result).toBe('---\n_demo: true\ndate: 2025-06-01\ntype: note\n---\n\n# Hello\n');
+  });
+
+  it('handles \\r\\n line endings in frontmatter delimiter', () => {
+    const content = '---\r\ndate: 2025-06-01\r\n---\r\n\n# Hello\n';
+    const result = markDemo(content, true);
+    expect(result).toContain('_demo: true');
+    expect(result.startsWith('---\r\n_demo: true\r\n')).toBe(true);
+  });
+
+  it('returns content unchanged when demo is false', () => {
+    const content = '---\ndate: 2025-06-01\n---\n\n# Hello\n';
+    expect(markDemo(content, false)).toBe(content);
+  });
+
+  it('returns content unchanged when no frontmatter', () => {
+    const content = '# No frontmatter\n\nJust text.\n';
+    expect(markDemo(content, true)).toBe(content);
+  });
+});
+
+// ── scaffold — demo mode ──────────────────────────────────────────────────────
+
+describe('scaffold — demo mode', () => {
+  function demoOpts(overrides: Partial<ScaffoldOptions> = {}): ScaffoldOptions {
+    return {
+      targetDir,
+      patinaName: 'patina-demo',
+      userName: 'Mara Ellison',
+      title: 'Independent Software Consultant',
+      roleDescription: "I'm a backend-leaning full-stack consultant.",
+      jobDescriptionUrl: '',
+      work: {
+        self_employed: true,
+        company_name: 'Ellison Labs',
+        website: 'https://ellisonlabs.dev',
+        company_description: 'Independent consultancy.',
+      },
+      editor: 'vscode',
+      modules: ['linkedin', 'resume'],
+      liProfileUrl: 'https://linkedin.com/in/mara-ellison-demo',
+      contentDir: 'graph',
+      demo: true,
+      today: DEMO_TODAY,
+      ...overrides,
+    };
+  }
+
+  beforeEach(async () => {
+    await scaffold(demoOpts());
+  });
+
+  it('profile.yaml has _demo: true', () => {
+    const p = yaml.load(read('profile.yaml')) as Profile;
+    expect((p as Profile & { _demo?: boolean })._demo).toBe(true);
+  });
+
+  it('profile.yaml created date uses DEMO_TODAY', () => {
+    const p = yaml.load(read('profile.yaml')) as Profile;
+    expect(p.created).toBe(DEMO_TODAY);
+  });
+
+  it('exclusions.md contains DEMO_TODAY (not today)', () => {
+    expect(read('graph/notes/exclusions.md')).toContain(DEMO_TODAY);
+  });
+
+  it('content files from modules have _demo: true in frontmatter', () => {
+    // LinkedIn About has frontmatter
+    const about = read('graph/linkedin/LinkedIn About.md');
+    expect(about).toContain('_demo: true');
+  });
+
+  it('no unreplaced {{...}} template variables in any file', () => {
+    function collectFiles(dir: string): string[] {
+      const results: string[] = [];
+      if (!existsSync(dir)) return results;
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          results.push(...collectFiles(join(dir, entry.name)));
+        } else {
+          results.push(join(dir, entry.name));
+        }
+      }
+      return results;
+    }
+    const files = collectFiles(targetDir);
+    for (const f of files) {
+      if (f.endsWith('.md') || f.endsWith('.yaml') || f.endsWith('.json')) {
+        const content = readFileSync(f, 'utf8');
+        expect(content, f).not.toMatch(/\{\{[A-Z_]+\}\}/);
+      }
+    }
+  });
+
+  it('two runs produce byte-identical output', async () => {
+    // Build file map from first run (already done in beforeEach)
+    function collectFileMap(dir: string): Map<string, string> {
+      const map = new Map<string, string>();
+      function walk(d: string): void {
+        if (!existsSync(d)) return;
+        for (const entry of readdirSync(d, { withFileTypes: true })) {
+          if (entry.isDirectory()) {
+            walk(join(d, entry.name));
+          } else {
+            const full = join(d, entry.name);
+            const rel = full.slice(dir.length + 1).replace(/\\/g, '/');
+            map.set(rel, readFileSync(full, 'utf8'));
+          }
+        }
+      }
+      walk(dir);
+      return map;
+    }
+
+    const firstRun = collectFileMap(targetDir);
+
+    // Run a second scaffold into a different targetDir
+    const tmp2 = mkdtempSync(join(tmpdir(), 'patina-demo-run2-'));
+    const targetDir2 = join(tmp2, 'patina-demo');
+    try {
+      await scaffold(demoOpts({ targetDir: targetDir2 }));
+      const secondRun = collectFileMap(targetDir2);
+
+      // Same set of files
+      expect([...secondRun.keys()].sort()).toEqual([...firstRun.keys()].sort());
+
+      // Same content for each file.
+      // For .patina-state.json: parse both as JSON and compare checksum values
+      // (keys may differ by tmpdir path, so compare the checksum hash values).
+      for (const [rel, content] of firstRun) {
+        if (rel === '.patina-state.json') {
+          const first = JSON.parse(content) as { checksums: Record<string, string> };
+          const second = JSON.parse(secondRun.get(rel)!) as { checksums: Record<string, string> };
+          // Same set of relative path keys
+          expect(Object.keys(second.checksums).sort()).toEqual(Object.keys(first.checksums).sort());
+          // Same checksum values for each key
+          for (const [key, hash] of Object.entries(first.checksums)) {
+            expect(second.checksums[key], `checksum for ${key}`).toBe(hash);
+          }
+          continue;
+        }
+        expect(secondRun.get(rel), rel).toBe(content);
+      }
+    } finally {
+      rmSync(tmp2, { recursive: true, force: true });
+    }
+  });
+});
+
+// ── detectMode — demo guard ───────────────────────────────────────────────────
+
+describe('detectMode — throws on demo patina', () => {
+  let demoDir: string;
+
+  beforeEach(async () => {
+    demoDir = join(tmp, 'demo-detect');
+    await scaffold({
+      targetDir: demoDir,
+      patinaName: 'patina-demo',
+      userName: 'Mara Ellison',
+      title: 'Independent Software Consultant',
+      roleDescription: "I'm a backend-leaning full-stack consultant.",
+      jobDescriptionUrl: '',
+      work: {
+        self_employed: true,
+        company_name: 'Ellison Labs',
+        website: 'https://ellisonlabs.dev',
+        company_description: 'Independent consultancy.',
+      },
+      editor: 'vscode',
+      modules: ['linkedin', 'resume'],
+      liProfileUrl: 'https://linkedin.com/in/mara-ellison-demo',
+      contentDir: 'graph',
+      demo: true,
+      today: DEMO_TODAY,
+    });
+  });
+
+  it('detectMode throws with a message containing "demo" for a demo patina', () => {
+    expect(() => detectMode(demoDir)).toThrow(/demo/i);
   });
 });

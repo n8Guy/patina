@@ -3,6 +3,7 @@ import { main } from './wizard.js';
 import { findPatinaRoot, validate, formatReport } from './validate.js';
 import { loadProfile } from './detect.js';
 import { registerCommands } from './commands/index.js';
+import { runDemo } from './demo/index.js';
 import chalk from 'chalk';
 
 const program = new Command();
@@ -12,7 +13,8 @@ const program = new Command();
 program
   .name('patina')
   .description('Personal professional knowledge graph — setup and management')
-  .allowExcessArguments(true);
+  .allowExcessArguments(true)
+  .option('--demo', 'scaffold a demo patina with a fictional persona into patina-demo/');
 
 program
   .command('validate')
@@ -46,6 +48,14 @@ registerCommands(program);
 
 // Default: run wizard when no subcommand given; error on unrecognized commands.
 program.action(function (this: Command) {
+  const opts = this.opts<{ demo?: boolean }>();
+  if (opts.demo) {
+    runDemo(process.cwd()).catch((err: Error) => {
+      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    });
+    return;
+  }
   if (this.args.length > 0) {
     console.error(chalk.red(`Unknown command: ${this.args[0]}`));
     console.error(chalk.dim("Run 'patina --help' for available commands."));

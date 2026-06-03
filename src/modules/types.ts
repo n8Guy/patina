@@ -45,4 +45,12 @@ export interface ModuleDefinition {
    * Optional: launch tasks this module contributes to the catalog.
    */
   launchTasks?: readonly LaunchTaskDefinition[];
+  /**
+   * Required: return populated demo files for this module.
+   * Called by runDemo() to populate a demo patina with realistic content.
+   * Each tuple is [relativePath, content] relative to the patina root.
+   * All returned files must have YAML frontmatter starting with `---\n`
+   * so markDemo() can inject `_demo: true`.
+   */
+  demoContent(vars: TemplateVars, contentDir: string): Array<[string, string]>;
 }
