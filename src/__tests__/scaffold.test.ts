@@ -337,6 +337,64 @@ describe('scaffold — no linkedin module', () => {
   });
 });
 
+// ── Goals module ──────────────────────────────────────────────────────────────
+
+describe('scaffold — goals module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['goals'] }));
+  });
+
+  it('creates module manifest', () => {
+    expect(exists('.claude/modules/goals/manifest.md')).toBe(true);
+  });
+
+  it('manifest contains reflect_hook: goal-review', () => {
+    expect(read('.claude/modules/goals/manifest.md')).toContain('reflect_hook: goal-review');
+  });
+
+  it('manifest contains name: goals', () => {
+    expect(read('.claude/modules/goals/manifest.md')).toContain('name: goals');
+  });
+
+  it('creates .claude/modules/goals/CLAUDE.md', () => {
+    expect(exists('.claude/modules/goals/CLAUDE.md')).toBe(true);
+  });
+
+  it('creates graph/goals/INSTRUCTIONS.md', () => {
+    expect(exists('graph/goals/INSTRUCTIONS.md')).toBe(true);
+  });
+
+  it('INSTRUCTIONS.md contains no unreplaced template variables', () => {
+    expect(read('graph/goals/INSTRUCTIONS.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('creates graph/goals/.gitkeep', () => {
+    expect(exists('graph/goals/.gitkeep')).toBe(true);
+  });
+});
+
+describe('scaffold — no goals module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+  });
+
+  it('does not create .claude/modules/goals/manifest.md', () => {
+    expect(exists('.claude/modules/goals/manifest.md')).toBe(false);
+  });
+
+  it('does not create .claude/modules/goals/CLAUDE.md', () => {
+    expect(exists('.claude/modules/goals/CLAUDE.md')).toBe(false);
+  });
+
+  it('does not create graph/goals/INSTRUCTIONS.md', () => {
+    expect(exists('graph/goals/INSTRUCTIONS.md')).toBe(false);
+  });
+
+  it('does not create graph/goals/.gitkeep', () => {
+    expect(exists('graph/goals/.gitkeep')).toBe(false);
+  });
+});
+
 // ── Multi-module scaffold ─────────────────────────────────────────────────────
 
 describe('scaffold — multiple modules (linkedin + resume)', () => {
@@ -640,7 +698,7 @@ describe('scaffold — demo mode', () => {
         company_description: 'Independent consultancy.',
       },
       editor: 'vscode',
-      modules: ['linkedin', 'resume'],
+      modules: ['linkedin', 'resume', 'goals'],
       liProfileUrl: 'https://linkedin.com/in/mara-ellison-demo',
       contentDir: 'graph',
       demo: true,
