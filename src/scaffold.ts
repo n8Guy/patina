@@ -10,6 +10,7 @@ import { renderSection, hasFences } from './sections.js';
 import { writeState, STATE_FILENAME } from './state.js';
 import { renderLaunchSection } from './launch-tasks.js';
 import { markDemo as markDemoFn } from './demo/mark.js';
+import { getPatinaVersion } from './version.js';
 import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
 
 function writeRaw(targetDir: string, relativePath: string, content: string): void {
@@ -74,6 +75,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
     TODAY: resolvedToday,
     STALENESS_THRESHOLD: (() => { const d = Number(profile.staleness_threshold_days ?? 30); return String(Number.isFinite(d) && d > 0 ? d : 30); })(),
     MODULES_SECTION: modulesSection,
+    PATINA_VERSION: getPatinaVersion(),
   };
 }
 
@@ -90,6 +92,7 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
     ['README.md', render(tpl('README.md'), vars)],
     ['CLAUDE.md', render(tpl('CLAUDE.md'), vars)],
     ['.claude/settings.json', tpl('.claude/settings.json')],
+    ['.claude/scripts/check-update.mjs', render(tpl('.claude/scripts/check-update.mjs'), vars)],
     ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
     ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
     // Inlined as literals rather than template files to avoid dotfile packaging risk
@@ -131,6 +134,42 @@ export function moduleManagedFiles(module: string, vars: TemplateVars): Array<[s
  */
 export function moduleContentFiles(module: string, vars: TemplateVars, contentDir: string): Array<[string, string]> {
   return getModule(module)?.contentFiles(vars, contentDir) ?? [];
+}
+
+/**
+ * Build the body of the `patina:update-check` fenced section in CLAUDE.md.
+ * The embedded version number is read from `vars.PATINA_VERSION` so it stays
+ * accurate on upgrade without any user action.
+ */
+export function renderUpdateCheckSection(vars: TemplateVars): string {
+  return `After you finish responding to the user's **first message** of this session — at the natural
+end of that response, not mid-task — check for \`.patina-update-check\`.
+
+If the file exists:
+- Read its contents. If it contains a version string (e.g. \`0.14.0\`):
+  - Read \`.patina-state.json\`. If \`update_check.last_notified_version\` matches the version in
+    the file, say nothing.
+  - Otherwise, append this notification to the end of your response (fill in the version numbers):
+
+    ---
+    There's a newer version of patina available (you have ${vars.PATINA_VERSION}, the latest is [version]).
+
+    To update: finish what you're doing in this session, close this window, and run this
+    command in your terminal:
+
+        npx my-patina@latest
+
+    Your notes and settings will stay exactly as they are.
+    ---
+
+  - After notifying, write \`update_check.last_notified_version\` to \`.patina-state.json\`.
+- If the file is empty or unparseable, say nothing.
+- In all cases, delete \`.patina-update-check\` after checking.
+
+For version comparison, split on \`.\` and compare major, minor, and patch numerically. If
+either side is not a valid semver string, skip silently.
+
+Skip this step entirely in headless or non-interactive sessions.`;
 }
 
 /**
@@ -239,6 +278,16 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     }
   }
 
+  // ── Append update-check block
+  const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(vars));
+  {
+    const result = writeManagedFile(targetDir, 'CLAUDE.md', updateCheckBlock, checksums);
+    checksums['CLAUDE.md'] = result.checksum;
+    for (const s of result.sections ?? []) {
+      checksums[`CLAUDE.md:${s.id}`] = s.newChecksum;
+    }
+  }
+
   // ── Content directory (never touched on upgrade)
   const baseDirs = ['notes', 'skills', 'posts'];
   for (const dir of baseDirs) {
@@ -261,5 +310,5 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeState(targetDir, { checksums });
 
   // ── .gitignore
-  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n`);
+  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n.patina-update-check\n`);
 }

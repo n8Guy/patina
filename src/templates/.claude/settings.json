@@ -1,5 +1,19 @@
 {
   "permissions": {
-    "allow": []
+    "allow": [
+      "Bash(node .claude/scripts/check-update.mjs)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/scripts/check-update.mjs"
+          }
+        ]
+      }
+    ]
   }
 }

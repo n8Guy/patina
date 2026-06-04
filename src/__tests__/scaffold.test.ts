@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
-import { scaffold, markDemo } from '../scaffold.js';
+import { scaffold, markDemo, profileToVars, renderUpdateCheckSection } from '../scaffold.js';
 import { hashContent } from '../checksums.js';
 import { readState } from '../state.js';
 import { detectMode } from '../detect.js';
@@ -781,5 +781,128 @@ describe('detectMode — throws on demo patina', () => {
 
   it('detectMode throws with a message containing "demo" for a demo patina', () => {
     expect(() => detectMode(demoDir)).toThrow(/demo/i);
+  });
+});
+
+// ── PATINA_VERSION ────────────────────────────────────────────────────────────
+
+describe('profileToVars — PATINA_VERSION', () => {
+  it('includes PATINA_VERSION matching the current package version', () => {
+    const p: Profile = {
+      patina_name: 'test',
+      name: 'Jane',
+      work: { self_employed: false, company_name: 'Acme' },
+      editor: 'vscode',
+      modules: [],
+      content_dir: 'graph',
+      created: '2026-01-01',
+    };
+    const vars = profileToVars(p);
+    expect(typeof vars.PATINA_VERSION).toBe('string');
+    expect(vars.PATINA_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+});
+
+describe('scaffold — check-update.mjs', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates .claude/scripts/check-update.mjs', () => {
+    expect(exists('.claude/scripts/check-update.mjs')).toBe(true);
+  });
+
+  it('check-update.mjs contains the literal version string (no leftover {{PATINA_VERSION}})', () => {
+    const content = read('.claude/scripts/check-update.mjs');
+    expect(content).not.toContain('{{PATINA_VERSION}}');
+    expect(content).toMatch(/INSTALLED_VERSION = '\d+\.\d+\.\d+'/);
+  });
+
+  it('.patina-state.json has a checksum for check-update.mjs', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/scripts/check-update.mjs']).toBe('string');
+  });
+});
+
+describe('scaffold — .gitignore update-check entry', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('.gitignore includes .patina-update-check', () => {
+    expect(read('.gitignore')).toContain('.patina-update-check');
+  });
+});
+
+describe('scaffold — update-check CLAUDE.md section', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('CLAUDE.md contains patina:update-check fence markers', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('<!-- patina:update-check:start -->');
+    expect(content).toContain('<!-- patina:update-check:end -->');
+  });
+
+  it('CLAUDE.md update-check section contains the patina version', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toMatch(/you have \d+\.\d+\.\d+/);
+  });
+
+  it('CLAUDE.md update-check section contains the update command', () => {
+    expect(read('CLAUDE.md')).toContain('npx my-patina@latest');
+  });
+
+  it('.patina-state.json has CLAUDE.md:update-check checksum', () => {
+    const state = loadState();
+    expect(typeof state.checksums['CLAUDE.md:update-check']).toBe('string');
+  });
+
+  it('CLAUDE.md contains no unreplaced template variables in update-check section', () => {
+    expect(read('CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+});
+
+describe('renderUpdateCheckSection', () => {
+  const vars = {
+    PATINA_NAME: 'test',
+    USER_NAME: 'Jane',
+    USER_TITLE: '',
+    ROLE_DESCRIPTION: '',
+    COMPANY_NAME: 'Acme',
+    COMPANY_DESCRIPTION: '',
+    CONTENT_DIR: 'graph',
+    EDITOR: 'vscode',
+    LI_PROFILE_URL: '',
+    TODAY: '2026-01-01',
+    STALENESS_THRESHOLD: '30',
+    MODULES_SECTION: '',
+    PATINA_VERSION: '1.2.3',
+  };
+
+  it('returns a string containing the installed version', () => {
+    const result = renderUpdateCheckSection(vars);
+    expect(result).toContain('1.2.3');
+  });
+
+  it('returns a string containing the update command', () => {
+    const result = renderUpdateCheckSection(vars);
+    expect(result).toContain('npx my-patina@latest');
+  });
+
+  it('does not contain any unreplaced {{...}} template vars', () => {
+    const result = renderUpdateCheckSection(vars);
+    expect(result).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('mentions .patina-update-check flag file', () => {
+    const result = renderUpdateCheckSection(vars);
+    expect(result).toContain('.patina-update-check');
+  });
+
+  it('mentions .patina-state.json', () => {
+    const result = renderUpdateCheckSection(vars);
+    expect(result).toContain('.patina-state.json');
   });
 });

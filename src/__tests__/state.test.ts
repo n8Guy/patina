@@ -216,3 +216,56 @@ describe('migration end-to-end', () => {
     expect(state2.checksums['CLAUDE.md']).toBe('old-hash');
   });
 });
+
+// ── update_check ──────────────────────────────────────────────────────────────
+
+describe('update_check round-trip', () => {
+  it('writeState → readState preserves update_check.last_notified_version', () => {
+    const updateCheck = { last_notified_version: '1.5.0' };
+    writeState(tmp, { checksums: {}, update_check: updateCheck });
+
+    const state = readState(tmp);
+    expect(state.update_check).toEqual(updateCheck);
+  });
+
+  it('readState returns undefined update_check when field absent from file', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ checksums: {} }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.update_check).toBeUndefined();
+  });
+
+  it('readState ignores update_check with a non-string last_notified_version', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ checksums: {}, update_check: { last_notified_version: 42 } }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.update_check).toBeUndefined();
+  });
+
+  it('readState ignores non-object update_check values', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ checksums: {}, update_check: 'bad' }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.update_check).toBeUndefined();
+  });
+
+  it('writeState with update_check: undefined does not emit the key', () => {
+    writeState(tmp, { checksums: {}, update_check: undefined });
+
+    const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect('update_check' in parsed).toBe(false);
+  });
+});

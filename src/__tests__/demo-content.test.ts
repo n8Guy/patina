@@ -13,7 +13,7 @@ const demoProfile: Profile = {
   job_description_url: DEMO_PERSONA.jobDescriptionUrl || undefined,
   work: DEMO_PERSONA.work,
   editor: DEMO_PERSONA.editor,
-  modules: MODULES.map(m => m.id),
+  modules: MODULES.map(m => m.id as import('../types.js').ModuleId),
   content_dir: DEMO_PERSONA.contentDir,
   created: DEMO_TODAY,
   _demo: true,
