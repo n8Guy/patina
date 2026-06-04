@@ -371,6 +371,32 @@ describe('scaffold — goals module', () => {
   it('creates graph/goals/.gitkeep', () => {
     expect(exists('graph/goals/.gitkeep')).toBe(true);
   });
+
+  it('creates .claude/commands/goal.md', () => {
+    expect(exists('.claude/commands/goal.md')).toBe(true);
+  });
+
+  it('creates .claude/commands/goal-review.md', () => {
+    expect(exists('.claude/commands/goal-review.md')).toBe(true);
+  });
+
+  it('goal.md contains the content dir and no unreplaced template variables', () => {
+    const content = read('.claude/commands/goal.md');
+    expect(content).toContain('graph/goals/');
+    expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('goal-review.md contains the content dir and no unreplaced template variables', () => {
+    const content = read('.claude/commands/goal-review.md');
+    expect(content).toContain('graph/goals/');
+    expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('stores goal command checksums in .patina-state.json', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/commands/goal.md']).toBe('string');
+    expect(typeof state.checksums['.claude/commands/goal-review.md']).toBe('string');
+  });
 });
 
 describe('scaffold — no goals module', () => {
@@ -392,6 +418,11 @@ describe('scaffold — no goals module', () => {
 
   it('does not create graph/goals/.gitkeep', () => {
     expect(exists('graph/goals/.gitkeep')).toBe(false);
+  });
+
+  it('does not create goal commands', () => {
+    expect(exists('.claude/commands/goal.md')).toBe(false);
+    expect(exists('.claude/commands/goal-review.md')).toBe(false);
   });
 });
 

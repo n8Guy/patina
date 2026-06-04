@@ -10,6 +10,13 @@ This module tracks {{USER_NAME}}'s forward-looking goals. Goals are future commi
   <slug>.md           — one file per goal
 ```
 
+## Slash commands
+
+| Command | What it does |
+|---------|-------------|
+| `/goal <description>` | Create a new goal |
+| `/goal-review` | Review open and in-progress goals, flag overdue |
+
 ## How it works
 
 Goals are created and updated through Claude. Each goal is a markdown file with YAML frontmatter capturing its status, time horizon, and type. Read `{{CONTENT_DIR}}/goals/INSTRUCTIONS.md` before working with any goal files.
