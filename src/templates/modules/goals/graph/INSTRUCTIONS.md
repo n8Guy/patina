@@ -33,7 +33,7 @@ To create a goal, tell Claude what you want to accomplish. Claude will choose an
 
 To update a goal (change its status, adjust the due date, mark it done), describe the change to Claude. Claude will update the frontmatter fields in place — it will not create a new file.
 
-To review your goals, run `/goal-review` (forthcoming). Until that command ships, ask Claude directly: "What are my open goals this quarter?"
+To review your goals, run `/goal-review`. It groups open and in-progress goals by status and type, flags overdue goals first, and shows a summary count.
 
 ---
 

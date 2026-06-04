@@ -5,6 +5,8 @@ import type { TemplateVars } from '../../types.js';
 
 // Single source of truth for managed paths.
 const GOALS_MANAGED_PATHS = [
+  '.claude/commands/goal.md',
+  '.claude/commands/goal-review.md',
   '.claude/modules/goals/manifest.md',
   '.claude/modules/goals/CLAUDE.md',
 ] as const;
@@ -26,9 +28,9 @@ export const goalsModule = {
   contentFileNames: CONTENT_FILE_NAMES,
 
   managedFiles(vars: TemplateVars): FileEntry[] {
-    // manifest.md has reflect_hook: goal-review — a forward reference to a not-yet-implemented
-    // command. /reflect will silently no-op for goals until that issue ships.
     return [
+      ['.claude/commands/goal.md', render(tpl('modules/goals/commands/goal.md'), vars)],
+      ['.claude/commands/goal-review.md', render(tpl('modules/goals/commands/goal-review.md'), vars)],
       ['.claude/modules/goals/manifest.md', render(tpl('modules/goals/manifest.md'), vars)],
       ['.claude/modules/goals/CLAUDE.md', render(tpl('modules/goals/CLAUDE.md'), vars)],
     ];
@@ -57,6 +59,13 @@ export const goalsModule = {
       '  INSTRUCTIONS.md     — module rules and guidance',
       '  <slug>.md           — one file per goal',
       '```',
+      '',
+      '### Commands',
+      '',
+      '| Command | What it does |',
+      '|---------|-------------|',
+      '| `/goal <description>` | Create a new goal |',
+      '| `/goal-review` | Review open and in-progress goals, flag overdue |',
     ].join('\n');
   },
 

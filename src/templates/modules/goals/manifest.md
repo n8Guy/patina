@@ -12,7 +12,7 @@ A private space for your forward-looking goals. Goals are distinct from notes â€
 
 ## How it works
 
-Tell Claude what you want to accomplish. It will create a goal file for you in `{{CONTENT_DIR}}/goals/`. Use `/goal-review` (coming soon) to review, update, and triage your goals.
+Tell Claude what you want to accomplish. Run `/goal` and it will ask for a horizon, type, and optional due date, then create a goal file in `{{CONTENT_DIR}}/goals/`. Run `/goal-review` to see all open and in-progress goals grouped by status and type, with overdue goals surfaced first.
 
 ## File layout
 
@@ -25,7 +25,3 @@ Tell Claude what you want to accomplish. It will create a goal file for you in `
 ## What this module does not do
 
 Goals are stored locally in your graph. This module does not connect to any external service, calendar, or task manager.
-
-## Note on `/goal-review`
-
-The `/goal-review` command is forthcoming. Until it ships, `/reflect` will reference it but handle a missing command gracefully.
