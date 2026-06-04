@@ -426,6 +426,115 @@ describe('scaffold — no goals module', () => {
   });
 });
 
+// ── Work module ───────────────────────────────────────────────────────────────
+
+describe('scaffold — work module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['work'] }));
+  });
+
+  it('creates module manifest', () => {
+    expect(exists('.claude/modules/work/manifest.md')).toBe(true);
+  });
+
+  it('manifest contains name: work', () => {
+    expect(read('.claude/modules/work/manifest.md')).toContain('name: work');
+  });
+
+  it('creates .claude/modules/work/CLAUDE.md', () => {
+    expect(exists('.claude/modules/work/CLAUDE.md')).toBe(true);
+  });
+
+  it('creates graph/work/INSTRUCTIONS.md', () => {
+    expect(exists('graph/work/INSTRUCTIONS.md')).toBe(true);
+  });
+
+  it('creates graph/work/profile.md', () => {
+    expect(exists('graph/work/profile.md')).toBe(true);
+  });
+
+  it('creates graph/work/transcripts/.gitkeep', () => {
+    expect(exists('graph/work/transcripts/.gitkeep')).toBe(true);
+  });
+
+  it('creates graph/work/weeklies/.gitkeep', () => {
+    expect(exists('graph/work/weeklies/.gitkeep')).toBe(true);
+  });
+
+  it('creates graph/work/references/.gitkeep', () => {
+    expect(exists('graph/work/references/.gitkeep')).toBe(true);
+  });
+
+  it('INSTRUCTIONS.md contains the content dir and no unreplaced template variables', () => {
+    const content = read('graph/work/INSTRUCTIONS.md');
+    expect(content).toContain('graph/work/');
+    expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('profile.md contains no unreplaced template variables', () => {
+    expect(read('graph/work/profile.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('CLAUDE.md contains no unreplaced template variables', () => {
+    expect(read('.claude/modules/work/CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('manifest contains no unreplaced template variables', () => {
+    expect(read('.claude/modules/work/manifest.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('creates .claude/commands/work-check.md', () => {
+    expect(exists('.claude/commands/work-check.md')).toBe(true);
+  });
+
+  it('work-check.md contains the content dir and no unreplaced template variables', () => {
+    const content = read('.claude/commands/work-check.md');
+    expect(content).toContain('graph/work/');
+    expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('stores work module checksums in .patina-state.json', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/commands/work-check.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/work/manifest.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/work/CLAUDE.md']).toBe('string');
+  });
+
+  it('manifest contains reflect_hook: work-check', () => {
+    expect(read('.claude/modules/work/manifest.md')).toContain('reflect_hook: work-check');
+  });
+
+  it('manifest does not contain the word "frontmatter"', () => {
+    expect(read('.claude/modules/work/manifest.md')).not.toContain('frontmatter');
+  });
+
+  it('CLAUDE.md does not contain the word "frontmatter"', () => {
+    expect(read('.claude/modules/work/CLAUDE.md')).not.toContain('frontmatter');
+  });
+});
+
+describe('scaffold — no work module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+  });
+
+  it('does not create .claude/modules/work/manifest.md', () => {
+    expect(exists('.claude/modules/work/manifest.md')).toBe(false);
+  });
+
+  it('does not create .claude/modules/work/CLAUDE.md', () => {
+    expect(exists('.claude/modules/work/CLAUDE.md')).toBe(false);
+  });
+
+  it('does not create graph/work/', () => {
+    expect(exists('graph/work')).toBe(false);
+  });
+
+  it('does not create .claude/commands/work-check.md', () => {
+    expect(exists('.claude/commands/work-check.md')).toBe(false);
+  });
+});
+
 // ── Multi-module scaffold ─────────────────────────────────────────────────────
 
 describe('scaffold — multiple modules (linkedin + resume)', () => {
@@ -729,7 +838,7 @@ describe('scaffold — demo mode', () => {
         company_description: 'Independent consultancy.',
       },
       editor: 'vscode',
-      modules: ['linkedin', 'resume', 'goals'],
+      modules: ['linkedin', 'resume', 'goals', 'work'],
       liProfileUrl: 'https://linkedin.com/in/mara-ellison-demo',
       contentDir: 'graph',
       demo: true,
