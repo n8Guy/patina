@@ -82,5 +82,6 @@ export interface TemplateVars {
   TODAY: string;
   STALENESS_THRESHOLD: string;
   MODULES_SECTION: string;
+  PATINA_VERSION: string;
   [key: string]: string;
 }

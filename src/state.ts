@@ -3,9 +3,14 @@ import { join } from 'path';
 import type { ChecksumMap } from './checksums.js';
 import type { DeferredModule, Profile } from './types.js';
 
+export interface UpdateCheck {
+  last_notified_version: string;
+}
+
 export interface PatinaState {
   checksums: ChecksumMap;
   deferred_modules?: DeferredModule[];
+  update_check?: UpdateCheck;
 }
 
 export const STATE_FILENAME = '.patina-state.json';
@@ -50,7 +55,21 @@ export function readState(root: string, profile?: Profile): PatinaState {
     const checksums = normalizeChecksums((rawChecksums ?? {}) as ChecksumMap);
     const rawDeferred = obj.deferred_modules;
     const deferred_modules = Array.isArray(rawDeferred) ? (rawDeferred as DeferredModule[]) : undefined;
-    return { checksums, ...(deferred_modules !== undefined ? { deferred_modules } : {}) };
+    const rawUpdateCheck = obj.update_check;
+    let update_check: UpdateCheck | undefined;
+    if (
+      rawUpdateCheck !== null &&
+      typeof rawUpdateCheck === 'object' &&
+      !Array.isArray(rawUpdateCheck) &&
+      typeof (rawUpdateCheck as Record<string, unknown>).last_notified_version === 'string'
+    ) {
+      update_check = { last_notified_version: (rawUpdateCheck as Record<string, unknown>).last_notified_version as string };
+    }
+    return {
+      checksums,
+      ...(deferred_modules !== undefined ? { deferred_modules } : {}),
+      ...(update_check !== undefined ? { update_check } : {}),
+    };
   }
 
   // Migration: state file absent — read from legacy profile._checksums if available.
@@ -73,6 +92,7 @@ export function writeState(root: string, state: PatinaState): void {
   const normalized: PatinaState = {
     checksums: normalizeChecksums(state.checksums),
     ...(state.deferred_modules !== undefined ? { deferred_modules: state.deferred_modules } : {}),
+    ...(state.update_check !== undefined ? { update_check: state.update_check } : {}),
   };
   writeFileSync(
     join(root, STATE_FILENAME),

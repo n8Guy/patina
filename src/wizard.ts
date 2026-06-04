@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'path';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import yaml from 'js-yaml';
 import { detectMode, loadProfile } from './detect.js';
-import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
+import { scaffold, profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles, renderUpdateCheckSection } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
 import { hashFile, hashContent, type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, removeSection, renderSection } from './sections.js';
@@ -658,13 +658,33 @@ export function applyProfileUpdate(
     keptSections.push(...launchResult.keptSections);
   }
 
+  // Re-render update-check block so PATINA_VERSION stays current after an upgrade.
+  {
+    const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(vars));
+    const result = writeManagedFile(cwd, 'CLAUDE.md', updateCheckBlock, newChecksums, overwrite);
+    newChecksums['CLAUDE.md'] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `CLAUDE.md:${s.id}`;
+      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+      else {
+        newChecksums[sKey] = stored[sKey] ?? '';
+        keptSections.push(sKey);
+      }
+    }
+    if (result.outcome === 'skipped') {
+      skipped.push('CLAUDE.md:update-check');
+    } else if (result.sections?.some(s => s.id === 'update-check' && s.outcome !== 'unchanged')) {
+      updated.push('CLAUDE.md:update-check');
+    }
+  }
+
   for (const [rel, hash] of Object.entries(stored)) {
     if (!(rel in newChecksums)) {
       newChecksums[rel] = hash;
     }
   }
 
-  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules });
+  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
   return { profile: profileToWrite, updated, skipped, keptSections };
@@ -970,7 +990,22 @@ export function applyModuleChanges(
   const launchResult = applyLaunchBlock(cwd, updatedProfile.launch_tasks ?? [], updatedProfile.modules, finalVars, newChecksums);
   keptSections.push(...launchResult.keptSections);
 
-  writeState(cwd, { checksums: newChecksums, ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}) });
+  // Re-render update-check block so PATINA_VERSION stays current after module changes.
+  {
+    const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(finalVars));
+    const result = writeManagedFile(cwd, 'CLAUDE.md', updateCheckBlock, newChecksums);
+    newChecksums['CLAUDE.md'] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `CLAUDE.md:${s.id}`;
+      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+      else {
+        newChecksums[sKey] = newChecksums[sKey] ?? '';
+        keptSections.push(sKey);
+      }
+    }
+  }
+
+  writeState(cwd, { checksums: newChecksums, ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}), update_check: initialState.update_check });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
   return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections };
@@ -1006,7 +1041,19 @@ export function applyLaunchTaskUpdate(
     cwd, launchTasks, profile.modules ?? [], vars, newChecksums, overwrite,
   );
 
-  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules });
+  // Re-render update-check block so PATINA_VERSION stays current after an upgrade.
+  {
+    const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(vars));
+    const result = writeManagedFile(cwd, 'CLAUDE.md', updateCheckBlock, newChecksums, overwrite);
+    newChecksums['CLAUDE.md'] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `CLAUDE.md:${s.id}`;
+      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
+      else newChecksums[sKey] = stored[sKey] ?? '';
+    }
+  }
+
+  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
   return { profile: profileToWrite, updated, skipped, keptSections };
