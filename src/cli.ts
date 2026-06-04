@@ -14,7 +14,8 @@ program
   .name('patina')
   .description('Personal professional knowledge graph — setup and management')
   .allowExcessArguments(true)
-  .option('--demo', 'scaffold a demo patina with a fictional persona into patina-demo/');
+  .option('--demo', 'scaffold a demo patina with a fictional persona into patina-demo/')
+  .addHelpText('after', '\nSubcommands follow the `patina <noun> <verb>` pattern, e.g. `patina client add`.\nRun `patina <noun> --help` to see available verbs.');
 
 program
   .command('validate')

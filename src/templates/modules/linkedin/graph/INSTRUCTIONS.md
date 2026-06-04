@@ -114,6 +114,12 @@ Also update `last-updated` in the front matter.
 - **Do not write generic copy.** "Results-driven leader" and "passionate about innovation" are noise. Specificity is the point.
 - **Do not create new dated files for minor edits.** The changelog table handles revision history.
 
+## Confidential content
+
+<!-- confidential gate: must also appear in linkedin/CLAUDE.md, resume/CLAUDE.md, resume/INSTRUCTIONS.md, clients/CLAUDE.md, clients/INSTRUCTIONS.md -->
+
+Before including any note or artifact in output, check its frontmatter. If `confidential: true` is present — or if the file originates under `clients/` and has not been explicitly set to `confidential: false` — skip it entirely. Do not summarise, excerpt, or reference confidential content. This is a hard stop.
+
 ---
 
 ## Section-by-Section Writing Rules

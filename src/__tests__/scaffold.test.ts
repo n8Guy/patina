@@ -1104,3 +1104,86 @@ describe('renderUpdateCheckSection', () => {
     expect(result).toContain('.patina-state.json');
   });
 });
+
+// ── Clients module ────────────────────────────────────────────────────────────
+
+describe('scaffold — clients module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['clients'] }));
+  });
+
+  it('creates graph/clients/.gitkeep', () => {
+    expect(exists('graph/clients/.gitkeep')).toBe(true);
+  });
+
+  it('creates graph/clients/INSTRUCTIONS.md', () => {
+    expect(exists('graph/clients/INSTRUCTIONS.md')).toBe(true);
+  });
+
+  it('INSTRUCTIONS.md contains no unreplaced template variables', () => {
+    expect(read('graph/clients/INSTRUCTIONS.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('creates .claude/modules/clients/manifest.md', () => {
+    expect(exists('.claude/modules/clients/manifest.md')).toBe(true);
+  });
+
+  it('creates .claude/modules/clients/CLAUDE.md', () => {
+    expect(exists('.claude/modules/clients/CLAUDE.md')).toBe(true);
+  });
+
+  it('creates .claude/commands/client-check.md', () => {
+    expect(exists('.claude/commands/client-check.md')).toBe(true);
+  });
+
+  it('manifest contains reflect_hook: client-check', () => {
+    expect(read('.claude/modules/clients/manifest.md')).toContain('reflect_hook: client-check');
+  });
+
+  it('manifest contains name: clients', () => {
+    expect(read('.claude/modules/clients/manifest.md')).toContain('name: clients');
+  });
+
+  it('manifest contains no unreplaced template variables', () => {
+    expect(read('.claude/modules/clients/manifest.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('CLAUDE.md contains no unreplaced template variables', () => {
+    expect(read('.claude/modules/clients/CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('client-check.md contains the content dir and no unreplaced template variables', () => {
+    const content = read('.claude/commands/client-check.md');
+    expect(content).toContain('graph/clients/');
+    expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('stores clients module checksums in .patina-state.json', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/commands/client-check.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/clients/manifest.md']).toBe('string');
+    expect(typeof state.checksums['.claude/modules/clients/CLAUDE.md']).toBe('string');
+  });
+});
+
+describe('scaffold — no clients module', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+  });
+
+  it('does not create graph/clients/.gitkeep', () => {
+    expect(exists('graph/clients/.gitkeep')).toBe(false);
+  });
+
+  it('does not create graph/clients/INSTRUCTIONS.md', () => {
+    expect(exists('graph/clients/INSTRUCTIONS.md')).toBe(false);
+  });
+
+  it('does not create .claude/modules/clients/manifest.md', () => {
+    expect(exists('.claude/modules/clients/manifest.md')).toBe(false);
+  });
+
+  it('does not create .claude/commands/client-check.md', () => {
+    expect(exists('.claude/commands/client-check.md')).toBe(false);
+  });
+});
