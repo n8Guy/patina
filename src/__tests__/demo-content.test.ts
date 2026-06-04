@@ -67,6 +67,30 @@ describe('demo-content — all files have YAML frontmatter', () => {
   }
 });
 
+describe('demo-content — work module coverage', () => {
+  const workEntries = MODULES.find(m => m.id === 'work')!.demoContent(demoVars, contentDir);
+  const workContent = workEntries.map(([, c]) => c).join('\n');
+
+  it('includes all four artifact types (transcript, weekly, reference, work-profile)', () => {
+    expect(workContent).toMatch(/^type: transcript$/m);
+    expect(workContent).toMatch(/^type: weekly$/m);
+    expect(workContent).toMatch(/^type: reference$/m);
+    expect(workContent).toMatch(/^type: work-profile$/m);
+  });
+
+  it('includes an archived: true flag on the work-profile', () => {
+    expect(workContent).toMatch(/^archived: true$/m);
+  });
+
+  it('all four artifact files exist at expected paths', () => {
+    const paths = workEntries.map(([p]) => p);
+    expect(paths.some(p => p.includes('/transcripts/'))).toBe(true);
+    expect(paths.some(p => p.includes('/weeklies/'))).toBe(true);
+    expect(paths.some(p => p.includes('/references/'))).toBe(true);
+    expect(paths.some(p => p.endsWith('/work/profile.md'))).toBe(true);
+  });
+});
+
 describe('demo-content — goals module coverage', () => {
   const goalsEntries = MODULES.find(m => m.id === 'goals')!.demoContent(demoVars, contentDir);
   const goalsContent = goalsEntries.map(([, c]) => c).join('\n');
