@@ -18,7 +18,7 @@ export interface ValidationResult {
 // Literal union kept here to avoid a circular type dependency
 // (checksums.ts imports MODULES from registry.ts at runtime, preventing registry.ts
 // from safely importing this type back). When adding a module, also add its id here.
-export type ModuleId = 'linkedin' | 'resume';
+export type ModuleId = 'linkedin' | 'resume' | 'goals';
 
 export interface DeferredModule {
   module: ModuleId;

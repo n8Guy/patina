@@ -66,3 +66,26 @@ describe('demo-content — all files have YAML frontmatter', () => {
     });
   }
 });
+
+describe('demo-content — goals module coverage', () => {
+  const goalsEntries = MODULES.find(m => m.id === 'goals')!.demoContent(demoVars, contentDir);
+  const goalsContent = goalsEntries.map(([, c]) => c).join('\n');
+
+  it('covers all required statuses (open, in-progress, done)', () => {
+    expect(goalsContent).toMatch(/^status: open$/m);
+    expect(goalsContent).toMatch(/^status: in-progress$/m);
+    expect(goalsContent).toMatch(/^status: done$/m);
+  });
+
+  it('covers required horizons (week, quarter, year)', () => {
+    expect(goalsContent).toMatch(/^horizon: week$/m);
+    expect(goalsContent).toMatch(/^horizon: quarter$/m);
+    expect(goalsContent).toMatch(/^horizon: year$/m);
+  });
+
+  it('covers required types (project, learning, job-search)', () => {
+    expect(goalsContent).toMatch(/^type: project$/m);
+    expect(goalsContent).toMatch(/^type: learning$/m);
+    expect(goalsContent).toMatch(/^type: job-search$/m);
+  });
+});
