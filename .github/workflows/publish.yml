@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false  # never cancel an in-flight publish
 
 permissions:
-  contents: read
+  contents: write  # required to create GitHub Releases
   id-token: write  # required for npm provenance
 
 jobs:
@@ -83,3 +83,13 @@ jobs:
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: steps.version_check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          gh release create "v${VERSION}" \
+            --title "v${VERSION}" \
+            --generate-notes
