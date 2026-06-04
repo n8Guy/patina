@@ -5,3 +5,4 @@ dist/
 .current-issue.md
 .implementation-plan.md
 .claude/settings.local.json
+.patina-update-check
