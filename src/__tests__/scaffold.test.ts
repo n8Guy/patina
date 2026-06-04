@@ -815,7 +815,7 @@ describe('scaffold — check-update.mjs', () => {
   it('check-update.mjs contains the literal version string (no leftover {{PATINA_VERSION}})', () => {
     const content = read('.claude/scripts/check-update.mjs');
     expect(content).not.toContain('{{PATINA_VERSION}}');
-    expect(content).toMatch(/INSTALLED_VERSION = '\d+\.\d+\.\d+'/);
+    expect(content).toMatch(/'\d+\.\d+\.\d+'/);
   });
 
   it('.patina-state.json has a checksum for check-update.mjs', () => {

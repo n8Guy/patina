@@ -1,17 +1,13 @@
 // Patina update checker — runs via UserPromptSubmit hook before each session message.
-// Uses only Node.js built-ins (https, fs). No external dependencies.
+// Uses only Node.js built-ins (https, fs, url). No external dependencies.
 
 import { existsSync, writeFileSync } from 'fs';
 import { request } from 'https';
+import { fileURLToPath } from 'url';
 
 const FLAG_FILE = '.patina-update-check';
-const INSTALLED_VERSION = '{{PATINA_VERSION}}';
+const INSTALLED_VERSION = process.env.PATINA_MOCK_INSTALLED_VERSION ?? '{{PATINA_VERSION}}';
 const REGISTRY_URL = 'https://registry.npmjs.org/my-patina/latest';
-
-// Already ran this session — exit immediately without any network call.
-if (existsSync(FLAG_FILE)) {
-  process.exit(0);
-}
 
 /**
  * Compare two semver strings (major.minor.patch).
@@ -34,7 +30,15 @@ function isNewer(a, b) {
   return false;
 }
 
+export { isNewer };
+
 function fetchLatestVersion() {
+  if (process.env.PATINA_MOCK_LATEST_VERSION !== undefined) {
+    return Promise.resolve(process.env.PATINA_MOCK_LATEST_VERSION);
+  }
+  if (process.env.PATINA_MOCK_FAIL) {
+    return Promise.reject(new Error('mock network failure'));
+  }
   return new Promise((resolve, reject) => {
     const req = request(REGISTRY_URL, { timeout: 5000 }, (res) => {
       if (res.statusCode !== 200) {
@@ -61,17 +65,25 @@ function fetchLatestVersion() {
   });
 }
 
-try {
-  const latestVersion = await fetchLatestVersion();
-  if (isNewer(latestVersion, INSTALLED_VERSION)) {
-    // Write the latest version string — Claude will read this and notify the user.
-    writeFileSync(FLAG_FILE, latestVersion, 'utf8');
-  } else {
-    // Already up to date — write empty sentinel to prevent re-check this session.
-    writeFileSync(FLAG_FILE, '', 'utf8');
+// Only run when executed directly (not when imported for testing).
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  // Already ran this session — exit immediately without any network call.
+  if (existsSync(FLAG_FILE)) {
+    process.exit(0);
   }
-} catch {
-  // Any error (network, parse, etc.) — exit silently without writing flag file.
-  // The next session message will retry.
-  process.exit(0);
+
+  try {
+    const latestVersion = await fetchLatestVersion();
+    if (isNewer(latestVersion, INSTALLED_VERSION)) {
+      // Write the latest version string — Claude will read this and notify the user.
+      writeFileSync(FLAG_FILE, latestVersion, 'utf8');
+    } else {
+      // Already up to date — write empty sentinel to prevent re-check this session.
+      writeFileSync(FLAG_FILE, '', 'utf8');
+    }
+  } catch {
+    // Any error (network, parse, etc.) — exit silently without writing flag file.
+    // The next session message will retry.
+    process.exit(0);
+  }
 }
