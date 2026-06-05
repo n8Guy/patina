@@ -73,7 +73,17 @@ List items not modified in the last **{{STALENESS_THRESHOLD}} days**, grouped by
 
 Skip any area with nothing stale. If everything is fresh, say so in one line. Keep the report brief — one line per area.
 
-**If this is a non-interactive or headless session, skip all remaining steps in this section (inbox check, pending module setup, and launch tasks) and do not ask any startup questions — stop after the staleness report.**
+**If this is a non-interactive or headless session, skip the orientation block and all remaining steps in this section (inbox check, pending module setup, and launch tasks) and do not ask any startup questions — stop after the staleness report.**
+
+Show a brief orientation block:
+
+> Here's what you can do:
+> - `/add` — capture something you've worked on (a project, a skill, a win)
+> - `/reflect` — when you're ready to review what you've captured and see what's worth updating
+
+If `{{CONTENT_DIR}}/notes/` contains no files other than `.gitkeep`, `README.md`, and `exclusions.md`, add one more line:
+
+> You don't have any notes yet — try `/add` to capture something.
 
 Next, check the inbox. Read `inbox/.processed.json` (treat missing or unparseable as `[]`). List all files in `inbox/` excluding `.gitkeep` and `.processed.json`. Identify any whose path relative to `inbox/` is not recorded in the registry with status `success`.
 
