@@ -155,6 +155,13 @@ export function applyProfileUpdate(
     }
   }
 
+  // Remove editor-specific files that no longer apply after an editor change
+  if (updatedProfile.editor !== 'vscode') {
+    const outcome = removeManagedFileIfUnmodified(cwd, '.vscode/settings.json', stored);
+    if (outcome === 'deleted') updated.push('.vscode/settings.json');
+    delete newChecksums['.vscode/settings.json'];
+  }
+
   writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);

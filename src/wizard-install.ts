@@ -2,6 +2,7 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { resolve } from 'path';
 import { privacyNote, label } from './wizard-brand.js';
+import { detectObsidian, openInObsidian, detectVSCode, openInVSCode } from './wizard-editor.js';
 import { MULTISELECT_HINT, OPTIONAL_HINT, slugify, defaultSnoozeUntil, addDeferredModule, onCancel, promptLaunchTasks } from './wizard-shared.js';
 import { scaffold } from './scaffold.js';
 import { readState, writeState } from './state.js';
@@ -76,9 +77,9 @@ export async function runInstall(cwd: string): Promise<void> {
     {
       companyName: () =>
         p.text({
-          message: companyLabel,
+          message: selfEmployed ? companyLabel : `${companyLabel}${OPTIONAL_HINT}`,
           placeholder: companyPlaceholder,
-          hint: chalk.hex('#64748B')(selfEmployed ? 'hit enter to use "Freelance"' : ''),
+          hint: selfEmployed ? chalk.hex('#64748B')('hit enter to use "Freelance"') : undefined,
         }),
 
       website: () =>
@@ -219,13 +220,47 @@ export async function runInstall(cwd: string): Promise<void> {
     process.exit(1);
   }
 
-  p.note(
-    [
-      chalk.hex('#94A3B8')('  cd ') + chalk.bold.white(slug),
-      chalk.hex('#94A3B8')('  claude'),
-    ].join('\n'),
-    label('Next steps')
-  );
-
-  p.outro(chalk.hex('#94A3B8')('Run claude from inside your patina to get started.'));
+  if (setup.editor === 'obsidian') {
+    if (detectObsidian()) {
+      p.note(
+        chalk.hex('#94A3B8')('In Obsidian, click ') + chalk.bold.white('"Open folder as vault"') + chalk.hex('#94A3B8')(' and select:\n  ') + chalk.bold.white(targetDir) +
+        chalk.hex('#94A3B8')('\n\nThen open a terminal and run ') + chalk.bold.white('claude') + chalk.hex('#94A3B8')(' to get started.'),
+        label('Next steps')
+      );
+      p.outro(chalk.hex('#C084FC')('Opening in Obsidian...'));
+      openInObsidian();
+    } else {
+      p.note(
+        chalk.hex('#94A3B8')('Download Obsidian at ') + chalk.bold.white('https://obsidian.md/download') +
+        chalk.hex('#94A3B8')('\n\nThen open the folder as a vault:\n  ') + chalk.bold.white(targetDir),
+        label('Next steps')
+      );
+      p.outro(chalk.hex('#94A3B8')('Run claude from inside your patina to get started.'));
+    }
+  } else if (setup.editor === 'vscode') {
+    if (detectVSCode()) {
+      p.note(
+        chalk.hex('#94A3B8')('Open a terminal in VS Code and run ') + chalk.bold.white('claude') + chalk.hex('#94A3B8')('.'),
+        label('Next steps')
+      );
+      p.outro(chalk.hex('#60A5FA')('Opening in VS Code...'));
+      openInVSCode(targetDir);
+    } else {
+      p.note(
+        chalk.hex('#94A3B8')('Download VS Code at ') + chalk.bold.white('https://code.visualstudio.com') +
+        chalk.hex('#94A3B8')('\n\nThen open the folder and run ') + chalk.bold.white('claude') + chalk.hex('#94A3B8')(' in the terminal.'),
+        label('Next steps')
+      );
+      p.outro(chalk.hex('#94A3B8')('Run claude from inside your patina to get started.'));
+    }
+  } else {
+    p.note(
+      [
+        chalk.hex('#94A3B8')('  cd ') + chalk.bold.white(slug),
+        chalk.hex('#94A3B8')('  claude'),
+      ].join('\n'),
+      label('Next steps')
+    );
+    p.outro(chalk.hex('#94A3B8')('Run claude from inside your patina to get started.'));
+  }
 }

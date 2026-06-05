@@ -117,6 +117,15 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
     files.push(['.mcp.json', JSON.stringify(mcp, null, 2) + '\n']);
   }
 
+  if (editor === 'vscode') {
+    const vscodeSettings = {
+      'workbench.editorAssociations': {
+        '*.md': 'vscode.markdown.preview.editor',
+      },
+    };
+    files.push(['.vscode/settings.json', JSON.stringify(vscodeSettings, null, 2) + '\n']);
+  }
+
   return files;
 }
 

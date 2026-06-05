@@ -14,7 +14,6 @@ export function printBanner(): void {
   ];
 
   console.log('');
-  console.log(chalk.bold.white('  Welcome to'));
   art.forEach((line, i) => {
     console.log(chalk.bold.hex(colors[i % colors.length])(line));
   });
