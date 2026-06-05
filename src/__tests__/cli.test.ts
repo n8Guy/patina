@@ -37,4 +37,22 @@ describe('cli dispatch', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('--demo');
   });
+
+  it('--help output lists the client command', () => {
+    const result = cli(['--help']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('client');
+  });
+
+  it('client --help exits 0 and lists add verb', () => {
+    const result = cli(['client', '--help']);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('add');
+  });
+
+  it('client add exits 1 with clear message outside a patina directory', () => {
+    const result = cli(['client', 'add', '--name', 'acme', '--type', 'project']);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('No patina found here');
+  });
 });

@@ -33,3 +33,9 @@ This module helps you draft and refine your LinkedIn profile using your patina g
 LinkedIn commands read your `{{CONTENT_DIR}}/` graph — notes, skills, and posts — and draft profile copy grounded in that evidence. They never invent claims not supported by your notes.
 
 The `/reflect` command also runs the LinkedIn reflect hook (`/li-all`) to keep your drafts current.
+
+## Confidential content
+
+<!-- confidential gate: must also appear in linkedin/INSTRUCTIONS.md, resume/CLAUDE.md, resume/INSTRUCTIONS.md, clients/CLAUDE.md, clients/INSTRUCTIONS.md -->
+
+Before including any note or artifact in output, check its frontmatter. If `confidential: true` is present — or if the file originates under `clients/` and has not been explicitly set to `confidential: false` — skip it entirely. Do not summarise, excerpt, or reference confidential content. This is a hard stop.
