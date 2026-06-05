@@ -259,6 +259,31 @@ describe('scaffold — non-obsidian editor', () => {
   });
 });
 
+describe('scaffold — vscode editor', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ editor: 'vscode' }));
+  });
+
+  it('creates .vscode/settings.json', () => {
+    expect(exists('.vscode/settings.json')).toBe(true);
+  });
+
+  it('sets markdown files to open in preview by default', () => {
+    const settings = JSON.parse(read('.vscode/settings.json'));
+    expect(settings['workbench.editorAssociations']['*.md']).toBe('vscode.markdown.preview.editor');
+  });
+});
+
+describe('scaffold — non-vscode editor', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ editor: 'obsidian' }));
+  });
+
+  it('does not create .vscode/settings.json', () => {
+    expect(exists('.vscode/settings.json')).toBe(false);
+  });
+});
+
 // ── LinkedIn module ───────────────────────────────────────────────────────────
 
 describe('scaffold — linkedin module', () => {
