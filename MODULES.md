@@ -22,6 +22,7 @@ export interface ModuleDefinition {
   id: string;
   label: string;
   hint: string;
+  commands: readonly { name: string; desc: string }[];
   managedPaths: readonly string[];
   contentFileNames: readonly string[];
   managedFiles(vars: TemplateVars): FileEntry[];
@@ -38,6 +39,7 @@ export interface ModuleDefinition {
 | `id` | `string` | yes | Unique identifier, lowercase (e.g. `'linkedin'`). Must match the `ModuleId` union in `src/types.ts`. |
 | `label` | `string` | yes | Human-readable name shown in the install wizard (e.g. `'LinkedIn'`). |
 | `hint` | `string` | yes | One-line description shown next to the label in the wizard (e.g. `'draft and refine your LinkedIn profile'`). |
+| `commands` | `{ name; desc }[]` | yes | The module's slash commands. `name` is the invocation as typed (e.g. `'/goal <description>'`), `desc` is a one-line summary. Used to build the regenerated command table in `CLAUDE.md` and to surface module commands in the startup orientation. Must match the manifest's `commands:` frontmatter — a test enforces this. |
 | `managedPaths` | `readonly string[]` | yes | Static list of all paths that `managedFiles()` will produce. Must be in sync — define a `const` array and reference it from both. `checksums.ts` reads this at runtime to build the managed-files registry. |
 | `contentFileNames` | `readonly string[]` | yes | Base filenames (not full paths) of content files. Used with the checksums registry to distinguish content files from managed files. |
 | `managedFiles(vars)` | method | yes | Returns `[relativePath, content]` pairs for all managed files — commands and the module manifest. Paths must match `managedPaths` exactly. |
@@ -99,9 +101,14 @@ name: <module-id>
 label: <Module Label>
 reflect_hook: <command-slug>
 description: <one-line description>
+commands:
+  - name: /my-command <arg>
+    desc: <one-line summary>
 installed: {{TODAY}}
 ---
 ```
+
+The `commands:` list must match the module definition's `commands` field exactly (a test enforces this). It is read at session start to surface the module's commands in the orientation block.
 
 In the template source, use `{{TODAY}}` for the `installed` field — patina substitutes it with the installation date at render time. The rendered file will contain a `YYYY-MM-DD` date.
 
@@ -123,23 +130,23 @@ The hook command is responsible for reading the graph and producing an updated d
 
 ---
 
-## The `confidential` convention
+## The `private` convention
 
-Outbound modules — modules that generate content intended for sharing externally (LinkedIn copy, a resume, a post) — must respect a `confidential` marker in graph notes.
+Outbound modules — modules that generate content intended for sharing externally (LinkedIn copy, a resume, a post) — must respect a `private` marker in graph notes.
 
-If a note file contains `confidential: true` in its YAML frontmatter, that note must not contribute to any content generated for external distribution. The note may still be read (for the user's own reference) but must not be cited, quoted, or used as evidence in outbound drafts.
+Patina never auto-publishes, so the user is always the final reviewer. Outbound modules therefore **warn rather than block**. If a note contains `private: true` in its frontmatter, or reads as sensitive (sourced from `clients/`, or mentioning unreleased/internal/pre-launch work, an NDA, or unannounced figures), the module surfaces a single heads-up for the whole draft — naming the source and asking the user to confirm they're cleared to share — then proceeds if the user is fine with it. It does not silently drop the content.
 
 ```yaml
 ---
 date: 2024-01-15
 type: note
-confidential: true   # keep out of LinkedIn, resume, posts
+private: true   # warn before using in LinkedIn, resume, posts
 ---
 ```
 
-This is a behavioral contract enforced by the module's command prompt, not by code. When writing module commands that read the graph, include a rule: "Skip any note with `confidential: true` in its frontmatter."
+This is a behavioral contract enforced by the module's command prompt, not by code. The canonical wording lives in each outbound module's `INSTRUCTIONS.md` ("Sharing is your call"). The flag is set just-in-time: the user — or Claude, on the user's say-so — sets `private: true` when a heads-up surfaces or in plain conversation. There is no capture-time prompt.
 
-The `exclusions.md` file is a related but separate mechanism — it excludes specific items from all output by name. Confidential notes exclude an entire file by metadata.
+The `exclusions.md` file is a related but separate mechanism — it excludes specific items from all output by name, unconditionally. The `private` flag only triggers a warning; the decision stays with the user.
 
 ---
 
@@ -214,6 +221,9 @@ export const myModule = {
   id: 'my-module',
   label: 'My Module',
   hint: 'describe what this module does',
+  commands: [
+    { name: '/my-command <arg>', desc: 'what this command does' },
+  ],
   managedPaths: MY_MANAGED_PATHS,
   contentFileNames: CONTENT_FILE_NAMES,
   managedFiles(vars) { /* return [path, content] pairs */ },

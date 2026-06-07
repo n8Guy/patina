@@ -45,7 +45,7 @@ Deleting `inbox/.processed.json` simply resets tracking with no data loss — yo
 
 **Adding evidence:** Run `/add` and describe something you've done. Claude asks a few questions and writes a note to `{{CONTENT_DIR}}/notes/`.
 
-**Reviewing skills:** Run `/skill-search` to audit your notes for skill gaps, project completions, and stale entries.
+**Reviewing skills:** Run `/reflect` to audit your notes for skill gaps, project completions, and stale entries.
 
 **Generating content:** Modules (like LinkedIn) read the graph and produce drafts grounded in your notes.
 
@@ -59,6 +59,8 @@ Deleting `inbox/.processed.json` simply resets tracking with no data loss — yo
 ## On session start
 
 Before anything else, scan the graph for stale content and surface a brief report.
+
+**Fresh patina — skip the staleness report.** If `{{CONTENT_DIR}}/notes/`, `{{CONTENT_DIR}}/skills/`, and `{{CONTENT_DIR}}/posts/` contain no real content yet (nothing beyond `.gitkeep`, `README.md`, and `exclusions.md`), there is nothing to compare — skip the staleness report entirely and go straight to the orientation block below.
 
 Read the file modification times for all three areas — skip `.gitkeep`, `README.md`, and `exclusions.md` in every directory:
 - `{{CONTENT_DIR}}/notes/`
@@ -75,11 +77,14 @@ Skip any area with nothing stale. If everything is fresh, say so in one line. Ke
 
 **If this is a non-interactive or headless session, skip the orientation block and all remaining steps in this section (inbox check, pending module setup, and launch tasks) and do not ask any startup questions — stop after the staleness report.**
 
-Show a brief orientation block:
+Show a brief orientation block. Always start with the core commands:
 
 > Here's what you can do:
 > - `/add` — capture something you've worked on (a project, a skill, a win)
 > - `/reflect` — when you're ready to review what you've captured and see what's worth updating
+> - `/inbox` — process any files you've dropped into `inbox/`
+
+Then, if any modules are installed, read each `.claude/modules/*/manifest.md` and, under the module's `label`, list its `commands` (the `name` and `desc` from the manifest frontmatter) — one line per command — so the reader can see what each installed module offers. Don't repeat the core commands, and keep it to one line each. Skip this entirely if no modules are installed.
 
 If `{{CONTENT_DIR}}/notes/` contains no files other than `.gitkeep`, `README.md`, and `exclusions.md`, add one more line:
 
@@ -129,11 +134,11 @@ Finally, execute any tasks listed in the **## Launch tasks** section at the end 
 
 ## Slash commands
 
-| Command | What it does |
-|---------|-------------|
-| `/add <description>` | Add a skill, project, or experience to your graph |
-| `/reflect [slug]` | Review your graph for gaps, completions, and stale skills — also runs all installed module hooks |
-| `/inbox` | Process all files dropped in `inbox/` through `/add` automatically |
+This table is regenerated whenever you install or update patina, so it always reflects the commands you actually have — including any from installed modules.
+
+<!-- patina:commands:start -->
+{{COMMANDS_SECTION}}
+<!-- patina:commands:end -->
 
 ## Modules
 

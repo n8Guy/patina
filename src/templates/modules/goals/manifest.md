@@ -3,6 +3,11 @@ name: goals
 label: Goals
 reflect_hook: goal-review
 description: A private space for your forward-looking goals
+commands:
+  - name: /goal <description>
+    desc: Create a new goal
+  - name: /goal-review
+    desc: Review open and in-progress goals, flag overdue
 installed: {{TODAY}}
 ---
 

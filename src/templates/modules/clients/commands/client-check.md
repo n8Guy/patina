@@ -6,7 +6,7 @@ You are running as part of `/reflect`. Scan the clients folder and surface a bri
 
 1. List all client folders in `{{CONTENT_DIR}}/clients/` (skip `.gitkeep`).
 
-2. For each client folder, read `profile.md` for the client name and `confidential` status.
+2. For each client folder, read `profile.md` for the client name and `private` status.
 
 3. For each client, scan the `engagements/` subfolder and note:
    - Total engagement count (skip `.gitkeep`)

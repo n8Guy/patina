@@ -3,6 +3,21 @@ name: linkedin
 label: LinkedIn
 reflect_hook: li-all
 description: A private drafting space for your LinkedIn profile
+commands:
+  - name: /li-all
+    desc: Refresh all LinkedIn drafts from your latest notes
+  - name: /li-about
+    desc: Refine your About section draft
+  - name: /li-headline
+    desc: Refine your headline draft
+  - name: /li-experience
+    desc: Refine your experience section draft
+  - name: /li-skills
+    desc: Refine your skills list draft
+  - name: /li-featured
+    desc: Refine Featured or draft a post to pin
+  - name: /li-activity
+    desc: Update your posting strategy or draft a post
 installed: {{TODAY}}
 ---
 

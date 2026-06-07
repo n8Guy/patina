@@ -23,6 +23,11 @@ export const goalsModule = {
   label: 'Goals',
   hint: 'track and review your forward-looking goals',
 
+  commands: [
+    { name: '/goal <description>', desc: 'Create a new goal' },
+    { name: '/goal-review', desc: 'Review open and in-progress goals, flag overdue' },
+  ],
+
   managedPaths: GOALS_MANAGED_PATHS,
 
   contentFileNames: CONTENT_FILE_NAMES,

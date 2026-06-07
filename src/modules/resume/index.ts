@@ -21,6 +21,10 @@ export const resumeModule = {
   label: 'Resume',
   hint: 'keep your resume current from your graph',
 
+  commands: [
+    { name: '/resume-refresh', desc: 'Refresh your resume working draft from your graph' },
+  ],
+
   managedPaths: RESUME_MANAGED_PATHS,
 
   contentFileNames: CONTENT_FILE_NAMES,

@@ -25,7 +25,7 @@ function touch(targetDir: string, relativePath: string): void {
   writeFileSync(full, '', 'utf8');
 }
 
-export const MANIFEST_REQUIRED_FIELDS = ['name', 'label', 'reflect_hook', 'description', 'installed'] as const;
+export const MANIFEST_REQUIRED_FIELDS = ['name', 'label', 'reflect_hook', 'description', 'commands', 'installed'] as const;
 
 function extractFrontmatter(content: string): Record<string, unknown> | null {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
@@ -62,6 +62,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
         })
         .join('\n')
     : '_No modules installed._';
+  const commandsSection = buildCommandsSection(profile.modules ?? []);
   return {
     PATINA_NAME: profile.patina_name,
     USER_NAME: profile.name,
@@ -75,8 +76,36 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
     TODAY: resolvedToday,
     STALENESS_THRESHOLD: (() => { const d = Number(profile.staleness_threshold_days ?? 30); return String(Number.isFinite(d) && d > 0 ? d : 30); })(),
     MODULES_SECTION: modulesSection,
+    COMMANDS_SECTION: commandsSection,
     PATINA_VERSION: getPatinaVersion(),
   };
+}
+
+/**
+ * Core slash commands present in every patina, regardless of installed modules.
+ * Rendered into the regenerated `patina:commands` table in CLAUDE.md.
+ */
+const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
+  { name: '/add <description>', desc: 'Add a skill, project, or experience to your graph' },
+  { name: '/reflect [slug]', desc: 'Review your graph for gaps, completions, and stale skills — also runs installed module hooks' },
+  { name: '/inbox', desc: 'Process files dropped into inbox/ automatically' },
+];
+
+/**
+ * Build the markdown table for the `patina:commands` section: the core commands
+ * plus the commands of every installed module, in install order. Regenerated on
+ * install and update so the table never goes stale as modules change.
+ */
+export function buildCommandsSection(modules: readonly string[]): string {
+  const rows = [
+    ...BASE_COMMANDS,
+    ...modules.flatMap(id => getModule(id)?.commands ?? []),
+  ];
+  return [
+    '| Command | What it does |',
+    '|---------|-------------|',
+    ...rows.map(c => `| \`${c.name}\` | ${c.desc} |`),
+  ].join('\n');
 }
 
 /**

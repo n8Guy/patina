@@ -114,11 +114,16 @@ Also update `last-updated` in the front matter.
 - **Do not write generic copy.** "Results-driven leader" and "passionate about innovation" are noise. Specificity is the point.
 - **Do not create new dated files for minor edits.** The changelog table handles revision history.
 
-## Confidential content
+## Sharing is your call
 
-<!-- confidential gate: must also appear in linkedin/CLAUDE.md, resume/CLAUDE.md, resume/INSTRUCTIONS.md, clients/CLAUDE.md, clients/INSTRUCTIONS.md -->
+Patina drafts; you publish. Nothing here is posted automatically, and nothing leaves your computer until you copy it somewhere yourself — so you are always the final reviewer.
 
-Before including any note or artifact in output, check its frontmatter. If `confidential: true` is present — or if the file originates under `clients/` and has not been explicitly set to `confidential: false` — skip it entirely. Do not summarise, excerpt, or reference confidential content. This is a hard stop.
+Because of that, this module never blocks content. It gives you **one** heads-up when a draft leans on something that looks sensitive, so you can decide before you share:
+
+- a source note marked `private: true`, or
+- material that reads as not-yet-public — sourced from `{{CONTENT_DIR}}/clients/`, or mentioning unreleased, internal, or pre-launch work, an NDA, or figures that haven't been announced.
+
+When that happens, mention it once for the whole draft: name the source and ask {{USER_NAME}} to confirm they're cleared to share it. Don't repeat the warning per line, and don't withhold the draft — the decision is theirs. If they say to keep something out, set `private: true` on that source note so the heads-up is sharper next time.
 
 ---
 

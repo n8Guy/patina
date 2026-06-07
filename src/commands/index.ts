@@ -27,8 +27,8 @@ export function registerCommands(program: Command): void {
     .description('Scaffold a new client folder')
     .option('--name <name>', 'client name')
     .option('--type <type>', 'engagement type: project | retainer | advisory')
-    .option('--no-confidential', 'skip confidential flag — marks client as non-confidential (default: true)')
-    .action(async (opts: { name?: string; type?: string; confidential: boolean }) => {
+    .option('--private', 'flag this client as private — outbound drafts will warn before using it (default: not private)')
+    .action(async (opts: { name?: string; type?: string; private?: boolean }) => {
       // 1. Find patina root
       const cwd = process.cwd();
       const root = findPatinaRoot(cwd);
@@ -47,8 +47,8 @@ export function registerCommands(program: Command): void {
 
       let name = opts.name;
       let engagementType = opts.type;
-      // Commander maps --no-confidential to opts.confidential === false; absence leaves true
-      let confidential = opts.confidential;
+      // Default-allow: clients are not private unless --private is passed (or set later).
+      const isPrivate = opts.private === true;
 
       if (isHeadless) {
         // Headless mode: all required flags must be present
@@ -99,19 +99,6 @@ export function registerCommands(program: Command): void {
           console.error(chalk.red(`Invalid --type "${engagementType}". Valid values: project | retainer | advisory`));
           process.exit(1);
         }
-
-        // Only prompt for confidential if --no-confidential was NOT passed
-        if (opts.confidential !== false) {
-          const result = await p.confirm({
-            message: 'Mark as confidential? (default: yes — set to no to allow LinkedIn/resume flow)',
-            initialValue: true,
-          });
-          if (p.isCancel(result)) {
-            p.cancel('Cancelled.');
-            process.exit(0);
-          }
-          confidential = result as boolean;
-        }
       }
 
       // At this point name and engagementType are guaranteed to be set
@@ -134,7 +121,7 @@ export function registerCommands(program: Command): void {
       const entries = buildClientFiles({
         name: clientName,
         engagementType: clientEngagementType,
-        confidential,
+        isPrivate,
         today,
         contentDir,
         emitInitialEngagement: true,
