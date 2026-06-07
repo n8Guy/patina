@@ -7,8 +7,9 @@ import { writeManagedFile, mergeProfile } from '../upgrade.js';
 import { hashContent } from '../checksums.js';
 import { scaffold } from '../scaffold.js';
 import { applyProfileUpdate } from '../wizard.js';
-import { readState } from '../state.js';
+import { readState, writeState } from '../state.js';
 import { DEMO_TODAY } from '../demo/persona.js';
+import { renderSection, parseSections } from '../sections.js';
 import type { Profile } from '../types.js';
 
 const FENCED_CONTENT = [
@@ -359,5 +360,256 @@ describe('upgrade against demo scaffold', () => {
       expect(stateAfter.checksums[key], `checksum for ${key}`).toBeDefined();
       expect(typeof stateAfter.checksums[key]).toBe('string');
     }
+  });
+});
+
+// ── upgrade-from-old-layout (migration integration) ───────────────────────────
+
+// Build a post-#117 old-layout CLAUDE.md for testing migration via applyProfileUpdate.
+function makeOldLayoutClaude(profileInner: string): string {
+  const guideProse = [
+    '## What patina is',
+    '',
+    'Patina is a personal knowledge base.',
+    '',
+    '## Folder structure',
+    '',
+    '```',
+    'graph/',
+    '  notes/',
+    '```',
+    '',
+    '## Rules that always apply',
+    '',
+    '- Never invent.',
+    '',
+    '## On session start',
+    '',
+    'Scan the graph.',
+    '',
+    '> What are we working on today?',
+  ].join('\n');
+
+  const staticSlashCommands = [
+    '## Slash commands',
+    '',
+    'This table is regenerated whenever you install or update patina.',
+    '',
+    '| Command | Description |',
+    '|---------|-------------|',
+    '| /add    | Add a note  |',
+  ].join('\n');
+
+  const commandsFenceInner = '| Command | Description |\n|---------|-------------|\n| /add    | Add a note  |';
+  const modulesFenceInner = 'No modules installed.';
+
+  return [
+    '# CLAUDE.md',
+    '',
+    'This file is loaded automatically.',
+    '',
+    renderSection('profile', profileInner),
+    '',
+    guideProse,
+    '',
+    staticSlashCommands,
+    '',
+    renderSection('commands', commandsFenceInner),
+    '',
+    '## Modules',
+    '',
+    renderSection('modules', modulesFenceInner),
+  ].join('\n');
+}
+
+describe('upgrade-from-old-layout via applyProfileUpdate (migration integration)', () => {
+  let demoDir: string;
+  let profile: Profile;
+
+  beforeEach(async () => {
+    demoDir = join(tmp, 'patina-old-layout');
+    await scaffold({
+      demo: false,
+      modules: [],
+      targetDir: demoDir,
+      contentDir: 'graph',
+      patinaName: 'test-patina',
+      userName: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design things.',
+      jobDescriptionUrl: '',
+      work: {
+        self_employed: false,
+        company_name: 'Acme Corp',
+        website: 'https://acme.com',
+        company_description: 'A software company.',
+      },
+      editor: 'vscode',
+      liProfileUrl: '',
+    });
+
+    profile = yaml.load(readFileSync(join(demoDir, 'profile.yaml'), 'utf8')) as Profile;
+
+    // Downgrade the CLAUDE.md to old unfenced-guide layout
+    const state = readState(demoDir);
+    const profileInner = '## Who you\'re working with\n\n**Name:** Jane Doe\n**Company:** Acme Corp';
+    const oldLayout = makeOldLayoutClaude(profileInner);
+    writeFileSync(join(demoDir, 'CLAUDE.md'), oldLayout, 'utf8');
+
+    // Update stored checksums to reflect the old layout:
+    // Remove CLAUDE.md:guide (doesn't exist in old layout)
+    const newChecksums = { ...state.checksums };
+    delete newChecksums['CLAUDE.md:guide'];
+    // Store the profile section checksum correctly so it's not flagged as edited
+    const sections = parseSections(oldLayout);
+    const profileSection = sections.find(s => s.id === 'profile');
+    if (profileSection) {
+      newChecksums['CLAUDE.md:profile'] = hashContent(profileSection.inner);
+    }
+    const commandsSection = sections.find(s => s.id === 'commands');
+    if (commandsSection) {
+      newChecksums['CLAUDE.md:commands'] = hashContent(commandsSection.inner);
+    }
+    const modulesSection = sections.find(s => s.id === 'modules');
+    if (modulesSection) {
+      newChecksums['CLAUDE.md:modules'] = hashContent(modulesSection.inner);
+    }
+    writeState(demoDir, { ...state, checksums: newChecksums });
+  });
+
+  it('guide fence is present in CLAUDE.md after applyProfileUpdate', () => {
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const content = readFileSync(join(demoDir, 'CLAUDE.md'), 'utf8');
+    expect(content).toContain('<!-- patina:guide:start -->');
+    expect(content).toContain('<!-- patina:guide:end -->');
+
+    // The guide placeholder must be FILLED by the section merge, not left empty.
+    const guide = parseSections(content).find(s => s.id === 'guide');
+    expect(guide).toBeDefined();
+    expect(guide!.inner.trim().length).toBeGreaterThan(0);
+    expect(guide!.inner).toContain('## What patina is');
+  });
+
+  it('no duplication of "What patina is" heading after migration', () => {
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const content = readFileSync(join(demoDir, 'CLAUDE.md'), 'utf8');
+    const occurrences = content.split('## What patina is').length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it('exactly one ## Slash commands heading after migration', () => {
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const content = readFileSync(join(demoDir, 'CLAUDE.md'), 'utf8');
+    const occurrences = content.split('## Slash commands').length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  it('guide/commands/modules fences appear in canonical order after migration', () => {
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const content = readFileSync(join(demoDir, 'CLAUDE.md'), 'utf8');
+    const guidePos = content.indexOf('<!-- patina:guide:start -->');
+    const commandsPos = content.indexOf('<!-- patina:commands:start -->');
+    const modulesPos = content.indexOf('<!-- patina:modules:start -->');
+    expect(guidePos).toBeGreaterThan(-1);
+    expect(commandsPos).toBeGreaterThan(-1);
+    expect(modulesPos).toBeGreaterThan(-1);
+    expect(guidePos).toBeLessThan(commandsPos);
+    expect(commandsPos).toBeLessThan(modulesPos);
+  });
+
+  it('CLAUDE.md:guide checksum is present in state after migration', () => {
+    applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    const state = readState(demoDir);
+    expect(typeof state.checksums['CLAUDE.md:guide']).toBe('string');
+  });
+
+  it('migration returns migrationOutcome=migrated', () => {
+    const result = applyProfileUpdate(demoDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+
+    expect(result.migrationOutcome).toBe('migrated');
+  });
+
+  it('second applyProfileUpdate is idempotent (no duplication)', () => {
+    const applyArgs = {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    };
+
+    applyProfileUpdate(demoDir, profile, applyArgs);
+    const contentAfterFirst = readFileSync(join(demoDir, 'CLAUDE.md'), 'utf8');
+
+    applyProfileUpdate(demoDir, profile, applyArgs);
+    const contentAfterSecond = readFileSync(join(demoDir, 'CLAUDE.md'), 'utf8');
+
+    // No additional duplication
+    expect(contentAfterSecond.split('## What patina is').length - 1).toBe(1);
+    expect(contentAfterSecond.split('## Slash commands').length - 1).toBe(1);
+    // guide fence appears exactly once
+    expect(contentAfterSecond.split('<!-- patina:guide:start -->').length - 1).toBe(1);
   });
 });

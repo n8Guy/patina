@@ -298,7 +298,47 @@ describe('mergeSections', () => {
     expect(content).toContain('new profile');
     expect(content).toContain('new skills');
   });
-});
+
+  it('fills inner content into a pre-existing EMPTY guide placeholder in place (not appended)', () => {
+    // This simulates the post-migration state: guide is present but empty; mergeSections
+    // should replace its inner content in place rather than appending at EOF.
+    const existing = [
+      '<!-- patina:profile:start -->',
+      'profile content',
+      '<!-- patina:profile:end -->',
+      '',
+      '<!-- patina:guide:start -->',
+      '',
+      '<!-- patina:guide:end -->',
+      '',
+      '<!-- patina:modules:start -->',
+      'modules content',
+      '<!-- patina:modules:end -->',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { guide: 'new guide content', profile: 'profile content', modules: 'modules content' },
+      { 'CLAUDE.md:profile': hashContent('profile content'), 'CLAUDE.md:modules': hashContent('modules content') },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    const guideOutcome = sections.find(s => s.id === 'guide');
+    expect(guideOutcome?.outcome).toBe('updated');
+    expect(content).toContain('new guide content');
+
+    // Guide should appear before modules in the file (not appended at EOF)
+    const guidePos = content.indexOf('<!-- patina:guide:start -->');
+    const modulesPos = content.indexOf('<!-- patina:modules:start -->');
+    expect(guidePos).toBeLessThan(modulesPos);
+
+    // Guide should NOT be appended at the end after modules
+    const lastModulesEnd = content.lastIndexOf('<!-- patina:modules:end -->');
+    const lastGuideStart = content.lastIndexOf('<!-- patina:guide:start -->');
+    expect(lastGuideStart).toBeLessThan(lastModulesEnd);
+  });
+}); // end describe('mergeSections')
 
 // ── inspectSections ───────────────────────────────────────────────────────────
 

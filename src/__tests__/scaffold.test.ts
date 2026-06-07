@@ -144,6 +144,29 @@ describe('scaffold — core files', () => {
     expect(content).toContain('<!-- patina:profile:end -->');
   });
 
+  it('CLAUDE.md contains guide fence markers', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toContain('<!-- patina:guide:start -->');
+    expect(content).toContain('<!-- patina:guide:end -->');
+  });
+
+  it('.patina-state.json stores a section checksum for CLAUDE.md:guide', () => {
+    const state = loadState();
+    expect(typeof state.checksums['CLAUDE.md:guide']).toBe('string');
+  });
+
+  it('CLAUDE.md contains exactly one ## Slash commands heading (inside commands fence)', () => {
+    const content = read('CLAUDE.md');
+    const occurrences = content.split('## Slash commands').length - 1;
+    expect(occurrences).toBe(1);
+    // The heading must be inside the commands fence
+    const commandsStart = content.indexOf('<!-- patina:commands:start -->');
+    const commandsEnd = content.indexOf('<!-- patina:commands:end -->');
+    const slashCmdIdx = content.indexOf('## Slash commands');
+    expect(slashCmdIdx).toBeGreaterThan(commandsStart);
+    expect(slashCmdIdx).toBeLessThan(commandsEnd);
+  });
+
   it('CLAUDE.md contains staleness init hook with default threshold', () => {
     const content = read('CLAUDE.md');
     expect(content).toContain('On session start');
