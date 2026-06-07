@@ -9,6 +9,7 @@ import { writeManagedFile } from './upgrade.js';
 import { hashContent, type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, removeSection, renderSection } from './sections.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
+import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNING_MSG, type MigrationOutcome } from './migrate-claude.js';
 import { pruneLaunchTasks } from './launch-tasks.js';
 import { MODULES, getModule } from './modules/registry.js';
 import type { ModuleAddInputs } from './modules/types.js';
@@ -23,6 +24,7 @@ export interface ModuleChangeResult {
   deleted: string[];
   kept: string[];
   keptSections: string[];
+  migrationOutcome?: MigrationOutcome;
 }
 
 export function applyModuleChanges(
@@ -34,6 +36,10 @@ export function applyModuleChanges(
 ): ModuleChangeResult {
   const initialState = readState(cwd, profile);
   const stored: ChecksumMap = initialState.checksums;
+
+  // Pre-pass: migrate CLAUDE.md from pre-#118 unfenced-prose layout if needed.
+  const migrationOutcome = migrateClaudeMdFile(cwd, stored);
+
   const newChecksums: ChecksumMap = { ...stored };
   // Carry deferred_modules through; strip entries for removed modules.
   let deferredModules = initialState.deferred_modules;
@@ -193,7 +199,7 @@ export function applyModuleChanges(
   writeState(cwd, { checksums: newChecksums, ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}), update_check: initialState.update_check });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
-  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections };
+  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections, migrationOutcome };
 }
 
 // ─── Branch B: Add or remove modules ─────────────────────────────────────────
@@ -268,7 +274,7 @@ export async function runUpdateModules(cwd: string, profile: Profile): Promise<v
     }
   }
 
-  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles, keptSections: keptSectionKeys } =
+  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles, keptSections: keptSectionKeys, migrationOutcome } =
     applyModuleChanges(cwd, profile, toAdd, toRemove, moduleInputs);
 
   // Merge deferred state changes after applyModuleChanges (which writes state with checksums).
@@ -289,6 +295,11 @@ export async function runUpdateModules(cwd: string, profile: Profile): Promise<v
   if (skippedFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skippedFiles.join(', ')}`));
   if (deletedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Removed: ${deletedFiles.join(', ')}`));
   if (keptFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edited files: ${keptFiles.join(', ')}`));
+  if (migrationOutcome === 'migrated') {
+    summaryLines.push(chalk.hex('#94A3B8')(MIGRATION_REFRESHED_MSG));
+  } else if (migrationOutcome === 'skipped-edited') {
+    summaryLines.push(chalk.hex('#FFAB2E')(MIGRATION_DUPLICATE_WARNING_MSG));
+  }
 
   p.note(summaryLines.join('\n') || 'No file changes.', label('Done'));
   p.outro(chalk.hex('#94A3B8')('Modules updated.'));

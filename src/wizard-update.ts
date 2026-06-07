@@ -11,6 +11,7 @@ import { writeManagedFile } from './upgrade.js';
 import { type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, renderSection } from './sections.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
+import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNING_MSG, type MigrationOutcome } from './migrate-claude.js';
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { getModule } from './modules/registry.js';
 import { validate, formatReport } from './validate.js';
@@ -36,6 +37,7 @@ export interface ProfileUpdateResult {
   updated: string[];
   skipped: string[];
   keptSections: string[];
+  migrationOutcome?: MigrationOutcome;
 }
 
 export function applyProfileUpdate(
@@ -62,6 +64,9 @@ export function applyProfileUpdate(
   const existingState = readState(cwd, profile);
   const stored: ChecksumMap = existingState.checksums;
   const newChecksums: ChecksumMap = {};
+
+  // Pre-pass: migrate CLAUDE.md from pre-#118 unfenced-prose layout if needed.
+  const migrationOutcome = migrateClaudeMdFile(cwd, stored);
 
   const files = [
     ...baseManagedFiles(vars, updatedProfile.editor, cwd),
@@ -165,7 +170,7 @@ export function applyProfileUpdate(
   writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
-  return { profile: profileToWrite, updated, skipped, keptSections };
+  return { profile: profileToWrite, updated, skipped, keptSections, migrationOutcome };
 }
 
 async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
@@ -291,7 +296,7 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
     }
   }
 
-  const { updated, skipped, keptSections } = applyProfileUpdate(cwd, profile, fields, overwriteSet);
+  const { updated, skipped, keptSections, migrationOutcome } = applyProfileUpdate(cwd, profile, fields, overwriteSet);
 
   const summaryLines: string[] = [];
   if (updated.length > 0) {
@@ -302,6 +307,11 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
   }
   if (skipped.length > 0) {
     summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skipped.join(', ')}`));
+  }
+  if (migrationOutcome === 'migrated') {
+    summaryLines.push(chalk.hex('#94A3B8')(MIGRATION_REFRESHED_MSG));
+  } else if (migrationOutcome === 'skipped-edited') {
+    summaryLines.push(chalk.hex('#FFAB2E')(MIGRATION_DUPLICATE_WARNING_MSG));
   }
 
   p.note(summaryLines.join('\n'), label('Done'));

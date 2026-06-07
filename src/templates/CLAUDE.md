@@ -14,6 +14,7 @@ This file is loaded automatically each session to give you context about who you
 {{COMPANY_DESCRIPTION}}
 <!-- patina:profile:end -->
 
+<!-- patina:guide:start -->
 ## What patina is
 
 Patina is a personal knowledge base for career and professional development. Notes about your work — projects, skills, decisions, outcomes — go into `{{CONTENT_DIR}}/`. Over time, patina synthesises those notes into a picture of who you are professionally, and uses that picture to generate content: profile updates, posts, skill inventories.
@@ -131,17 +132,18 @@ User-facing copy must use plain language — no "state file", "deferred flag", "
 Finally, execute any tasks listed in the **## Launch tasks** section at the end of this file (if present). Then ask:
 
 > What are we working on today?
+<!-- patina:guide:end -->
 
+<!-- patina:commands:start -->
 ## Slash commands
 
 This table is regenerated whenever you install or update patina, so it always reflects the commands you actually have — including any from installed modules.
 
-<!-- patina:commands:start -->
 {{COMMANDS_SECTION}}
 <!-- patina:commands:end -->
 
+<!-- patina:modules:start -->
 ## Modules
 
-<!-- patina:modules:start -->
 {{MODULES_SECTION}}
 <!-- patina:modules:end -->
