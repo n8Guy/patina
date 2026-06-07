@@ -125,6 +125,25 @@ describe('profileToVars', () => {
     expect(vars.MODULES_SECTION).toContain('LinkedIn');
     expect(vars.MODULES_SECTION).toContain('.claude/modules/linkedin/CLAUDE.md');
   });
+
+  it('COMMANDS_SECTION always includes the core commands', () => {
+    const vars = profileToVars(makeProfile({ modules: [] }));
+    expect(vars.COMMANDS_SECTION).toContain('/add');
+    expect(vars.COMMANDS_SECTION).toContain('/reflect');
+    expect(vars.COMMANDS_SECTION).toContain('/inbox');
+  });
+
+  it('COMMANDS_SECTION lists module commands when a module is installed', () => {
+    const vars = profileToVars(makeProfile({ modules: ['goals'] }));
+    expect(vars.COMMANDS_SECTION).toContain('/goal');
+    expect(vars.COMMANDS_SECTION).toContain('/goal-review');
+  });
+
+  it('COMMANDS_SECTION omits module commands when no modules installed', () => {
+    const vars = profileToVars(makeProfile({ modules: [] }));
+    expect(vars.COMMANDS_SECTION).not.toContain('/goal');
+    expect(vars.COMMANDS_SECTION).not.toContain('/li-');
+  });
 });
 
 // ── baseManagedFiles ──────────────────────────────────────────────────────────

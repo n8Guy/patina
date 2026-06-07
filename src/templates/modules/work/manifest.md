@@ -3,6 +3,9 @@ name: work
 label: Work
 reflect_hook: work-check
 description: A private space for your professional work artifacts
+commands:
+  - name: /work-check
+    desc: Status count of artifacts across each work subfolder (runs during /reflect)
 installed: {{TODAY}}
 ---
 

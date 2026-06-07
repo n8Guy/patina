@@ -1101,6 +1101,7 @@ describe('renderUpdateCheckSection', () => {
     TODAY: '2026-01-01',
     STALENESS_THRESHOLD: '30',
     MODULES_SECTION: '',
+    COMMANDS_SECTION: '',
     PATINA_VERSION: '1.2.3',
   };
 

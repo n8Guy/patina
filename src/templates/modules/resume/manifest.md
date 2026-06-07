@@ -3,6 +3,9 @@ name: resume
 label: Resume
 reflect_hook: resume-refresh
 description: A private drafting space for your resume
+commands:
+  - name: /resume-refresh
+    desc: Refresh your resume working draft from your graph
 installed: {{TODAY}}
 ---
 

@@ -34,8 +34,6 @@ LinkedIn commands read your `{{CONTENT_DIR}}/` graph — notes, skills, and post
 
 The `/reflect` command also runs the LinkedIn reflect hook (`/li-all`) to keep your drafts current.
 
-## Confidential content
+## Sharing
 
-<!-- confidential gate: must also appear in linkedin/INSTRUCTIONS.md, resume/CLAUDE.md, resume/INSTRUCTIONS.md, clients/CLAUDE.md, clients/INSTRUCTIONS.md -->
-
-Before including any note or artifact in output, check its frontmatter. If `confidential: true` is present — or if the file originates under `clients/` and has not been explicitly set to `confidential: false` — skip it entirely. Do not summarise, excerpt, or reference confidential content. This is a hard stop.
+This module never auto-publishes — you copy drafts into LinkedIn yourself, so you are the final reviewer. It gives one heads-up before a draft uses anything marked `private: true` or that reads as sensitive, then leaves the decision to you. See **Sharing is your call** in `{{CONTENT_DIR}}/linkedin/INSTRUCTIONS.md`.

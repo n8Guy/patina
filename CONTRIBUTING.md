@@ -94,32 +94,9 @@ Compiles TypeScript to `dist/` and copies templates to `dist/templates/`. The `d
 
 ## Adding a module
 
-Modules live in `src/templates/modules/<name>/`. A module consists of:
+Modules are self-contained feature packs (LinkedIn, resume, goals, …). Each one is a `ModuleDefinition` registered in `src/modules/registry.ts`, with its templates under `src/templates/modules/<name>/`.
 
-```
-src/templates/modules/<name>/
-├── manifest.md          required — frontmatter with name, label, reflect_hook
-├── commands/            slash commands installed into .claude/commands/
-│   └── *.md
-└── graph/               files installed into the user's graph/<name>/ directory
-    └── *.md
-```
-
-**The manifest is how `/reflect` discovers your module.** Its frontmatter must include:
-
-```yaml
----
-name: your-module-name
-label: Human Readable Name
-reflect_hook: your-command-name   # the command /reflect runs after its audit
-description: One line description
-installed: {{TODAY}}
----
-```
-
-Register the module in `src/scaffold.ts` (add its commands to `managedFiles`, add its graph files to the graph section) and in `src/checksums.ts` (`MODULE_MANAGED_FILES`).
-
-Add scaffold tests in `src/__tests__/scaffold.test.ts`.
+See **[MODULES.md](./MODULES.md)** for the full `ModuleDefinition` contract, the managed-vs-content file model, the `reflect_hook` convention, and a step-by-step checklist. It is the canonical reference and is kept in sync with the code — start there.
 
 ---
 
@@ -141,7 +118,6 @@ All PRs must pass the full test suite. For new features, add tests. The scaffold
 - [ ] New behaviour has test coverage
 - [ ] Language is plain and approachable (no jargon in user-facing strings or templates)
 - [ ] `graph/` is never modified by any new code path
-- [ ] `BACKLOG.md` updated if something on the list is completed
 
 ---
 

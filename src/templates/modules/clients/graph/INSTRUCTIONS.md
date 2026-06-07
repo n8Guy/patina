@@ -6,7 +6,7 @@ tags: [clients, instructions]
 
 # Clients Module Workflow Instructions
 
-Read this file first before working with any files in `{{CONTENT_DIR}}/clients/`. It explains the folder layout, the engagement record fields, how to add and process client content, and the confidential gate that governs what flows to outbound modules.
+Read this file first before working with any files in `{{CONTENT_DIR}}/clients/`. It explains the folder layout, the engagement record fields, how to add and process client content, and the `private` flag that flags sensitive records to outbound modules.
 
 ---
 
@@ -34,7 +34,7 @@ type: engagement
 client: Client Name
 engagement_type: project | retainer | advisory
 status: active | complete | paused
-confidential: true
+private: false
 started: YYYY-MM-DD
 completed: YYYY-MM-DD   # leave blank if ongoing
 outcomes:
@@ -49,19 +49,16 @@ tags: []
 
 ---
 
-## Confidential gate
+## Privacy — the `private` flag
 
-<!-- confidential gate: must also appear in linkedin/CLAUDE.md, linkedin/INSTRUCTIONS.md, resume/CLAUDE.md, resume/INSTRUCTIONS.md, clients/CLAUDE.md -->
+Client work is often sensitive, but **you** decide what's shareable — patina never blocks it. Each client file carries a `private` flag in its frontmatter:
 
-**This is the source of truth for the confidential gate.**
+- `private: false` (the default) — fine to draw on for LinkedIn, resume, and other outbound drafts.
+- `private: true` — outbound modules give you a heads-up before using it, so you can confirm you're cleared to share. They won't block it; the call is yours.
 
-Files with `confidential: true` in their frontmatter are **NEVER** processed by `/linkedin`, `/resume`, or any outbound module. This is a hard stop.
+Set `private: true` on any record you want flagged — a client under NDA, unreleased work, anything not yet public. You can also just tell Claude ("keep the Acme work private") and it will set the flag for you.
 
-- Do not summarise, excerpt, or reference confidential content in any output destined for external use.
-- When `/inbox` or `/add` processes a file sourced from `clients/`, check its `confidential` field. If `confidential: true`, write `confidential: true` into the frontmatter of every resulting note.
-- Outbound modules (`/linkedin`, `/resume`) must skip any note or artifact that has `confidential: true` — regardless of where the file lives.
-
-To unlock a record for outbound use, set `confidential: false` explicitly in its frontmatter. The default for all client files is `confidential: true`.
+When a note is derived from a `private: true` source, carry `private: true` onto the derived note too, so the flag follows the evidence.
 
 ---
 
@@ -73,7 +70,7 @@ To unlock a record for outbound use, set `confidential: false` explicitly in its
 
 **New deliverable:** Create a new `.md` file in `[client-slug]/deliverables/` with a brief description of what was handed over and when.
 
-**Ad-hoc notes:** Drop files into `[client-slug]/notes/` or process via `/inbox`. Notes sourced from confidential clients inherit `confidential: true`.
+**Ad-hoc notes:** Drop files into `[client-slug]/notes/` or process via `/inbox`. Notes derived from a `private: true` source inherit `private: true`.
 
 **Via /add:** Run `/add` and describe the client work. Claude will ask clarifying questions and write the file to the appropriate subfolder.
 
@@ -85,7 +82,7 @@ Client files are **source material** — do not edit them after the fact. When e
 
 1. Read the engagement or deliverable file.
 2. Write new files to `{{CONTENT_DIR}}/notes/` (for evidence) or `{{CONTENT_DIR}}/skills/` (for skill inventory updates).
-3. Carry the `confidential` flag from the source file into every derived note.
+3. If the source is marked `private: true`, carry that flag onto every derived note.
 4. Leave the original artifact unchanged.
 
 ---
@@ -94,5 +91,5 @@ Client files are **source material** — do not edit them after the fact. When e
 
 - Do not create flat files directly in `{{CONTENT_DIR}}/clients/` — every client gets its own folder.
 - Do not create subfolders inside `engagements/`, `deliverables/`, or `notes/`. Flat is correct.
-- Do not strip `confidential: true` from a note unless you have confirmed the source record has been explicitly unlocked.
+- Do not strip `private: true` from a note unless the user has confirmed the work is now shareable.
 - Do not use the `type` field for anything other than routing.

@@ -13,10 +13,24 @@ export interface ModuleAddInputs {
   [key: string]: string | undefined;
 }
 
+/** A slash command a module installs, surfaced in the command table and startup orientation. */
+export interface ModuleCommand {
+  /** Invocation as the user types it, including any argument hint, e.g. '/goal <description>'. */
+  name: string;
+  /** One-line description of what the command does. */
+  desc: string;
+}
+
 export interface ModuleDefinition {
   id: string;
   label: string;
   hint: string;
+  /**
+   * Slash commands this module installs. Used to build the regenerated command
+   * table in CLAUDE.md and to surface module commands in the startup orientation.
+   * Must stay in sync with the manifest's `commands:` frontmatter (enforced by a test).
+   */
+  commands: readonly ModuleCommand[];
   /**
    * Static managed file paths — must reference the same paths produced by managedFiles().
    * Define as a const in the module file and use it in both managedPaths and managedFiles()

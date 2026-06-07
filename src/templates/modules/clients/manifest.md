@@ -2,7 +2,10 @@
 name: clients
 label: Clients
 reflect_hook: client-check
-description: Track freelance, consulting, and advisory client relationships with confidentiality controls
+description: Track freelance, consulting, and advisory client relationships, with privacy you control
+commands:
+  - name: /client-check
+    desc: Status count of clients and their engagement state (runs during /reflect)
 installed: {{TODAY}}
 ---
 
@@ -10,7 +13,7 @@ installed: {{TODAY}}
 
 A relationship record system for freelance, consulting, and advisory engagements. Each client gets a dedicated folder with a profile, engagement records, deliverables, and notes.
 
-Content is **confidential by default** — set `confidential: false` on a record to allow it to flow into LinkedIn or resume drafts.
+Records are **shareable by default** — set `private: true` on anything sensitive and outbound drafts (LinkedIn, resume) will give you a heads-up before using it. They never block; the call is yours.
 
 ## How it works
 
@@ -28,6 +31,6 @@ Run `patina client add` to scaffold a new client folder. Drop engagement notes a
     retainer/           ← monthly touchpoint records (retainer/advisory only)
 ```
 
-## Confidential content
+## Privacy
 
-Files with `confidential: true` are **never** processed by `/linkedin`, `/resume`, or any outbound module. Set `confidential: false` explicitly to unlock a record for outbound use.
+You decide what's shareable — patina never blocks client content. Mark a record `private: true` and outbound modules will warn once before using it, then leave the call to you. See the **Privacy** section in the module's `INSTRUCTIONS.md`.

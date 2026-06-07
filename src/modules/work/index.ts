@@ -21,6 +21,10 @@ export const workModule = {
   label: 'Work',
   hint: 'capture and organise professional work artifacts',
 
+  commands: [
+    { name: '/work-check', desc: 'Status count of artifacts across each work subfolder (runs during /reflect)' },
+  ],
+
   managedPaths: WORK_MANAGED_PATHS,
 
   contentFileNames: CONTENT_FILE_NAMES,

@@ -19,6 +19,10 @@ export const clientsModule = {
   label: 'Clients',
   hint: 'track freelance, consulting, and advisory relationships',
 
+  commands: [
+    { name: '/client-check', desc: 'Status count of clients and their engagement state (runs during /reflect)' },
+  ],
+
   managedPaths: CLIENTS_MANAGED_PATHS,
 
   contentFileNames: CONTENT_FILE_NAMES,
@@ -72,11 +76,11 @@ export const clientsModule = {
   },
 
   demoContent(_vars: TemplateVars, contentDir: string): Array<[string, string]> {
-    // Cedar Health — ongoing retainer, confidential: false (so it flows into demo LinkedIn/resume)
+    // Cedar Health — ongoing retainer, private: false (so it flows into demo LinkedIn/resume)
     const cedarProfile = `---
 type: client-profile
 client: Cedar Health
-confidential: false
+private: false
 started: 2024-01-15
 tags: [telehealth, hipaa, ongoing]
 ---
@@ -95,7 +99,7 @@ type: engagement
 client: Cedar Health
 engagement_type: retainer
 status: active
-confidential: false
+private: false
 started: 2024-01-15
 completed:
 outcomes:
@@ -128,7 +132,7 @@ Monthly check-in + on-call. Volume is growing — queue worker is single-process
     const cedarDeliverable = `---
 type: deliverable
 client: Cedar Health
-confidential: false
+private: false
 delivered: 2024-06-01
 tags: [architecture, hipaa, documentation]
 ---
@@ -154,11 +158,11 @@ Documents the security controls implemented in the intake pipeline:
 - Key rotation schedule not yet established — recommended quarterly rotation
 `;
 
-    // Northwind Freight — completed project, confidential: false
+    // Northwind Freight — completed project, private: false
     const northwindProfile = `---
 type: client-profile
 client: Northwind Freight
-confidential: false
+private: false
 started: 2023-02-01
 tags: [logistics, api, completed]
 ---
@@ -177,7 +181,7 @@ type: engagement
 client: Northwind Freight
 engagement_type: project
 status: complete
-confidential: false
+private: false
 started: 2023-02-01
 completed: 2023-08-15
 outcomes:
@@ -212,7 +216,7 @@ The observability layer was scoped out and handed off as a doc but never impleme
     const cedarRetainerCheckin = `---
 type: retainer-checkin
 client: Cedar Health
-confidential: false
+private: false
 date: 2024-11-01
 tags: [telehealth, retainer, checkin]
 ---

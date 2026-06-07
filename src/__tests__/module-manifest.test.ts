@@ -49,3 +49,15 @@ describe('module manifest frontmatter', () => {
     });
   }
 });
+
+describe('manifest commands stay in sync with module definitions', () => {
+  for (const { id: module } of MODULES) {
+    it(`${module}: manifest commands match def.commands`, () => {
+      const raw = tpl(`modules/${module}/manifest.md`);
+      const frontmatter = parseFrontmatter(raw);
+      const def = getModule(module)!;
+      const manifestCmds = (frontmatter.commands as Array<{ name: string; desc: string }>) ?? [];
+      expect(manifestCmds).toEqual(def.commands.map(c => ({ name: c.name, desc: c.desc })));
+    });
+  }
+});

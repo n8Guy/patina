@@ -4,7 +4,7 @@ import { buildClientFiles } from '../modules/clients/scaffold-client.js';
 const BASE_OPTS = {
   name: 'Acme Corp',
   engagementType: 'project' as const,
-  confidential: true,
+  isPrivate: false,
   today: '2025-06-01',
   contentDir: 'graph',
 };
@@ -17,18 +17,18 @@ describe('buildClientFiles', () => {
     expect(paths.some(p => p.includes('Acme Corp'))).toBe(false);
   });
 
-  it('defaults confidential to true when not overridden', () => {
-    const entries = buildClientFiles({ ...BASE_OPTS, confidential: true });
+  it('defaults to private: false (shareable) for the default-allow model', () => {
+    const entries = buildClientFiles({ ...BASE_OPTS, isPrivate: false });
     const profile = entries.find(([p]) => p.endsWith('profile.md'));
     expect(profile).toBeDefined();
-    expect(profile![1]).toContain('confidential: true');
+    expect(profile![1]).toContain('private: false');
   });
 
-  it('--no-confidential path yields confidential: false in profile.md', () => {
-    const entries = buildClientFiles({ ...BASE_OPTS, confidential: false });
+  it('--private path yields private: true in profile.md', () => {
+    const entries = buildClientFiles({ ...BASE_OPTS, isPrivate: true });
     const profile = entries.find(([p]) => p.endsWith('profile.md'));
     expect(profile).toBeDefined();
-    expect(profile![1]).toContain('confidential: false');
+    expect(profile![1]).toContain('private: true');
   });
 
   it('outcomes is commented examples, not empty array', () => {

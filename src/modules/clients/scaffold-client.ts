@@ -3,7 +3,8 @@ import { slugify } from '../../wizard.js';
 export interface BuildClientFilesOpts {
   name: string;
   engagementType: 'project' | 'retainer' | 'advisory';
-  confidential: boolean;
+  /** When true, scaffold files with `private: true` so outbound drafts warn before using them. */
+  isPrivate: boolean;
   today: string;        // YYYY-MM-DD
   contentDir: string;
   /**
@@ -15,14 +16,14 @@ export interface BuildClientFilesOpts {
 }
 
 export function buildClientFiles(opts: BuildClientFilesOpts): Array<[string, string]> {
-  const { name, engagementType, confidential, today, contentDir, emitInitialEngagement } = opts;
+  const { name, engagementType, isPrivate, today, contentDir, emitInitialEngagement } = opts;
   const slug = slugify(name);
   const base = `${contentDir}/clients/${slug}`;
 
   const profile = `---
 type: client-profile
 client: ${name}
-confidential: ${confidential}
+private: ${isPrivate}
 started: ${today}
 tags: []
 ---
@@ -49,7 +50,7 @@ type: engagement
 client: ${name}
 engagement_type: ${engagementType}
 status: active
-confidential: ${confidential}
+private: ${isPrivate}
 started: ${today}
 completed:
 outcomes:

@@ -1,6 +1,28 @@
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { join, delimiter } from 'path';
 import { spawn } from 'child_process';
+
+// ─── Claude Code ──────────────────────────────────────────────────────────────
+
+/**
+ * Best-effort detection of the `claude` CLI. Scans PATH for the executable and
+ * checks the native installer's local location. Used only to decide whether to
+ * show an install pointer in the wizard's closing notes — a false negative just
+ * shows a harmless extra hint.
+ */
+export function detectClaude(): boolean {
+  const dirs = (process.env.PATH ?? '').split(delimiter).filter(Boolean);
+  const names = process.platform === 'win32'
+    ? ['claude.cmd', 'claude.exe', 'claude.bat', 'claude']
+    : ['claude'];
+  for (const dir of dirs) {
+    for (const name of names) {
+      if (existsSync(join(dir, name))) return true;
+    }
+  }
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? '';
+  return home !== '' && existsSync(join(home, '.claude', 'local', 'claude'));
+}
 
 // ─── Obsidian ─────────────────────────────────────────────────────────────────
 

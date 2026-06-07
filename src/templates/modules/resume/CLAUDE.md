@@ -23,8 +23,6 @@ The `/resume-refresh` command reads your `{{CONTENT_DIR}}/` graph — notes, ski
 
 The working draft is compared against the last submitted version so you can see what has changed before sending.
 
-## Confidential content
+## Sharing
 
-<!-- confidential gate: must also appear in linkedin/CLAUDE.md, linkedin/INSTRUCTIONS.md, resume/INSTRUCTIONS.md, clients/CLAUDE.md, clients/INSTRUCTIONS.md -->
-
-Before including any note or artifact in output, check its frontmatter. If `confidential: true` is present — or if the file originates under `clients/` and has not been explicitly set to `confidential: false` — skip it entirely. Do not summarise, excerpt, or reference confidential content. This is a hard stop.
+This module never auto-publishes — you copy the draft into your resume document yourself, so you are the final reviewer. It gives one heads-up before a draft uses anything marked `private: true` or that reads as sensitive, then leaves the decision to you. See **Sharing is your call** in `{{CONTENT_DIR}}/resume/INSTRUCTIONS.md`.
