@@ -100,6 +100,58 @@ See **[MODULES.md](./MODULES.md)** for the full `ModuleDefinition` contract, the
 
 ---
 
+## Managed-file fences and upgrades
+
+### What fences are
+
+Patina writes managed files (`CLAUDE.md`, `README.md`) containing fenced regions marked `<!-- patina:<id>:start -->` … `<!-- patina:<id>:end -->`. Everything **outside** a fence belongs to the user and is never touched on update — patina only rewrites what it owns.
+
+Current `CLAUDE.md` fence ids (post-#118):
+
+| Id | Content |
+|----|---------|
+| `profile` | User identity block (name, role, context) |
+| `guide` | Orientation prose — what patina is, rules that always apply, session-start behaviour. One coarse block (see below). |
+| `commands` | Slash-command reference |
+| `modules` | Installed-module list |
+| `launch` | Launch-task instructions (present when a launch task is configured; removed when unconfigured) |
+| `update-check` | Update-check reminder (present when update-check is enabled; removed when disabled) |
+
+`README.md` fences:
+
+| Id | Content |
+|----|---------|
+| `base` | Static intro block ("This is your patina…") — always present from first install |
+| *module-id* | Per-module reference block, e.g. `linkedin` — present when the module is installed |
+
+### How upgrades decide
+
+Per-section checksums stored in `.patina-state.json` (keyed `relativePath:id`, e.g. `CLAUDE.md:guide`) detect user edits. On update, `mergeSections` in `src/sections.ts` decides per section:
+
+1. Section id is in the `overwrite` set → force-update regardless of edits.
+2. Stored hash present **and** current on-disk hash differs → **skip** (user edited; leave untouched). No stored hash → treated as unedited.
+3. Otherwise → update (or mark `unchanged` if content is identical).
+
+One-time layout changes have used a bespoke pre-pass. `src/migrate-claude.ts` is one such migration — it detects and removes pre-#118 unfenced guide prose before the normal fence update runs. New content changes should not need a new bespoke migration (see the content-versioning decision below).
+
+### Content-versioning decision (deferred)
+
+Patina considered recording a durable per-section content-version (a merge *base*) in `.patina-state.json` alongside the checksum, to enable a future 3-way reconcile (old-patina-content vs new-patina-content vs user-edit) and retire bespoke migrations. **Decision: deferred.**
+
+Rationale: pre-release, near-zero existing-user blast radius; the binary checksum is sufficient today; there is no pending `guide` content change requiring reconciliation; building a 3-way merge now is speculative (YAGNI).
+
+**Revisit trigger:** when the first post-#118 change to a fenced section's built-in content lands. At that point, record base versions in `.patina-state.json` keyed `relativePath:id` *before* changing the content — the base is irrecoverable retroactively. The version source-of-truth should be keyed by globally-unique fence id (see namespace contract below).
+
+### Coarse `guide` fence policy
+
+The `guide` region is intentionally a single coarse fence covering all of patina's orientation prose. Split into finer fences only when a real need to update one subsection independently arises; splitting is itself a migration event and is not done speculatively.
+
+### Fence-id namespace contract
+
+Fence ids must be **globally unique across all managed files**. A module fence id (e.g. `linkedin` in `README.md`) must not collide with a core `CLAUDE.md` id. This keeps the per-section keying in `.patina-state.json` unambiguous and is a precondition for any future content-version source-of-truth keyed by bare id. If a collision ever becomes necessary, re-key by `relativePath:id` everywhere.
+
+---
+
 ## Tests
 
 ```bash
