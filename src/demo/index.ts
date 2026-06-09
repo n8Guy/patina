@@ -63,7 +63,7 @@ export async function runDemo(cwd: string): Promise<void> {
       targetDir,
     });
   } catch (err) {
-    s.stop(chalk.red('Scaffold failed.'));
+    s.error('Scaffold failed.');
     p.log.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
