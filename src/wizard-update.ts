@@ -184,7 +184,7 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
         p.text({
           message: "What's your name?",
           initialValue: profile.name,
-          validate: (v) => (v.trim() === '' ? 'Name is required.' : undefined),
+          validate: (v) => (!v || !v.trim() ? 'Name is required.' : undefined),
         }),
 
       title: () =>

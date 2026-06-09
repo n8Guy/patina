@@ -72,7 +72,7 @@ export function registerCommands(program: Command): void {
           const result = await p.text({
             message: 'Client name',
             placeholder: 'e.g. Acme Corp',
-            validate: (v) => (v.trim() ? undefined : 'Client name is required'),
+            validate: (v) => (v?.trim() ? undefined : 'Client name is required'),
           });
           if (p.isCancel(result)) {
             p.cancel('Cancelled.');
