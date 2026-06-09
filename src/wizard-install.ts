@@ -32,7 +32,7 @@ export async function runInstall(cwd: string): Promise<void> {
         p.text({
           message: "What's your name?",
           placeholder: 'Your full name',
-          validate: (v) => (v?.trim() === '' || !v ? 'Name is required.' : undefined),
+          validate: (v) => (!v || !v.trim() ? 'Name is required.' : undefined),
         }),
 
       title: () =>
@@ -213,7 +213,7 @@ export async function runInstall(cwd: string): Promise<void> {
       writeState(targetDir, state);
     }
 
-    s.stop(chalk.green('Done.'));
+    s.stop('Done.');
   } catch (err) {
     s.error('Something went wrong.');
     p.log.error(err instanceof Error ? err.message : String(err));

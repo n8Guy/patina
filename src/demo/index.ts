@@ -104,7 +104,7 @@ export async function runDemo(cwd: string): Promise<void> {
     }
   }
 
-  s.stop(chalk.green('Done.'));
+  s.stop('Done.');
 
   p.note(
     [
