@@ -5,6 +5,17 @@
     ]
   },
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"process.stdout.write('New patina session. Execute the On session start instructions from CLAUDE.md now — staleness report, orientation block, inbox check, pending module setup, launch tasks, then ask what we are working on today.')\""
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

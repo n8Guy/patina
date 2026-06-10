@@ -185,6 +185,15 @@ describe('scaffold — core files', () => {
     expect(exists('.claude/settings.json')).toBe(true);
   });
 
+  it('settings.json includes SessionStart hook with startup matcher', () => {
+    const settings = JSON.parse(read('.claude/settings.json'));
+    const sessionStart = settings?.hooks?.SessionStart;
+    expect(Array.isArray(sessionStart)).toBe(true);
+    expect(sessionStart[0].matcher).toBe('startup');
+    expect(sessionStart[0].hooks[0].type).toBe('command');
+    expect(sessionStart[0].hooks[0].command).toContain('On session start');
+  });
+
   it('creates .claude/commands/add.md', () => {
     expect(exists('.claude/commands/add.md')).toBe(true);
   });
