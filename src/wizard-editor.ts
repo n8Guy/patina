@@ -73,8 +73,7 @@ export function detectVSCode(): boolean {
 
 export function openInVSCode(vaultPath: string): void {
   if (process.platform === 'win32') {
-    // Quote the path so spaces in directory names don't split the cmd /c invocation
-    spawn('cmd', ['/c', 'code', `"${vaultPath}"`], { detached: true, stdio: 'ignore' }).unref();
+    spawn('cmd', ['/c', 'code', vaultPath], { detached: true, stdio: 'ignore' }).unref();
   } else {
     spawn('code', [vaultPath], { detached: true, stdio: 'ignore' }).unref();
   }

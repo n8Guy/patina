@@ -18,6 +18,8 @@ It works best if you use [Claude](https://claude.ai) and have [Claude Code](http
 
 ## Getting started
 
+Requires **Node 22 or newer** ([download](https://nodejs.org)).
+
 Run this in your terminal:
 
 ```bash
