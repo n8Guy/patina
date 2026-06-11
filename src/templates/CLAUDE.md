@@ -59,24 +59,15 @@ Deleting `inbox/.processed.json` simply resets tracking with no data loss — yo
 
 ## On session start
 
-Before anything else, scan the graph for stale content and surface a brief report.
+Before anything else, run `node .claude/scripts/staleness-check.mjs` and relay the result.
 
-**Fresh patina — skip the staleness report.** If `{{CONTENT_DIR}}/notes/`, `{{CONTENT_DIR}}/skills/`, and `{{CONTENT_DIR}}/posts/` contain no real content yet (nothing beyond `.gitkeep`, `README.md`, and `exclusions.md`), there is nothing to compare — skip the staleness report entirely and go straight to the orientation block below.
+**If this is a non-interactive or headless session:** relay the output as the staleness report if there is any, say nothing if there is none, then stop — do not show the orientation block, check the inbox, or ask any startup questions.
 
-Read the file modification times for all three areas — skip `.gitkeep`, `README.md`, and `exclusions.md` in every directory:
-- `{{CONTENT_DIR}}/notes/`
-- `{{CONTENT_DIR}}/skills/`
-- `{{CONTENT_DIR}}/posts/`
+For an interactive session:
 
-List items not modified in the last **{{STALENESS_THRESHOLD}} days**, grouped by area:
-
-- **Notes** — stale note slugs
-- **Skills** — stale skill slugs
-- **Posts** — stale draft slugs
-
-Skip any area with nothing stale. If everything is fresh, say so in one line. Keep the report brief — one line per area.
-
-**If this is a non-interactive or headless session, skip the orientation block and all remaining steps in this section (inbox check, pending module setup, and launch tasks) and do not ask any startup questions — stop after the staleness report.**
+- If the command produces no output, the patina has no content yet — skip the staleness report and go straight to the orientation block below.
+- If the output starts with "All content is fresh", say so in one line.
+- Otherwise, show the stale items exactly as listed (one line per area), then continue below.
 
 Show a brief orientation block. Always start with the core commands:
 
