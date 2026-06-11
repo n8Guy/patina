@@ -146,7 +146,7 @@ export function registerCommands(program: Command): void {
   program.addCommand(clientCmd);
 
   const openCmd = new Command('open')
-    .description('Start a patina session — prints startup orientation then opens an interactive session')
+    .description('Start a patina session')
     .action(() => {
       const cwd = process.cwd();
       const root = findPatinaRoot(cwd);
@@ -155,17 +155,13 @@ export function registerCommands(program: Command): void {
         process.exit(1);
       }
 
-      const printResult = spawnSync('claude', [
-        '-p',
-        'Run the FULL On session start sequence from CLAUDE.md — staleness check, orientation block, inbox check, module setup reminders, and launch tasks. Then ask what we are working on today. (Invoked via patina open — run all steps including orientation.)',
-      ], { stdio: 'inherit', cwd: root });
-
-      if (printResult.error || (printResult.status !== null && printResult.status !== 0)) {
-        console.error(chalk.red('patina open: startup orientation failed. Run `claude` directly to start a session.'));
-        process.exit(printResult.status ?? 1);
+      console.log(chalk.hex('#C084FC')('\n  Your patina is ready. Press Enter to get started.\n'));
+      // shell: true is required on Windows to resolve claude.cmd from PATH.
+      const result = spawnSync('claude', [], { stdio: 'inherit', cwd: root, shell: true });
+      if (result.error) {
+        console.error(chalk.red('patina open: could not launch Claude. Is Claude Code installed? (https://claude.ai/code)'));
+        process.exit(1);
       }
-
-      spawnSync('claude', ['--continue'], { stdio: 'inherit', cwd: root });
     });
 
   program.addCommand(openCmd);
