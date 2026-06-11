@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import * as p from '@clack/prompts';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { spawnSync } from 'child_process';
 import chalk from 'chalk';
 import { slugify } from '../wizard.js';
 import { buildClientFiles } from '../modules/clients/scaffold-client.js';
@@ -143,4 +144,29 @@ export function registerCommands(program: Command): void {
     });
 
   program.addCommand(clientCmd);
+
+  const openCmd = new Command('open')
+    .description('Start a patina session — prints startup orientation then opens an interactive session')
+    .action(() => {
+      const cwd = process.cwd();
+      const root = findPatinaRoot(cwd);
+      if (root === null) {
+        console.error(chalk.red('No patina found here. Run this command from inside a patina directory.'));
+        process.exit(1);
+      }
+
+      const printResult = spawnSync('claude', [
+        '-p',
+        'Run the FULL On session start sequence from CLAUDE.md — staleness check, orientation block, inbox check, module setup reminders, and launch tasks. Then ask what we are working on today. (Invoked via patina open — run all steps including orientation.)',
+      ], { stdio: 'inherit', cwd: root });
+
+      if (printResult.error || (printResult.status !== null && printResult.status !== 0)) {
+        console.error(chalk.red('patina open: startup orientation failed. Run `claude` directly to start a session.'));
+        process.exit(printResult.status ?? 1);
+      }
+
+      spawnSync('claude', ['--continue'], { stdio: 'inherit', cwd: root });
+    });
+
+  program.addCommand(openCmd);
 }

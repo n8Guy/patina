@@ -15,6 +15,7 @@ import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNI
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { getModule } from './modules/registry.js';
 import { validate, formatReport } from './validate.js';
+import { offerGlobalInstall } from './wizard-shared.js';
 import type { ModuleId, Profile } from './types.js';
 
 export { writeProfile, removeManagedFileIfUnmodified };
@@ -460,4 +461,6 @@ export async function runUpdate(cwd: string): Promise<void> {
   } else if (action === 'validate') {
     await runValidate(cwd, profile);
   }
+
+  await offerGlobalInstall();
 }

@@ -4,7 +4,8 @@
   "description": "Personal professional knowledge graph — setup and management",
   "type": "module",
   "bin": {
-    "my-patina": "dist/check-node.cjs"
+    "my-patina": "dist/check-node.cjs",
+    "patina": "dist/check-node.cjs"
   },
   "scripts": {
     "build": "tsup && node scripts/copy-templates.mjs",
