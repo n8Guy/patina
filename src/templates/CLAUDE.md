@@ -61,7 +61,7 @@ Deleting `inbox/.processed.json` simply resets tracking with no data loss — yo
 
 Before anything else, run `node .claude/scripts/staleness-check.mjs` and relay the result.
 
-**If this is a non-interactive or headless session:** relay the output as the staleness report if there is any, say nothing if there is none, then stop — do not show the orientation block, check the inbox, or ask any startup questions.
+**If this is a non-interactive or headless session,** unless the message explicitly says this was invoked via `patina open`: relay the output as the staleness report if there is any, say nothing if there is none, then stop — do not show the orientation block, check the inbox, or ask any startup questions.
 
 For an interactive session:
 
