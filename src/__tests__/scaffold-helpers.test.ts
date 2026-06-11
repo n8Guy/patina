@@ -262,20 +262,20 @@ describe('baseManagedFiles', () => {
     expect(claudeMd[1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('CLAUDE.md renders custom staleness threshold', () => {
+  it('staleness-check.mjs renders custom staleness threshold', () => {
     const profile = makeProfile({ staleness_threshold_days: 60 });
     const vars = profileToVars(profile);
     const files = baseManagedFiles(vars, 'vscode');
-    const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
-    expect(claudeMd[1]).toContain('60 days');
-    expect(claudeMd[1]).not.toContain('30 days');
+    const script = files.find(([rel]) => rel === '.claude/scripts/staleness-check.mjs')!;
+    expect(script[1]).toContain("'60'");
+    expect(script[1]).not.toContain("'30'");
   });
 
-  it('CLAUDE.md renders default staleness threshold when not set', () => {
+  it('staleness-check.mjs renders default staleness threshold when not set', () => {
     const vars = profileToVars(makeProfile());
     const files = baseManagedFiles(vars, 'vscode');
-    const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
-    expect(claudeMd[1]).toContain('30 days');
+    const script = files.find(([rel]) => rel === '.claude/scripts/staleness-check.mjs')!;
+    expect(script[1]).toContain("'30'");
   });
 });
 

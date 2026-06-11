@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node .claude/scripts/check-update.mjs)"
+      "Bash(node .claude/scripts/check-update.mjs)",
+      "Bash(node .claude/scripts/staleness-check.mjs)"
     ]
   },
   "hooks": {

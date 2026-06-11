@@ -167,10 +167,10 @@ describe('scaffold — core files', () => {
     expect(slashCmdIdx).toBeLessThan(commandsEnd);
   });
 
-  it('CLAUDE.md contains staleness init hook with default threshold', () => {
+  it('CLAUDE.md references staleness-check.mjs and startup instructions', () => {
     const content = read('CLAUDE.md');
     expect(content).toContain('On session start');
-    expect(content).toContain('30 days');
+    expect(content).toContain('staleness-check.mjs');
     expect(content).toContain('What are we working on today?');
   });
 
@@ -1076,6 +1076,34 @@ describe('scaffold — check-update.mjs', () => {
   it('.patina-state.json has a checksum for check-update.mjs', () => {
     const state = loadState();
     expect(typeof state.checksums['.claude/scripts/check-update.mjs']).toBe('string');
+  });
+});
+
+describe('scaffold — staleness-check.mjs', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates .claude/scripts/staleness-check.mjs', () => {
+    expect(exists('.claude/scripts/staleness-check.mjs')).toBe(true);
+  });
+
+  it('staleness-check.mjs contains rendered CONTENT_DIR and threshold (no leftover {{}})', () => {
+    const content = read('.claude/scripts/staleness-check.mjs');
+    expect(content).not.toContain('{{CONTENT_DIR}}');
+    expect(content).not.toContain('{{STALENESS_THRESHOLD}}');
+    expect(content).toContain('graph');
+    expect(content).toContain("'30'");
+  });
+
+  it('.patina-state.json has a checksum for staleness-check.mjs', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/scripts/staleness-check.mjs']).toBe('string');
+  });
+
+  it('settings.json allows staleness-check.mjs', () => {
+    const settings = JSON.parse(read('.claude/settings.json'));
+    expect(settings.permissions.allow).toContain('Bash(node .claude/scripts/staleness-check.mjs)');
   });
 });
 
