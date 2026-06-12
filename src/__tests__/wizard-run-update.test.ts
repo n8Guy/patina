@@ -6,7 +6,7 @@ import yaml from 'js-yaml';
 import { scaffold } from '../scaffold.js';
 import { hashContent } from '../checksums.js';
 import { readState } from '../state.js';
-import { applyProfileUpdate, applyModuleChanges, applyLaunchTaskUpdate } from '../wizard.js';
+import { applyProfileUpdate, applyModuleChanges, applyLaunchTaskUpdate, syncBaseFiles } from '../wizard.js';
 import type { Profile, ScaffoldOptions } from '../types.js';
 
 let tmp: string;
@@ -1065,5 +1065,38 @@ describe('migration — populated inbox/.processed.json survives legacy migratio
     expect(after).toHaveLength(1);
     expect(after[0].filename).toBe('report.pdf');
     expect(after[0].status).toBe('success');
+  });
+});
+
+// ── syncBaseFiles: new template files land without a profile change ───────────
+
+describe('syncBaseFiles — upgrade path: creates guide.md for pre-guide installs', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts());
+    profile = loadProfile();
+
+    // Simulate a pre-guide install: remove guide.md and its stored checksum
+    rmSync(join(targetDir, '.claude', 'commands', 'guide.md'), { force: true });
+    const state = loadState();
+    delete state.checksums['.claude/commands/guide.md'];
+    writeFileSync(join(targetDir, '.patina-state.json'), JSON.stringify(state), 'utf8');
+  });
+
+  it('creates .claude/commands/guide.md without requiring a profile change', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(existsSync(join(targetDir, '.claude', 'commands', 'guide.md'))).toBe(true);
+  });
+
+  it('stores the guide.md checksum in state', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(typeof loadState().checksums['.claude/commands/guide.md']).toBe('string');
+  });
+
+  it('does not overwrite user-edited managed files', () => {
+    writeFileSync(join(targetDir, 'CLAUDE.md'), 'my custom content', 'utf8');
+    syncBaseFiles(targetDir, profile);
+    expect(read('CLAUDE.md')).toBe('my custom content');
   });
 });

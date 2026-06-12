@@ -245,6 +245,12 @@ export async function offerGlobalInstall(): Promise<void> {
   }
 }
 
+/** Inline text appended to p.note bodies (install outro) or used in p.log.info (update outro). */
+export const GUIDE_HINT_INLINE = chalk.hex('#94A3B8')('\n\nRun ') + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' any time to see all available commands.');
+
+/** Standalone string for p.log.info after an update. Same wording as GUIDE_HINT_INLINE, no leading newlines. */
+export const GUIDE_HINT_LOG = chalk.hex('#94A3B8')('Run ') + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' any time to see all available commands.');
+
 export async function promptLaunchTasks(
   avail: AvailableLaunchTask[],
   initial: string[],

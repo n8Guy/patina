@@ -2,6 +2,8 @@
 
 Show a formatted command reference for this patina.
 
+<!-- Core commands block mirrors the orientation section in CLAUDE.md. Keep in sync. -->
+
 ## Core commands
 
 Always show:
@@ -10,6 +12,7 @@ Always show:
 > - `/add <what you did>` — capture a project, skill, or win · e.g. `/add Delivered the Orca Studio brand refresh`
 > - `/reflect` — review your notes for skill gaps and stale entries
 > - `/inbox` — process any files you've dropped into `inbox/`
+> - `/guide` — show this command reference any time
 
 ## Module commands
 

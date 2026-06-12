@@ -4,7 +4,7 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
-import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks } from './wizard-shared.js';
+import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks, GUIDE_HINT_LOG } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, renderUpdateCheckSection } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
@@ -421,9 +421,32 @@ async function runValidate(cwd: string, profile: Profile): Promise<void> {
 
 // ─── Update orchestrator ──────────────────────────────────────────────────────
 
+/**
+ * Sync base managed files to the patina directory without changing the profile.
+ * Runs at the top of every update wizard invocation so new template files
+ * (e.g. guide.md) land even when the user makes no profile changes.
+ */
+export function syncBaseFiles(cwd: string, profile: Profile): void {
+  const existingState = readState(cwd, profile);
+  const vars = profileToVars(profile);
+  const checksums = { ...existingState.checksums };
+  for (const [rel, content] of baseManagedFiles(vars, profile.editor, cwd)) {
+    const result = writeManagedFile(cwd, rel, content, checksums);
+    checksums[rel] = result.checksum;
+    for (const s of result.sections ?? []) {
+      const sKey = `${rel}:${s.id}`;
+      if (s.outcome !== 'skipped') checksums[sKey] = s.newChecksum;
+      else checksums[sKey] = existingState.checksums[sKey] ?? '';
+    }
+  }
+  writeState(cwd, { ...existingState, checksums });
+}
+
 export async function runUpdate(cwd: string): Promise<void> {
   const profile = loadProfile(cwd);
   p.intro(chalk.hex('#94A3B8')(`Found: ${chalk.bold.white(profile.patina_name || 'patina')}`));
+
+  syncBaseFiles(cwd, profile);
 
   p.note(
     [
@@ -460,12 +483,9 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runUpdateLaunchTasks(cwd, profile);
   } else if (action === 'validate') {
     await runValidate(cwd, profile);
-    return;
   }
 
   await offerGlobalInstall();
 
-  p.log.info(
-    chalk.hex('#94A3B8')('Run ') + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' in your session any time to see all available commands.')
-  );
+  p.log.info(GUIDE_HINT_LOG);
 }

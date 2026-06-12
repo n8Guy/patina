@@ -71,6 +71,7 @@ For an interactive session:
 
 Show a brief orientation block. Always start with the core commands:
 
+<!-- Core commands block mirrors .claude/commands/guide.md. Keep in sync. -->
 > Here's what you can do:
 > - `/add <what you did>` — capture a project, skill, or win · e.g. `/add Delivered the Orca Studio brand refresh`
 > - `/reflect` — review your notes for skill gaps and stale entries
