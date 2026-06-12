@@ -63,6 +63,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
         .join('\n')
     : '_No modules installed._';
   const commandsSection = buildCommandsSection(profile.modules ?? []);
+  const guideCommands = buildGuideCommands(profile.modules ?? []);
   return {
     PATINA_NAME: profile.patina_name,
     USER_NAME: profile.name,
@@ -77,6 +78,7 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
     STALENESS_THRESHOLD: (() => { const d = Number(profile.staleness_threshold_days ?? 30); return String(Number.isFinite(d) && d > 0 ? d : 30); })(),
     MODULES_SECTION: modulesSection,
     COMMANDS_SECTION: commandsSection,
+    GUIDE_COMMANDS: guideCommands,
     PATINA_VERSION: getPatinaVersion(),
   };
 }
@@ -109,6 +111,37 @@ export function buildCommandsSection(modules: readonly string[]): string {
     '|---------|-------------|',
     ...rows.map(c => `| \`${c.name}\` | ${c.desc} |`),
   ].join('\n');
+}
+
+// Core commands rendered verbatim in the guide output.
+// Kept separate from BASE_COMMANDS (which drives the CLAUDE.md table) so the
+// two formats can evolve independently.
+const GUIDE_CORE_LINES: ReadonlyArray<string> = [
+  '> - `/add <what you did>` — capture a project, skill, or win · e.g. `/add Delivered the Orca Studio brand refresh`',
+  '> - `/reflect` — review your notes for skill gaps and stale entries',
+  '> - `/inbox` — process any files you\'ve dropped into `inbox/`',
+  '> - `/guide` — show this command reference any time',
+];
+
+/**
+ * Build the pre-rendered command-reference block written into guide.md at wizard
+ * run time. Stored so /guide just outputs it verbatim — no manifest reads needed.
+ */
+export function buildGuideCommands(modules: readonly string[]): string {
+  const lines: string[] = [
+    '> Here\'s what you can do:',
+    ...GUIDE_CORE_LINES,
+  ];
+  for (const id of modules) {
+    const def = getModule(id);
+    if (!def?.commands?.length) continue;
+    lines.push('>');
+    lines.push(`> **${def.label}**`);
+    for (const cmd of def.commands) {
+      lines.push(`> - \`${cmd.name}\` — ${cmd.desc}`);
+    }
+  }
+  return lines.join('\n');
 }
 
 /**

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from '../scaffold.js';
+import { profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles, buildGuideCommands } from '../scaffold.js';
 import type { Profile } from '../types.js';
 
 let tmp: string;
@@ -143,6 +143,57 @@ describe('profileToVars', () => {
     const vars = profileToVars(makeProfile({ modules: [] }));
     expect(vars.COMMANDS_SECTION).not.toContain('/goal');
     expect(vars.COMMANDS_SECTION).not.toContain('/li-');
+  });
+
+  it('GUIDE_COMMANDS contains core commands', () => {
+    const vars = profileToVars(makeProfile({ modules: [] }));
+    expect(vars.GUIDE_COMMANDS).toContain('/add');
+    expect(vars.GUIDE_COMMANDS).toContain('/reflect');
+    expect(vars.GUIDE_COMMANDS).toContain('/inbox');
+    expect(vars.GUIDE_COMMANDS).toContain('/guide');
+  });
+
+  it('GUIDE_COMMANDS includes module commands when modules installed', () => {
+    const vars = profileToVars(makeProfile({ modules: ['linkedin', 'goals'] }));
+    expect(vars.GUIDE_COMMANDS).toContain('/li-all');
+    expect(vars.GUIDE_COMMANDS).toContain('/goal');
+    expect(vars.GUIDE_COMMANDS).toContain('LinkedIn');
+    expect(vars.GUIDE_COMMANDS).toContain('Goals');
+  });
+
+  it('GUIDE_COMMANDS omits module commands when no modules installed', () => {
+    const vars = profileToVars(makeProfile({ modules: [] }));
+    expect(vars.GUIDE_COMMANDS).not.toContain('/li-');
+    expect(vars.GUIDE_COMMANDS).not.toContain('/goal');
+  });
+});
+
+describe('buildGuideCommands', () => {
+  it('contains all four core commands', () => {
+    const out = buildGuideCommands([]);
+    expect(out).toContain('/add');
+    expect(out).toContain('/reflect');
+    expect(out).toContain('/inbox');
+    expect(out).toContain('/guide');
+  });
+
+  it('includes module label and commands when modules provided', () => {
+    const out = buildGuideCommands(['goals']);
+    expect(out).toContain('**Goals**');
+    expect(out).toContain('/goal ');
+    expect(out).toContain('/goal-review');
+  });
+
+  it('output is blockquote-formatted (every line starts with >)', () => {
+    const out = buildGuideCommands([]);
+    for (const line of out.split('\n')) {
+      expect(line.startsWith('>')).toBe(true);
+    }
+  });
+
+  it('separates module section with a blank blockquote line', () => {
+    const out = buildGuideCommands(['resume']);
+    expect(out).toContain('\n>\n>');
   });
 });
 
