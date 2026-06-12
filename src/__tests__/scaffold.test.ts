@@ -167,16 +167,16 @@ describe('scaffold — core files', () => {
     expect(slashCmdIdx).toBeLessThan(commandsEnd);
   });
 
-  it('CLAUDE.md references staleness-check.mjs and startup instructions', () => {
+  it('CLAUDE.md does not contain startup flow (moved to /status)', () => {
     const content = read('CLAUDE.md');
-    expect(content).toContain('On session start');
-    expect(content).toContain('staleness-check.mjs');
-    expect(content).toContain('What are we working on today?');
+    expect(content).not.toContain('On session start');
+    expect(content).not.toContain('What are we working on today?');
+    expect(content).not.toContain('deferred_modules');
   });
 
-  it('CLAUDE.md contains pending module setup init-hook instruction', () => {
-    const content = read('CLAUDE.md');
-    expect(content).toContain('pending module setup');
+  it('status.md contains staleness check and deferred module logic', () => {
+    const content = read('.claude/commands/status.md');
+    expect(content).toContain('staleness-check.mjs');
     expect(content).toContain('deferred_modules');
     expect(content).toContain('snooze_until');
   });
@@ -816,8 +816,8 @@ describe('scaffold — inbox', () => {
     expect(read('CLAUDE.md')).toContain('inbox/.processed.json');
   });
 
-  it('CLAUDE.md contains startup inbox check phrasing', () => {
-    expect(read('CLAUDE.md')).toContain('Process now');
+  it('status.md contains inbox check logic', () => {
+    expect(read('.claude/commands/status.md')).toContain('inbox/.processed.json');
   });
 
   it('.gitignore includes inbox/.processed.json', () => {

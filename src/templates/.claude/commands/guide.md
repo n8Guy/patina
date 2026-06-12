@@ -2,8 +2,8 @@
 
 <!-- Pre-rendered by the patina wizard. Regenerated on every npx my-patina@latest run. -->
 <!-- Core commands come from GUIDE_CORE_COMMANDS in scaffold.ts — edit there, not here. -->
-<!-- CLAUDE.md has a static orientation block derived from the same source. -->
+<!-- Core commands are defined in GUIDE_CORE_COMMANDS in scaffold.ts. -->
 
-Output the following command reference exactly as written:
+Do not run the session-start checks (staleness check, inbox check, or state check). Output the following command reference exactly as written:
 
 {{GUIDE_COMMANDS}}
