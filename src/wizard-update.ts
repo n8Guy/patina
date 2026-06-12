@@ -470,12 +470,14 @@ export async function runUpdate(cwd: string): Promise<void> {
     ],
   });
 
-  if (p.isCancel(action) || action === 'nothing') {
-    p.outro(chalk.hex('#94A3B8')('No changes made.'));
+  if (p.isCancel(action)) {
+    p.cancel(chalk.hex('#94A3B8')('No changes made.'));
     return;
   }
 
-  if (action === 'profile') {
+  if (action === 'nothing') {
+    p.outro(chalk.hex('#94A3B8')('No changes made.'));
+  } else if (action === 'profile') {
     await runUpdateProfile(cwd, profile);
   } else if (action === 'modules') {
     await runUpdateModules(cwd, profile);
