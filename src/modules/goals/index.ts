@@ -24,8 +24,8 @@ export const goalsModule = {
   hint: 'track and review your forward-looking goals',
 
   commands: [
-    { name: '/goal <description>', desc: 'Create a new goal' },
-    { name: '/goal-review', desc: 'Review open and in-progress goals, flag overdue' },
+    { name: '/goal <description>', desc: 'Create a new goal · e.g. /goal Land a senior IC role by end of year' },
+    { name: '/goal-review', desc: 'Review open and in-progress goals, flag overdue (no input needed)' },
   ],
 
   managedPaths: GOALS_MANAGED_PATHS,

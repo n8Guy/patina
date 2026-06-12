@@ -45,12 +45,7 @@ You decide what's shareable — patina never blocks client content. Each file ca
 
 ## Adding a client
 
-Run `patina client add` to scaffold a new client folder interactively. For headless use:
-
-```
-patina client add --name "Acme Corp" --type retainer
-patina client add --name "Acme Corp" --type project --private
-```
+To add a client, ask Claude to scaffold one in your session — provide the client name and engagement type (project, retainer, or advisory) and it will create the folder structure and profile.
 
 ## Slash commands
 

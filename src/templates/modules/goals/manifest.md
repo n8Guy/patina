@@ -5,9 +5,9 @@ reflect_hook: goal-review
 description: A private space for your forward-looking goals
 commands:
   - name: /goal <description>
-    desc: Create a new goal
+    desc: Create a new goal · e.g. /goal Land a senior IC role by end of year
   - name: /goal-review
-    desc: Review open and in-progress goals, flag overdue
+    desc: Review open and in-progress goals, flag overdue (no input needed)
 installed: {{TODAY}}
 ---
 

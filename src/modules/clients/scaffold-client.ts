@@ -9,8 +9,9 @@ export interface BuildClientFilesOpts {
   contentDir: string;
   /**
    * When true, emit engagements/initial.md with a full engagement info block
-   * instead of just the folder .gitkeep. Used by the `patina client add` subcommand.
-   * Demo mode leaves this false and provides its own named engagement files.
+   * instead of just the folder .gitkeep. Set to true when scaffolding a new client
+   * interactively (e.g. from a session command); false for demo content, which
+   * provides its own named engagement files.
    */
   emitInitialEngagement?: boolean;
 }

@@ -2,7 +2,6 @@ import { render } from '../../template.js';
 import { tpl } from '../../template-loader.js';
 import type { ModuleDefinition, FileEntry } from '../types.js';
 import type { TemplateVars } from '../../types.js';
-import { buildClientFiles } from './scaffold-client.js';
 
 const CLIENTS_MANAGED_PATHS = [
   '.claude/commands/client-check.md',
@@ -20,7 +19,7 @@ export const clientsModule = {
   hint: 'track freelance, consulting, and advisory relationships',
 
   commands: [
-    { name: '/client-check', desc: 'Status count of clients and their engagement state (runs during /reflect)' },
+    { name: '/client-check', desc: 'Status count of clients and their engagement state (no input needed — runs during /reflect too)' },
   ],
 
   managedPaths: CLIENTS_MANAGED_PATHS,
@@ -55,7 +54,7 @@ export const clientsModule = {
       '',
       '```',
       `${vars.CONTENT_DIR}/clients/`,
-      '  [client-slug]/        — one folder per client (created by `patina client add`)',
+      '  [client-slug]/        — one folder per client',
       '    profile.md          — who this client is and relationship context',
       '    engagements/        — bounded project records',
       '    deliverables/       — what was handed over',
@@ -65,7 +64,7 @@ export const clientsModule = {
       '',
       '### Adding a client',
       '',
-      'Run `patina client add` to scaffold a new client folder. This is patina\'s first `<noun> <verb>` subcommand — run `patina client --help` to see all available verbs.',
+      'To add a client, ask Claude to scaffold one in your session — it will create the folder structure and profile.',
       '',
       '### Commands',
       '',

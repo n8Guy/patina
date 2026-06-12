@@ -22,7 +22,7 @@ export const resumeModule = {
   hint: 'keep your resume current from your graph',
 
   commands: [
-    { name: '/resume-refresh', desc: 'Refresh your resume working draft from your graph' },
+    { name: '/resume-refresh', desc: 'Refresh your resume working draft from your graph (no input needed — Claude reads your notes)' },
   ],
 
   managedPaths: RESUME_MANAGED_PATHS,

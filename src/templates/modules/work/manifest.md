@@ -5,7 +5,7 @@ reflect_hook: work-check
 description: A private space for your professional work artifacts
 commands:
   - name: /work-check
-    desc: Status count of artifacts across each work subfolder (runs during /reflect)
+    desc: Status count of artifacts across each work subfolder (no input needed — runs during /reflect too)
 installed: {{TODAY}}
 ---
 

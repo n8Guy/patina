@@ -34,13 +34,13 @@ export const linkedinModule = {
   hint: 'draft and refine your LinkedIn profile',
 
   commands: [
-    { name: '/li-all', desc: 'Refresh all LinkedIn drafts from your latest notes' },
-    { name: '/li-about', desc: 'Refine your About section draft' },
-    { name: '/li-headline', desc: 'Refine your headline draft' },
-    { name: '/li-experience', desc: 'Refine your experience section draft' },
-    { name: '/li-skills', desc: 'Refine your skills list draft' },
-    { name: '/li-featured', desc: 'Refine Featured or draft a post to pin' },
-    { name: '/li-activity', desc: 'Update your posting strategy or draft a post' },
+    { name: '/li-all', desc: 'Refresh all LinkedIn drafts at once from your latest notes (no input needed)' },
+    { name: '/li-about', desc: 'Refine your About section draft (no input needed — Claude reads your graph)' },
+    { name: '/li-headline', desc: 'Refine your headline draft (no input needed — Claude reads your graph)' },
+    { name: '/li-experience', desc: 'Refine your experience section draft (no input needed — Claude reads your graph)' },
+    { name: '/li-skills', desc: 'Refine your skills list draft (no input needed — Claude reads your graph)' },
+    { name: '/li-featured', desc: 'Refine Featured or draft a post to pin (no input needed — Claude reads your graph)' },
+    { name: '/li-activity', desc: 'Update your posting strategy or draft a post (no input needed — Claude reads your graph)' },
   ],
 
   requiresConfig: true,

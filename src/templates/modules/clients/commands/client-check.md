@@ -23,6 +23,6 @@ Example output:
 Clients: Cedar Health (1 active engagement, 2 deliverables) · Northwind Freight (1 complete engagement, 1 deliverable)
 ```
 
-If the clients folder is empty or contains only `.gitkeep`, say: "Clients module is installed but no clients yet — run `patina client add` to scaffold your first client folder."
+If the clients folder is empty or contains only `.gitkeep`, say: "Clients module is installed but no clients yet — ask Claude to add a client to get started."
 
 Keep the output brief. This is a status check, not a review.

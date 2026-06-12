@@ -230,11 +230,14 @@ export async function runInstall(cwd: string): Promise<void> {
 
   if (detectClaude()) await offerGlobalInstall();
 
+  const guideHint = chalk.hex('#94A3B8')('\n\nOnce in your session, run ') + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' to see all available commands.');
+
   if (setup.editor === 'obsidian') {
     if (detectObsidian()) {
       p.note(
         chalk.hex('#94A3B8')('In Obsidian, click ') + chalk.bold.white('"Open folder as vault"') + chalk.hex('#94A3B8')(' and select:\n  ') + chalk.bold.white(targetDir) +
-        chalk.hex('#94A3B8')('\n\nThen open a terminal, cd into your patina, and run ') + chalk.bold.white('patina open') + chalk.hex('#94A3B8')(' to get started.'),
+        chalk.hex('#94A3B8')('\n\nThen open a terminal inside your patina and start your AI assistant to get started.') +
+        guideHint,
         label('Next steps')
       );
       p.outro(chalk.hex('#C084FC')('Opening in Obsidian...'));
@@ -243,15 +246,17 @@ export async function runInstall(cwd: string): Promise<void> {
       p.note(
         chalk.hex('#94A3B8')('Download Obsidian at ') + chalk.bold.white('https://obsidian.md/download') +
         chalk.hex('#94A3B8')('\n\nThen open the folder as a vault:\n  ') + chalk.bold.white(targetDir) +
-        chalk.hex('#94A3B8')('\n\nOnce set up, run ') + chalk.bold.white('patina open') + chalk.hex('#94A3B8')(' from inside your patina to get started.'),
+        chalk.hex('#94A3B8')('\n\nOnce set up, open a terminal inside your patina and start your AI assistant.') +
+        guideHint,
         label('Next steps')
       );
-      p.outro(chalk.hex('#94A3B8')('Run `patina open` from inside your patina to get started.'));
+      p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));
     }
   } else if (setup.editor === 'vscode') {
     if (detectVSCode()) {
       p.note(
-        chalk.hex('#94A3B8')('Open a terminal in VS Code and run ') + chalk.bold.white('patina open') + chalk.hex('#94A3B8')('.'),
+        chalk.hex('#94A3B8')('Open a terminal in VS Code inside your patina and start your AI assistant.') +
+        guideHint,
         label('Next steps')
       );
       p.outro(chalk.hex('#60A5FA')('Opening in VS Code...'));
@@ -259,19 +264,19 @@ export async function runInstall(cwd: string): Promise<void> {
     } else {
       p.note(
         chalk.hex('#94A3B8')('Download VS Code at ') + chalk.bold.white('https://code.visualstudio.com') +
-        chalk.hex('#94A3B8')('\n\nThen open the folder and run ') + chalk.bold.white('patina open') + chalk.hex('#94A3B8')(' in the terminal.'),
+        chalk.hex('#94A3B8')('\n\nThen open the folder and start your AI assistant from a terminal inside the patina.') +
+        guideHint,
         label('Next steps')
       );
-      p.outro(chalk.hex('#94A3B8')('Run `patina open` from inside your patina to get started.'));
+      p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));
     }
   } else {
     p.note(
-      [
-        chalk.hex('#94A3B8')('  cd ') + chalk.bold.white(slug),
-        chalk.hex('#94A3B8')('  patina open'),
-      ].join('\n'),
+      chalk.hex('#94A3B8')('  cd ') + chalk.bold.white(slug) +
+      chalk.hex('#94A3B8')('\n  # then start your AI assistant') +
+      guideHint,
       label('Next steps')
     );
-    p.outro(chalk.hex('#94A3B8')('Run `patina open` from inside your patina to get started.'));
+    p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));
   }
 }

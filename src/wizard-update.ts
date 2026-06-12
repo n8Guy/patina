@@ -460,7 +460,12 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runUpdateLaunchTasks(cwd, profile);
   } else if (action === 'validate') {
     await runValidate(cwd, profile);
+    return;
   }
 
   await offerGlobalInstall();
+
+  p.log.info(
+    chalk.hex('#94A3B8')('Run ') + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' in your session any time to see all available commands.')
+  );
 }
