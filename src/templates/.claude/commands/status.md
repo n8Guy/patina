@@ -14,7 +14,7 @@ If unprocessed files exist, list them. Otherwise show nothing for this section.
 
 ## 3. Open goals
 
-Read all files in `{{CONTENT_DIR}}/notes/` whose name starts with `goal-`. For each, check the `status` field in the frontmatter. List any with status `open` or `in-progress` with their title and status. If none, show nothing for this section.
+Read all files in `{{CONTENT_DIR}}/goals/`. For each, check the `status` field in the frontmatter. List any with status `open` or `in-progress` with their title and status. If none, show nothing for this section.
 
 ## 4. Module setup
 
