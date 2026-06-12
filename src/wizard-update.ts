@@ -4,7 +4,7 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
-import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks, GUIDE_HINT_LOG, offerGlobalInstall } from './wizard-shared.js';
+import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks, GUIDE_HINT_LOG } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, renderUpdateCheckSection, GUIDE_CORE_COMMANDS } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
@@ -503,8 +503,6 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runValidate(cwd, profile);
     return;
   }
-
-  await offerGlobalInstall();
 
   p.log.info(GUIDE_HINT_LOG);
 }

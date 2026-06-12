@@ -2,8 +2,6 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { join } from 'path';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
-import { spawnSync } from 'child_process';
-import { getPatinaPackageName } from './version.js';
 import yaml from 'js-yaml';
 import { profileToVars } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
@@ -227,23 +225,6 @@ export function removeManagedFileIfUnmodified(
   return 'deleted';
 }
 
-export async function offerGlobalInstall(): Promise<void> {
-  const check = spawnSync('patina', ['--version'], { stdio: 'pipe', shell: true, timeout: 5000 });
-  // status === null means timeout or signal — treat as not installed and offer anyway
-  if (check.status === 0) return;
-
-  const pkgName = getPatinaPackageName();
-  const install = await p.confirm({
-    message: 'Install patina globally so you can run `patina` from any directory?',
-    initialValue: true,
-  });
-  if (p.isCancel(install) || !install) return;
-
-  const result = spawnSync('npm', ['install', '-g', pkgName], { stdio: 'inherit', shell: true });
-  if (result.status !== 0) {
-    p.log.warn(`Global install failed — run \`npm install -g ${pkgName}\` manually to use patina from any directory.`);
-  }
-}
 
 function guideHint(leadingNewlines: number = 0): string {
   return chalk.hex('#94A3B8')(`${'\n'.repeat(leadingNewlines)}Run `) + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' any time to see all available commands.');
