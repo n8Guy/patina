@@ -149,7 +149,7 @@ describe('profileToVars', () => {
 // ── baseManagedFiles ──────────────────────────────────────────────────────────
 
 describe('baseManagedFiles', () => {
-  it('returns README.md, CLAUDE.md, settings.json, add.md, reflect.md for vscode', () => {
+  it('returns base command files for vscode', () => {
     const profile = makeProfile({ editor: 'vscode' });
     const vars = profileToVars(profile);
     const files = baseManagedFiles(vars, 'vscode');
@@ -159,6 +159,7 @@ describe('baseManagedFiles', () => {
     expect(paths).toContain('.claude/settings.json');
     expect(paths).toContain('.claude/commands/add.md');
     expect(paths).toContain('.claude/commands/reflect.md');
+    expect(paths).toContain('.claude/commands/guide.md');
     expect(paths).not.toContain('.mcp.json');
   });
 
@@ -193,6 +194,14 @@ describe('baseManagedFiles', () => {
     const inboxMd = files.find(([rel]) => rel === '.claude/commands/inbox.md');
     expect(inboxMd).toBeDefined();
     expect(inboxMd![1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('guide.md has no unreplaced template variables', () => {
+    const vars = profileToVars(makeProfile());
+    const files = baseManagedFiles(vars, 'vscode');
+    const guideMd = files.find(([rel]) => rel === '.claude/commands/guide.md');
+    expect(guideMd).toBeDefined();
+    expect(guideMd![1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
   it('README.md content has patina:base fence', () => {

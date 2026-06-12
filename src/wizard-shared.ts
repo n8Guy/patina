@@ -234,14 +234,14 @@ export async function offerGlobalInstall(): Promise<void> {
 
   const pkgName = getPatinaPackageName();
   const install = await p.confirm({
-    message: 'Install patina globally so you can use `patina open` from any directory?',
+    message: 'Install patina globally so you can run `patina` from any directory?',
     initialValue: true,
   });
   if (p.isCancel(install) || !install) return;
 
   const result = spawnSync('npm', ['install', '-g', pkgName], { stdio: 'inherit', shell: true });
   if (result.status !== 0) {
-    p.log.warn(`Global install failed — run \`npm install -g ${pkgName}\` manually, then use \`patina open\` to start sessions.`);
+    p.log.warn(`Global install failed — run \`npm install -g ${pkgName}\` manually to use patina from any directory.`);
   }
 }
 

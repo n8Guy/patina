@@ -14,7 +14,7 @@ Read this file first before working with any files in `{{CONTENT_DIR}}/clients/`
 
 ```
 {{CONTENT_DIR}}/clients/
-  [client-slug]/          ← one folder per client, created by `patina client add`
+  [client-slug]/          ← one folder per client
     profile.md            ← who this client is and relationship context
     engagements/          ← bounded project and engagement records
     deliverables/         ← what was handed over
@@ -64,7 +64,7 @@ When a note is derived from a `private: true` source, carry `private: true` onto
 
 ## How to add client content
 
-**New client:** Run `patina client add` to scaffold the folder structure. This creates `profile.md` and the subfolders.
+**New client:** Ask Claude to scaffold one — provide the client name and engagement type and it will create the folder structure and profile.
 
 **New engagement:** Create a new `.md` file in `[client-slug]/engagements/` using the info block format above.
 

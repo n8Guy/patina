@@ -22,7 +22,7 @@ export const workModule = {
   hint: 'capture and organise professional work artifacts',
 
   commands: [
-    { name: '/work-check', desc: 'Status count of artifacts across each work subfolder (runs during /reflect)' },
+    { name: '/work-check', desc: 'Status count of artifacts across each work subfolder (no input needed — runs during /reflect too)' },
   ],
 
   managedPaths: WORK_MANAGED_PATHS,

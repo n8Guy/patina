@@ -5,7 +5,7 @@ reflect_hook: client-check
 description: Track freelance, consulting, and advisory client relationships, with privacy you control
 commands:
   - name: /client-check
-    desc: Status count of clients and their engagement state (runs during /reflect)
+    desc: Status count of clients and their engagement state (no input needed — runs during /reflect too)
 installed: {{TODAY}}
 ---
 
@@ -17,7 +17,7 @@ Records are **shareable by default** — set `private: true` on anything sensiti
 
 ## How it works
 
-Run `patina client add` to scaffold a new client folder. Drop engagement notes and deliverables into the appropriate subfolders, then use `/add` to extract skills and notes from them.
+Ask Claude to add a client in your session — provide the name and engagement type and it will scaffold the folder. Drop engagement notes and deliverables into the appropriate subfolders, then use `/add` to extract skills and notes from them.
 
 ## File layout
 

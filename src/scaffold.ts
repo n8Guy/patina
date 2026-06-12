@@ -85,10 +85,13 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
  * Core slash commands present in every patina, regardless of installed modules.
  * Rendered into the regenerated `patina:commands` table in CLAUDE.md.
  */
+// Keep in sync with MANAGED_FILES in checksums.ts — every base command here needs
+// a corresponding entry there and in baseManagedFiles() below.
 const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
   { name: '/add <description>', desc: 'Add a skill, project, or experience to your graph' },
   { name: '/reflect [slug]', desc: 'Review your graph for gaps, completions, and stale skills — also runs installed module hooks' },
   { name: '/inbox', desc: 'Process files dropped into inbox/ automatically' },
+  { name: '/guide', desc: 'Show all available commands with usage examples' },
 ];
 
 /**
@@ -133,6 +136,7 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
     // with no data loss.
     ['inbox/.processed.json', '[]\n'],
     ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), vars)],
+    ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), vars)],
   ];
 
   if (editor === 'obsidian' && targetDir) {
