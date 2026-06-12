@@ -21,7 +21,7 @@ export async function main(): Promise<void> {
 // ─── Barrel re-exports (test compatibility) ───────────────────────────────────
 
 export { slugify, defaultSnoozeUntil, snoozeUntilFor, addDeferredModule, clearDeferredModule } from './wizard-shared.js';
-export { removeManagedFileIfUnmodified, applyProfileUpdate, applyLaunchTaskUpdate } from './wizard-update.js';
+export { removeManagedFileIfUnmodified, applyProfileUpdate, applyLaunchTaskUpdate, syncBaseFiles } from './wizard-update.js';
 export { applyModuleChanges } from './wizard-modules.js';
 export type { ProfileFields, ProfileUpdateResult, LaunchTaskUpdateResult } from './wizard-update.js';
 export type { ModuleChangeResult } from './wizard-modules.js';

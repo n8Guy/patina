@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { resolve } from 'path';
 import { privacyNote, label } from './wizard-brand.js';
 import { detectObsidian, openInObsidian, detectVSCode, openInVSCode, detectClaude } from './wizard-editor.js';
-import { MULTISELECT_HINT, OPTIONAL_HINT, slugify, defaultSnoozeUntil, addDeferredModule, onCancel, promptLaunchTasks, offerGlobalInstall } from './wizard-shared.js';
+import { MULTISELECT_HINT, OPTIONAL_HINT, slugify, defaultSnoozeUntil, addDeferredModule, onCancel, promptLaunchTasks, offerGlobalInstall, GUIDE_HINT_INLINE } from './wizard-shared.js';
 import { scaffold } from './scaffold.js';
 import { readState, writeState } from './state.js';
 import { MODULES, getModule } from './modules/registry.js';
@@ -230,7 +230,7 @@ export async function runInstall(cwd: string): Promise<void> {
 
   if (detectClaude()) await offerGlobalInstall();
 
-  const guideHint = chalk.hex('#94A3B8')('\n\nOnce in your session, run ') + chalk.bold.white('/guide') + chalk.hex('#94A3B8')(' to see all available commands.');
+  const guideHint = GUIDE_HINT_INLINE;
 
   if (setup.editor === 'obsidian') {
     if (detectObsidian()) {
