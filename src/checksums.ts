@@ -27,6 +27,7 @@ export const MANAGED_FILES = [
   'inbox/.gitkeep',
   'inbox/.processed.json',
   '.claude/commands/inbox.md',
+  '.claude/commands/status.md',
   '.claude/commands/guide.md',
 ] as const;
 

@@ -2,7 +2,6 @@
 
 <!-- Pre-rendered by the patina wizard. Regenerated on every npx my-patina@latest run. -->
 <!-- Core commands come from GUIDE_CORE_COMMANDS in scaffold.ts — edit there, not here. -->
-<!-- CLAUDE.md has a static orientation block derived from the same source. -->
 
 Output the following command reference exactly as written:
 

@@ -439,9 +439,14 @@ export function syncBaseFiles(cwd: string, profile: Profile): void {
         else checksums[sKey] = existingState.checksums[sKey] ?? '';
       }
     }
-    writeState(cwd, { ...existingState, checksums });
   } catch (err) {
     p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
+    return;
+  }
+  try {
+    writeState(cwd, { ...existingState, checksums });
+  } catch (err) {
+    p.log.warn(`Patina files updated but state not saved — run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
 }
 

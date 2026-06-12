@@ -120,6 +120,7 @@ export const GUIDE_CORE_COMMANDS: ReadonlyArray<{ name: string; desc: string; ex
   { name: '/add <what you did>', desc: 'capture a project, skill, or win', example: '/add Delivered the Orca Studio brand refresh' },
   { name: '/reflect', desc: 'review your notes for skill gaps and stale entries' },
   { name: '/inbox', desc: "process any files you've dropped into `inbox/`" },
+  { name: '/status', desc: 'show stale content, inbox, open goals, and pending module setup' },
   { name: '/guide', desc: 'show this command reference any time' },
 ];
 
@@ -173,6 +174,7 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
     // with no data loss.
     ['inbox/.processed.json', '[]\n'],
     ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), vars)],
+    ['.claude/commands/status.md', render(tpl('.claude/commands/status.md'), vars)],
     ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), vars)],
   ];
 
