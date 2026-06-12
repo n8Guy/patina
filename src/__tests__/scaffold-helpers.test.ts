@@ -131,6 +131,7 @@ describe('profileToVars', () => {
     expect(vars.COMMANDS_SECTION).toContain('/add');
     expect(vars.COMMANDS_SECTION).toContain('/reflect');
     expect(vars.COMMANDS_SECTION).toContain('/inbox');
+    expect(vars.COMMANDS_SECTION).toContain('/guide');
   });
 
   it('COMMANDS_SECTION lists module commands when a module is installed', () => {
@@ -186,9 +187,8 @@ describe('buildGuideCommands', () => {
 
   it('output is blockquote-formatted (every line starts with >)', () => {
     const out = buildGuideCommands([]);
-    for (const line of out.split('\n')) {
-      expect(line.startsWith('>')).toBe(true);
-    }
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.split('\n').every(l => l.startsWith('>'))).toBe(true);
   });
 
   it('separates module section with a blank blockquote line', () => {
