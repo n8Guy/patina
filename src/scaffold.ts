@@ -113,15 +113,19 @@ export function buildCommandsSection(modules: readonly string[]): string {
   ].join('\n');
 }
 
-// Core commands rendered verbatim in the guide output.
-// Kept separate from BASE_COMMANDS (which drives the CLAUDE.md table) so the
-// two formats can evolve independently.
-const GUIDE_CORE_LINES: ReadonlyArray<string> = [
-  '> - `/add <what you did>` — capture a project, skill, or win · e.g. `/add Delivered the Orca Studio brand refresh`',
-  '> - `/reflect` — review your notes for skill gaps and stale entries',
-  '> - `/inbox` — process any files you\'ve dropped into `inbox/`',
-  '> - `/guide` — show this command reference any time',
+// Structured source-of-truth for core commands.
+// GUIDE_CORE_LINES (for guide.md) and the wizard "nothing" note both derive from this
+// so descriptions can't drift independently.
+export const GUIDE_CORE_COMMANDS: ReadonlyArray<{ name: string; desc: string; example?: string }> = [
+  { name: '/add <what you did>', desc: 'capture a project, skill, or win', example: '/add Delivered the Orca Studio brand refresh' },
+  { name: '/reflect', desc: 'review your notes for skill gaps and stale entries' },
+  { name: '/inbox', desc: "process any files you've dropped into `inbox/`" },
+  { name: '/guide', desc: 'show this command reference any time' },
 ];
+
+const GUIDE_CORE_LINES: ReadonlyArray<string> = GUIDE_CORE_COMMANDS.map(
+  c => `> - \`${c.name}\` — ${c.desc}${c.example ? ` · e.g. \`${c.example}\`` : ''}`
+);
 
 /**
  * Build the pre-rendered command-reference block written into guide.md at wizard

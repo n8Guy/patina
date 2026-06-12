@@ -4,9 +4,9 @@ import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
-import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks, GUIDE_HINT_LOG } from './wizard-shared.js';
+import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks, GUIDE_HINT_LOG, offerGlobalInstall } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
-import { profileToVars, baseManagedFiles, moduleManagedFiles, renderUpdateCheckSection } from './scaffold.js';
+import { profileToVars, baseManagedFiles, moduleManagedFiles, renderUpdateCheckSection, GUIDE_CORE_COMMANDS } from './scaffold.js';
 import { writeManagedFile } from './upgrade.js';
 import { type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, renderSection } from './sections.js';
@@ -15,7 +15,6 @@ import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNI
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { getModule } from './modules/registry.js';
 import { validate, formatReport } from './validate.js';
-import { offerGlobalInstall } from './wizard-shared.js';
 import type { ModuleId, Profile } from './types.js';
 
 export { writeProfile, removeManagedFileIfUnmodified };
@@ -430,16 +429,20 @@ export function syncBaseFiles(cwd: string, profile: Profile): void {
   const existingState = readState(cwd, profile);
   const vars = profileToVars(profile);
   const checksums = { ...existingState.checksums };
-  for (const [rel, content] of baseManagedFiles(vars, profile.editor, cwd)) {
-    const result = writeManagedFile(cwd, rel, content, checksums);
-    checksums[rel] = result.checksum;
-    for (const s of result.sections ?? []) {
-      const sKey = `${rel}:${s.id}`;
-      if (s.outcome !== 'skipped') checksums[sKey] = s.newChecksum;
-      else checksums[sKey] = existingState.checksums[sKey] ?? '';
+  try {
+    for (const [rel, content] of baseManagedFiles(vars, profile.editor, cwd)) {
+      const result = writeManagedFile(cwd, rel, content, checksums);
+      checksums[rel] = result.checksum;
+      for (const s of result.sections ?? []) {
+        const sKey = `${rel}:${s.id}`;
+        if (s.outcome !== 'skipped') checksums[sKey] = s.newChecksum;
+        else checksums[sKey] = existingState.checksums[sKey] ?? '';
+      }
     }
+    writeState(cwd, { ...existingState, checksums });
+  } catch (err) {
+    p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
-  writeState(cwd, { ...existingState, checksums });
 }
 
 export async function runUpdate(cwd: string): Promise<void> {
@@ -476,11 +479,11 @@ export async function runUpdate(cwd: string): Promise<void> {
   }
 
   if (action === 'nothing') {
+    const coreLines = GUIDE_CORE_COMMANDS
+      .map(c => chalk.bold.white(`  ${c.name.split(' ')[0]}`) + chalk.hex('#94A3B8')(` — ${c.desc}`))
+      .join('\n');
     p.note(
-      chalk.hex('#94A3B8')('Open your session and try:') + '\n' +
-      chalk.bold.white('  /add') + chalk.hex('#94A3B8')(' — capture a project, skill, or win') + '\n' +
-      chalk.bold.white('  /reflect') + chalk.hex('#94A3B8')(' — review for gaps and stale entries') + '\n' +
-      chalk.bold.white('  /guide') + chalk.hex('#94A3B8')(' — see all available commands'),
+      chalk.hex('#94A3B8')('Run ') + chalk.bold.white('claude') + chalk.hex('#94A3B8')(' to start your session, then try:') + '\n' + coreLines,
       label('In your session')
     );
     p.outro(chalk.hex('#94A3B8')('No changes made.'));
