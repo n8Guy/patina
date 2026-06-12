@@ -476,6 +476,13 @@ export async function runUpdate(cwd: string): Promise<void> {
   }
 
   if (action === 'nothing') {
+    p.note(
+      chalk.hex('#94A3B8')('Open your session and try:') + '\n' +
+      chalk.bold.white('  /add') + chalk.hex('#94A3B8')(' — capture a project, skill, or win') + '\n' +
+      chalk.bold.white('  /reflect') + chalk.hex('#94A3B8')(' — review for gaps and stale entries') + '\n' +
+      chalk.bold.white('  /guide') + chalk.hex('#94A3B8')(' — see all available commands'),
+      label('In your session')
+    );
     p.outro(chalk.hex('#94A3B8')('No changes made.'));
   } else if (action === 'profile') {
     await runUpdateProfile(cwd, profile);
