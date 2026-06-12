@@ -272,7 +272,7 @@ export async function runInstall(cwd: string): Promise<void> {
     p.note(
       chalk.hex('#94A3B8')('  cd ') + chalk.bold.white(slug) +
       chalk.hex('#94A3B8')('\n  # then start your AI assistant') +
-      guideHint,
+      GUIDE_HINT_INLINE,
       label('Next steps')
     );
     p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));

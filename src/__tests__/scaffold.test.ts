@@ -1162,6 +1162,7 @@ describe('renderUpdateCheckSection', () => {
     STALENESS_THRESHOLD: '30',
     MODULES_SECTION: '',
     COMMANDS_SECTION: '',
+    GUIDE_COMMANDS: '',
     PATINA_VERSION: '1.2.3',
   };
 
