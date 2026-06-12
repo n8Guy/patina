@@ -76,6 +76,7 @@ Show a brief orientation block. Always start with the core commands:
 > - `/add <what you did>` — capture a project, skill, or win · e.g. `/add Delivered the Orca Studio brand refresh`
 > - `/reflect` — review your notes for skill gaps and stale entries
 > - `/inbox` — process any files you've dropped into `inbox/`
+> - `/guide` — show this command reference any time
 
 Then, if any modules are installed, read each `.claude/modules/*/manifest.md` and, under the module's `label`, list its `commands` (the `name` and `desc` from the manifest frontmatter) — one line per command — so the reader can see what each installed module offers. The `name` field is the complete typed invocation; if it includes `<angle brackets>`, those are required arguments. Don't repeat the core commands, and keep it to one line each. Skip this entirely if no modules are installed.
 

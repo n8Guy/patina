@@ -470,12 +470,22 @@ export async function runUpdate(cwd: string): Promise<void> {
     ],
   });
 
-  if (p.isCancel(action) || action === 'nothing') {
-    p.outro(chalk.hex('#94A3B8')('No changes made.'));
+  if (p.isCancel(action)) {
+    p.cancel(chalk.hex('#94A3B8')('No changes made.'));
     return;
   }
 
-  if (action === 'profile') {
+  if (action === 'nothing') {
+    p.note(
+      chalk.hex('#94A3B8')('Open your session and try:') + '\n' +
+      chalk.bold.white('  /add') + chalk.hex('#94A3B8')(' — capture a project, skill, or win') + '\n' +
+      chalk.bold.white('  /reflect') + chalk.hex('#94A3B8')(' — review for gaps and stale entries') + '\n' +
+      chalk.bold.white('  /guide') + chalk.hex('#94A3B8')(' — see all available commands'),
+      label('In your session')
+    );
+    p.outro(chalk.hex('#94A3B8')('No changes made.'));
+    return;
+  } else if (action === 'profile') {
     await runUpdateProfile(cwd, profile);
   } else if (action === 'modules') {
     await runUpdateModules(cwd, profile);
@@ -483,6 +493,7 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runUpdateLaunchTasks(cwd, profile);
   } else if (action === 'validate') {
     await runValidate(cwd, profile);
+    return;
   }
 
   await offerGlobalInstall();

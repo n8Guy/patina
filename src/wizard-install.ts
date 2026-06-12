@@ -230,14 +230,12 @@ export async function runInstall(cwd: string): Promise<void> {
 
   if (detectClaude()) await offerGlobalInstall();
 
-  const guideHint = GUIDE_HINT_INLINE;
-
   if (setup.editor === 'obsidian') {
     if (detectObsidian()) {
       p.note(
         chalk.hex('#94A3B8')('In Obsidian, click ') + chalk.bold.white('"Open folder as vault"') + chalk.hex('#94A3B8')(' and select:\n  ') + chalk.bold.white(targetDir) +
         chalk.hex('#94A3B8')('\n\nThen open a terminal inside your patina and start your AI assistant to get started.') +
-        guideHint,
+        GUIDE_HINT_INLINE,
         label('Next steps')
       );
       p.outro(chalk.hex('#C084FC')('Opening in Obsidian...'));
@@ -247,7 +245,7 @@ export async function runInstall(cwd: string): Promise<void> {
         chalk.hex('#94A3B8')('Download Obsidian at ') + chalk.bold.white('https://obsidian.md/download') +
         chalk.hex('#94A3B8')('\n\nThen open the folder as a vault:\n  ') + chalk.bold.white(targetDir) +
         chalk.hex('#94A3B8')('\n\nOnce set up, open a terminal inside your patina and start your AI assistant.') +
-        guideHint,
+        GUIDE_HINT_INLINE,
         label('Next steps')
       );
       p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));
@@ -256,7 +254,7 @@ export async function runInstall(cwd: string): Promise<void> {
     if (detectVSCode()) {
       p.note(
         chalk.hex('#94A3B8')('Open a terminal in VS Code inside your patina and start your AI assistant.') +
-        guideHint,
+        GUIDE_HINT_INLINE,
         label('Next steps')
       );
       p.outro(chalk.hex('#60A5FA')('Opening in VS Code...'));
@@ -265,7 +263,7 @@ export async function runInstall(cwd: string): Promise<void> {
       p.note(
         chalk.hex('#94A3B8')('Download VS Code at ') + chalk.bold.white('https://code.visualstudio.com') +
         chalk.hex('#94A3B8')('\n\nThen open the folder and start your AI assistant from a terminal inside the patina.') +
-        guideHint,
+        GUIDE_HINT_INLINE,
         label('Next steps')
       );
       p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));
@@ -274,7 +272,7 @@ export async function runInstall(cwd: string): Promise<void> {
     p.note(
       chalk.hex('#94A3B8')('  cd ') + chalk.bold.white(slug) +
       chalk.hex('#94A3B8')('\n  # then start your AI assistant') +
-      guideHint,
+      GUIDE_HINT_INLINE,
       label('Next steps')
     );
     p.outro(chalk.hex('#94A3B8')('Open your AI assistant from inside your patina to get started.'));
