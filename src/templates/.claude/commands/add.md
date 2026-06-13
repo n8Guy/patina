@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # Add Something to Your Graph
 
 You want to add a skill, project, technology, or experience to your graph that isn't already captured there. This creates an evidence-backed note in `{{CONTENT_DIR}}/notes/` that feeds into your skills inventory and any active modules.

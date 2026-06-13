@@ -1,4 +1,5 @@
 ---
+patina: managed
 name: work
 label: Work
 reflect_hook: work-check

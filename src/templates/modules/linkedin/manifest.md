@@ -1,4 +1,5 @@
 ---
+patina: managed
 name: linkedin
 label: LinkedIn
 reflect_hook: li-all

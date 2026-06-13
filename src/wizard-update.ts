@@ -1,24 +1,20 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { join } from 'path';
 import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
-import { OPTIONAL_HINT, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified, promptLaunchTasks, GUIDE_HINT_LOG } from './wizard-shared.js';
+import { OPTIONAL_HINT, onCancel, writeProfile, removeManagedFileIfManaged, promptLaunchTasks, GUIDE_HINT_LOG } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
-import { profileToVars, baseManagedFiles, moduleManagedFiles, renderUpdateCheckSection, GUIDE_CORE_COMMANDS } from './scaffold.js';
-import { writeManagedFile } from './upgrade.js';
-import { type ChecksumMap } from './checksums.js';
-import { hasFences, inspectSections, renderSection } from './sections.js';
+import { profileToVars, baseManagedFiles, moduleManagedFiles, GUIDE_CORE_COMMANDS } from './scaffold.js';
+import { writeManagedFile, isMarkedManaged } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
-import { detectCorruption, repairCorruption, formatHealthReport, type HealthReport } from './health.js';
-import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNING_MSG, type MigrationOutcome } from './migrate-claude.js';
+import { detectCorruption, formatHealthReport, type HealthReport } from './health.js';
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
-import { getModule } from './modules/registry.js';
 import { validate, formatReport } from './validate.js';
-import type { ModuleId, Profile } from './types.js';
+import type { Profile } from './types.js';
 
-export { writeProfile, removeManagedFileIfUnmodified };
+export { writeProfile, removeManagedFileIfManaged as removeManagedFileIfUnmodified };
 
 // ─── Branch A: Update personal info ──────────────────────────────────────────
 
@@ -37,15 +33,12 @@ export interface ProfileUpdateResult {
   profile: Profile;
   updated: string[];
   skipped: string[];
-  keptSections: string[];
-  migrationOutcome?: MigrationOutcome;
 }
 
 export function applyProfileUpdate(
   cwd: string,
   profile: Profile,
   fields: ProfileFields,
-  overwrite?: Set<string>,
 ): ProfileUpdateResult {
   const updatedProfile: Profile = {
     ...profile,
@@ -62,33 +55,18 @@ export function applyProfileUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const existingState = readState(cwd, profile);
-  const stored: ChecksumMap = existingState.checksums;
-  const newChecksums: ChecksumMap = {};
-
-  // Pre-pass: migrate CLAUDE.md from pre-#118 unfenced-prose layout if needed.
-  const migrationOutcome = migrateClaudeMdFile(cwd, stored);
+  const existingState = readState(cwd);
 
   const files = [
     ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd }),
-    ...updatedProfile.modules.flatMap(m => moduleManagedFiles(m, vars)),
+    ...(updatedProfile.modules ?? []).flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
   const updated: string[] = [];
   const skipped: string[] = [];
-  const keptSections: string[] = [];
 
   for (const [rel, content] of files) {
-    const result = writeManagedFile(cwd, rel, content, stored, overwrite);
-    newChecksums[rel] = result.checksum;
-    for (const s of result.sections ?? []) {
-      const sKey = `${rel}:${s.id}`;
-      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-      else {
-        newChecksums[sKey] = stored[sKey] ?? '';
-        keptSections.push(sKey);
-      }
-    }
+    const result = writeManagedFile(cwd, rel, content);
     if (result.outcome === 'skipped') {
       skipped.push(rel);
     } else {
@@ -96,82 +74,22 @@ export function applyProfileUpdate(
     }
   }
 
-  // Re-render module README blocks so vars like CONTENT_DIR stay current after a profile update
-  for (const module of updatedProfile.modules) {
-    const def = getModule(module);
-    if (def?.readmeBlock) {
-      const readmePath = join(cwd, 'README.md');
-      const readmeExists = existsSync(readmePath);
-      const readmeHasFences = readmeExists ? hasFences(readFileSync(readmePath, 'utf8')) : false;
-      if (!readmeExists || readmeHasFences) {
-        const block = renderSection(module, def.readmeBlock(vars));
-        const result = writeManagedFile(cwd, 'README.md', block, newChecksums, overwrite);
-        newChecksums['README.md'] = result.checksum;
-        for (const s of result.sections ?? []) {
-          const sKey = `README.md:${s.id}`;
-          if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-          else {
-            newChecksums[sKey] = stored[sKey] ?? '';
-            keptSections.push(sKey);
-          }
-        }
-        if (result.outcome === 'skipped') {
-          skipped.push(`README.md:${module}`);
-        } else if (result.outcome !== 'updated' || result.sections?.some(s => s.id === module && s.outcome !== 'unchanged')) {
-          updated.push(`README.md:${module}`);
-        }
-      }
-    }
-  }
-
-  // Re-render launch block so CONTENT_DIR references stay current after a profile update.
-  // newChecksums has the fresh CLAUDE.md checksum at this point (written by baseManagedFiles above).
-  if (updatedProfile.launch_tasks?.length) {
-    const launchResult = applyLaunchBlock(
-      cwd, updatedProfile.launch_tasks, updatedProfile.modules, vars, newChecksums, overwrite,
-    );
-    updated.push(...launchResult.updated);
-    skipped.push(...launchResult.skipped);
-    keptSections.push(...launchResult.keptSections);
-  }
-
-  // Re-render update-check block so PATINA_VERSION stays current after an upgrade.
-  {
-    const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(vars));
-    const result = writeManagedFile(cwd, 'CLAUDE.md', updateCheckBlock, newChecksums, overwrite);
-    newChecksums['CLAUDE.md'] = result.checksum;
-    for (const s of result.sections ?? []) {
-      const sKey = `CLAUDE.md:${s.id}`;
-      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-      else {
-        newChecksums[sKey] = stored[sKey] ?? '';
-        keptSections.push(sKey);
-      }
-    }
-    if (result.outcome === 'skipped') {
-      skipped.push('CLAUDE.md:update-check');
-    } else if (result.sections?.some(s => s.id === 'update-check' && s.outcome !== 'unchanged')) {
-      updated.push('CLAUDE.md:update-check');
-    }
-  }
-
-  for (const [rel, hash] of Object.entries(stored)) {
-    if (!(rel in newChecksums)) {
-      newChecksums[rel] = hash;
-    }
-  }
-
   // Remove editor-specific files that no longer apply after an editor change
   if (updatedProfile.editor !== 'vscode') {
-    const outcome = removeManagedFileIfUnmodified(cwd, '.vscode/settings.json', stored);
-    if (outcome === 'deleted') updated.push('.vscode/settings.json');
-    delete newChecksums['.vscode/settings.json'];
+    const vscodePath = join(cwd, '.vscode/settings.json');
+    if (existsSync(vscodePath)) {
+      const content = readFileSync(vscodePath, 'utf8');
+      if (isMarkedManaged('.vscode/settings.json', content)) {
+        const outcome = removeManagedFileIfManaged(cwd, '.vscode/settings.json');
+        if (outcome === 'deleted') updated.push('.vscode/settings.json');
+      }
+    }
   }
 
-  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
+  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
-  return { profile: profileToWrite, updated, skipped, keptSections, migrationOutcome };
+  return { profile: profileToWrite, updated, skipped };
 }
 
 async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
@@ -258,61 +176,14 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
     companyDescription: work.companyDescription ?? '',
   };
 
-  // Pre-flight: inspect managed files for user-edited fenced sections and prompt before writing.
-  const overwriteSet = new Set<string>();
-  const previewProfile: Profile = {
-    ...profile,
-    name: fields.name.trim(),
-    title: fields.title.trim(),
-    role_description: fields.roleDescription.trim() || undefined,
-    job_description_url: fields.jobDescriptionUrl.trim() || undefined,
-    work: {
-      self_employed: fields.selfEmployed,
-      company_name: fields.companyName.trim() || (fields.selfEmployed ? 'Freelance' : ''),
-      website: fields.website.trim() || undefined,
-      company_description: fields.companyDescription.trim() || undefined,
-    },
-  };
-  const previewVars = profileToVars(previewProfile);
-  const storedChecksums = readState(cwd, profile).checksums;
-  const previewFiles = [
-    ...baseManagedFiles({ vars: previewVars, editor: previewProfile.editor, modules: previewProfile.modules ?? [], targetDir: cwd }),
-    ...previewProfile.modules.flatMap(m => moduleManagedFiles(m, previewVars)),
-  ];
-  for (const [rel, content] of previewFiles) {
-    if (hasFences(content)) {
-      const fullPath = join(cwd, rel);
-      if (existsSync(fullPath)) {
-        const existingContent = readFileSync(fullPath, 'utf8');
-        const editedIds = inspectSections(rel, existingContent, storedChecksums);
-        for (const sectionId of editedIds) {
-          const confirmed = await p.confirm({
-            message: `Section '${sectionId}' in ${rel} has been manually edited. Overwrite?`,
-            initialValue: false,
-          });
-          if (p.isCancel(confirmed)) onCancel();
-          if (confirmed) overwriteSet.add(sectionId);
-        }
-      }
-    }
-  }
-
-  const { updated, skipped, keptSections, migrationOutcome } = applyProfileUpdate(cwd, profile, fields, overwriteSet);
+  const { updated, skipped } = applyProfileUpdate(cwd, profile, fields);
 
   const summaryLines: string[] = [];
   if (updated.length > 0) {
     summaryLines.push(chalk.hex('#94A3B8')(`Updated: ${updated.join(', ')}`));
   }
-  if (keptSections.length > 0) {
-    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${keptSections.join(', ')}`));
-  }
   if (skipped.length > 0) {
-    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skipped.join(', ')}`));
-  }
-  if (migrationOutcome === 'migrated') {
-    summaryLines.push(chalk.hex('#94A3B8')(MIGRATION_REFRESHED_MSG));
-  } else if (migrationOutcome === 'skipped-edited') {
-    summaryLines.push(chalk.hex('#FFAB2E')(MIGRATION_DUPLICATE_WARNING_MSG));
+    summaryLines.push(chalk.hex('#94A3B8')(`Kept (your own files): ${skipped.join(', ')}`));
   }
 
   p.note(summaryLines.join('\n'), label('Done'));
@@ -325,14 +196,12 @@ export interface LaunchTaskUpdateResult {
   profile: Profile;
   updated: string[];
   skipped: string[];
-  keptSections: string[];
 }
 
 export function applyLaunchTaskUpdate(
   cwd: string,
   profile: Profile,
   launchTasks: string[],
-  overwrite?: Set<string>,
 ): LaunchTaskUpdateResult {
   const updatedProfile: Profile = {
     ...profile,
@@ -340,66 +209,42 @@ export function applyLaunchTaskUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const existingState = readState(cwd, profile);
-  const stored: ChecksumMap = existingState.checksums;
-  // Start from stored so section-level lookups inside applyLaunchBlock are consistent.
-  const newChecksums: ChecksumMap = { ...stored };
+  const existingState = readState(cwd);
 
-  const { updated, skipped, keptSections } = applyLaunchBlock(
-    cwd, launchTasks, profile.modules ?? [], vars, newChecksums, overwrite,
-  );
+  // Re-render all base managed files (CLAUDE.md now contains launch section inline)
+  const files = baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd });
 
-  // Re-render update-check block so PATINA_VERSION stays current after an upgrade.
-  {
-    const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(vars));
-    const result = writeManagedFile(cwd, 'CLAUDE.md', updateCheckBlock, newChecksums, overwrite);
-    newChecksums['CLAUDE.md'] = result.checksum;
-    for (const s of result.sections ?? []) {
-      const sKey = `CLAUDE.md:${s.id}`;
-      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-      else newChecksums[sKey] = stored[sKey] ?? '';
+  const updated: string[] = [];
+  const skipped: string[] = [];
+
+  for (const [rel, content] of files) {
+    const result = writeManagedFile(cwd, rel, content);
+    if (result.outcome === 'skipped') {
+      skipped.push(rel);
+    } else {
+      updated.push(rel);
     }
   }
 
-  writeState(cwd, { checksums: newChecksums, deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
+  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
-  return { profile: profileToWrite, updated, skipped, keptSections };
+  return { profile: profileToWrite, updated, skipped };
 }
 
 async function runUpdateLaunchTasks(cwd: string, profile: Profile): Promise<void> {
   const avail = availableLaunchTasks(profile.modules ?? []);
   const initial = pruneLaunchTasks(profile.launch_tasks, profile.modules ?? []);
 
-  // Pre-flight: check if the launch section has been user-edited
-  const overwriteSet = new Set<string>();
-  const claudePath = join(cwd, 'CLAUDE.md');
-  if (existsSync(claudePath)) {
-    const storedChecksums = readState(cwd, profile).checksums;
-    const existingContent = readFileSync(claudePath, 'utf8');
-    const editedIds = inspectSections('CLAUDE.md', existingContent, storedChecksums);
-    if (editedIds.includes('launch')) {
-      const confirmed = await p.confirm({
-        message: `Section 'launch' in CLAUDE.md has been manually edited. Overwrite?`,
-        initialValue: false,
-      });
-      if (p.isCancel(confirmed)) onCancel();
-      if (confirmed) overwriteSet.add('launch');
-    }
-  }
-
   const selected = await promptLaunchTasks(avail, initial);
-  const { updated, skipped, keptSections } = applyLaunchTaskUpdate(cwd, profile, selected, overwriteSet);
+  const { updated, skipped } = applyLaunchTaskUpdate(cwd, profile, selected);
 
   const summaryLines: string[] = [];
   if (updated.length > 0) {
     summaryLines.push(chalk.hex('#94A3B8')(`Updated: ${updated.join(', ')}`));
   }
-  if (keptSections.length > 0) {
-    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${keptSections.join(', ')}`));
-  }
   if (skipped.length > 0) {
-    summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skipped.join(', ')}`));
+    summaryLines.push(chalk.hex('#94A3B8')(`Kept (your own files): ${skipped.join(', ')}`));
   }
 
   p.note(summaryLines.join('\n') || 'No changes.', label('Done'));
@@ -423,34 +268,21 @@ async function runValidate(cwd: string, profile: Profile): Promise<void> {
 
 /**
  * Sync base managed files to the patina directory without changing the profile.
- * Runs at the top of every update wizard invocation so new template files
- * (e.g. guide.md) land even when the user makes no profile changes.
- *
- * Also runs corruption detection and self-heals placeholder-bearing files
- * by passing them through forceRepair. Returns the HealthReport so callers
- * can surface repair results to the user.
+ * Runs at the top of every update wizard invocation so new template files land
+ * even when the user makes no profile changes.
  */
 export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: HealthReport; repairedFiles: string[] } {
-  const existingState = readState(cwd, profile);
+  const existingState = readState(cwd);
   const vars = profileToVars(profile);
-  const checksums = { ...existingState.checksums };
 
-  // Detect corruption before syncing so we know which files to force-repair
-  const healthReport = detectCorruption(cwd, profile, existingState.checksums);
-  const forceRepair = healthReport.corruptFiles.size > 0 ? healthReport.corruptFiles : undefined;
+  const healthReport = detectCorruption(cwd, profile);
   const repairedFiles: string[] = [];
 
   try {
     for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], targetDir: cwd })) {
-      const result = writeManagedFile(cwd, rel, content, checksums, undefined, forceRepair);
-      if (forceRepair?.has(rel) && result.outcome !== 'skipped') {
+      const result = writeManagedFile(cwd, rel, content);
+      if (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped') {
         repairedFiles.push(rel);
-      }
-      checksums[rel] = result.checksum;
-      for (const s of result.sections ?? []) {
-        const sKey = `${rel}:${s.id}`;
-        if (s.outcome !== 'skipped') checksums[sKey] = s.newChecksum;
-        else checksums[sKey] = existingState.checksums[sKey] ?? '';
       }
     }
   } catch (err) {
@@ -458,7 +290,7 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
     return { healthReport, repairedFiles: [] };
   }
   try {
-    writeState(cwd, { ...existingState, checksums });
+    writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   } catch (err) {
     p.log.warn(`Patina files updated but state not saved — run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
@@ -471,16 +303,11 @@ export async function runUpdate(cwd: string): Promise<void> {
 
   const { healthReport, repairedFiles } = syncBaseFiles(cwd, profile);
 
-  // Surface repair results only when files were actually written (not just detected)
   if (repairedFiles.length > 0) {
     const noteLines = [
       chalk.hex('#94A3B8')(`Repaired: ${repairedFiles.join(', ')}`),
       chalk.hex('#94A3B8')('Your notes and settings in graph/ were not changed.'),
     ];
-    const missingSections = healthReport.findings.filter(f => f.kind === 'missing-section');
-    for (const f of missingSections) {
-      noteLines.push(chalk.hex('#94A3B8')(`Restored: ${f.detail}`));
-    }
     p.note(noteLines.join('\n'), label('Corruption repaired'));
   }
 

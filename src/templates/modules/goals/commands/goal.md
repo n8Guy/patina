@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Create a new goal from the description the user just gave you.
 
 ## Step 1 — Gather details

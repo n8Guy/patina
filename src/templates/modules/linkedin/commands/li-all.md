@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refresh all LinkedIn proposal sections based on the current state of your graph.
 
 This is a bulk refresh — not a targeted edit. The goal is to make sure every `## Proposed` section across all LinkedIn files accurately reflects what's in your graph right now. Run this after adding new notes or whenever your graph has changed.

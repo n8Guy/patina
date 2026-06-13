@@ -1,3 +1,4 @@
+// patina: managed
 // Patina update checker — runs via UserPromptSubmit hook before each session message.
 // Uses only Node.js built-ins (https, fs, url). No external dependencies.
 

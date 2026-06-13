@@ -1,4 +1,6 @@
 {
+  "_patina": "managed",
+  "_patina_note": "This file is managed by patina and is overwritten on update. Remove the _patina key to take ownership.",
   "permissions": {
     "allow": [
       "Bash(node .claude/scripts/check-update.mjs)",

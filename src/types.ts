@@ -3,7 +3,7 @@ export type Editor = 'obsidian' | 'vscode' | 'other';
 export type ValidationCheckId =
   | 'wiki-links' | 'exclusions' | 'skill-notes'
   | 'module-wiki-links'
-  | 'managed-file-placeholders' | 'managed-file-missing-section' | 'managed-file-orphaned-checksum';
+  | 'managed-file-placeholders';
 
 export interface ValidationIssue {
   check: ValidationCheckId;
@@ -88,5 +88,8 @@ export interface TemplateVars {
   COMMANDS_SECTION: string;
   GUIDE_COMMANDS: string;
   PATINA_VERSION: string;
+  LAUNCH_SECTION: string;
+  UPDATE_CHECK_SECTION: string;
+  MODULE_README_BLOCKS: string;
   [key: string]: string;
 }

@@ -5,16 +5,12 @@ import { tmpdir } from 'os';
 import yaml from 'js-yaml';
 import {
   findPlaceholders,
-  requiredClaudeSections,
-  findMissingSections,
-  findOrphanedChecksums,
   formatHealthReport,
   detectCorruption,
   repairCorruption,
   type HealthReport,
 } from '../health.js';
 import { scaffold } from '../scaffold.js';
-import { readState, writeState } from '../state.js';
 import type { Profile } from '../types.js';
 
 // ── findPlaceholders ──────────────────────────────────────────────────────────
@@ -23,7 +19,6 @@ describe('findPlaceholders', () => {
   it('returns empty array for clean content', () => {
     expect(findPlaceholders('Hello world')).toEqual([]);
     expect(findPlaceholders('')).toEqual([]);
-    expect(findPlaceholders('<!-- patina:profile:start -->')).toEqual([]);
   });
 
   it('returns found placeholder tokens', () => {
@@ -48,85 +43,6 @@ describe('findPlaceholders', () => {
   it('matches uppercase with numbers', () => {
     expect(findPlaceholders('{{PATINA_VERSION2}}')).toEqual(['{{PATINA_VERSION2}}']);
   });
-
-  it('does not false-positive on fence ids', () => {
-    expect(findPlaceholders('<!-- patina:profile:start -->\ncontent\n<!-- patina:profile:end -->')).toEqual([]);
-  });
-});
-
-// ── requiredClaudeSections ────────────────────────────────────────────────────
-
-const baseProfile: Profile = {
-  patina_name: 'test-patina',
-  name: 'Jane Doe',
-  title: 'Engineer',
-  work: { self_employed: false, company_name: 'Acme' },
-  editor: 'vscode',
-  modules: [],
-  content_dir: 'graph',
-  created: '2026-01-01',
-};
-
-describe('requiredClaudeSections', () => {
-  it('returns base 5 sections without launch_tasks', () => {
-    const result = requiredClaudeSections(baseProfile);
-    expect(result).toEqual(['profile', 'guide', 'commands', 'modules', 'update-check']);
-  });
-
-  it('adds launch when launch_tasks is non-empty', () => {
-    const profile = { ...baseProfile, launch_tasks: ['run tests'] };
-    const result = requiredClaudeSections(profile);
-    expect(result).toContain('launch');
-    expect(result).toHaveLength(6);
-  });
-
-  it('does not add launch when launch_tasks is empty array', () => {
-    const profile = { ...baseProfile, launch_tasks: [] };
-    const result = requiredClaudeSections(profile);
-    expect(result).not.toContain('launch');
-    expect(result).toHaveLength(5);
-  });
-});
-
-// ── findMissingSections ───────────────────────────────────────────────────────
-
-describe('findMissingSections', () => {
-  it('returns empty array when all required sections are present', () => {
-    const content = [
-      '<!-- patina:profile:start -->content<!-- patina:profile:end -->',
-      '<!-- patina:guide:start -->content<!-- patina:guide:end -->',
-    ].join('\n');
-    expect(findMissingSections(content, ['profile', 'guide'])).toEqual([]);
-  });
-
-  it('returns missing section ids', () => {
-    const content = '<!-- patina:profile:start -->content<!-- patina:profile:end -->';
-    expect(findMissingSections(content, ['profile', 'guide', 'commands'])).toEqual(['guide', 'commands']);
-  });
-
-  it('returns all ids when content has no fences', () => {
-    expect(findMissingSections('plain text', ['profile', 'guide'])).toEqual(['profile', 'guide']);
-  });
-});
-
-// ── findOrphanedChecksums ─────────────────────────────────────────────────────
-
-describe('findOrphanedChecksums', () => {
-  it('returns empty array when all stored keys are expected', () => {
-    const stored = ['CLAUDE.md', 'CLAUDE.md:profile'];
-    const expected = ['CLAUDE.md', 'CLAUDE.md:profile', 'README.md'];
-    expect(findOrphanedChecksums(stored, expected)).toEqual([]);
-  });
-
-  it('returns keys that exist in stored but not expected', () => {
-    const stored = ['CLAUDE.md', 'CLAUDE.md:old-section', 'README.md'];
-    const expected = ['CLAUDE.md', 'README.md'];
-    expect(findOrphanedChecksums(stored, expected)).toEqual(['CLAUDE.md:old-section']);
-  });
-
-  it('returns empty array when stored is empty', () => {
-    expect(findOrphanedChecksums([], ['CLAUDE.md'])).toEqual([]);
-  });
 });
 
 // ── formatHealthReport ────────────────────────────────────────────────────────
@@ -147,26 +63,6 @@ describe('formatHealthReport', () => {
     expect(result).toContain('CLAUDE.md');
     expect(result).toContain('{{USER_NAME}}');
     expect(result).toContain('npx my-patina');
-  });
-
-  it('includes missing-section findings in output', () => {
-    const report: HealthReport = {
-      ok: false,
-      findings: [{ kind: 'missing-section', file: 'CLAUDE.md', detail: 'missing fence: update-check' }],
-      corruptFiles: new Set(['CLAUDE.md']),
-    };
-    const result = formatHealthReport(report);
-    expect(result).toContain('update-check');
-  });
-
-  it('includes orphaned-checksum findings in output', () => {
-    const report: HealthReport = {
-      ok: false,
-      findings: [{ kind: 'orphaned-checksum', file: '.patina-state.json', detail: 'CLAUDE.md:old-section' }],
-      corruptFiles: new Set(),
-    };
-    const result = formatHealthReport(report);
-    expect(result).toContain('CLAUDE.md:old-section');
   });
 });
 
@@ -220,7 +116,8 @@ describe('detectCorruption — placeholder corruption', () => {
     const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
 
     // Corrupt CLAUDE.md with raw template content (unrendered placeholders)
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n**Company:** {{COMPANY_NAME}}\n';
+    // Must also add the patina: managed marker so detectCorruption checks it
+    const corruptContent = '---\npatina: managed\n---\n# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n**Company:** {{COMPANY_NAME}}\n';
     writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
 
     const report = detectCorruption(targetDir, profile);
@@ -231,29 +128,6 @@ describe('detectCorruption — placeholder corruption', () => {
     expect(placeholderFinding).toBeDefined();
     expect(placeholderFinding!.detail).toContain('{{USER_NAME}}');
   });
-
-  it('detects missing required sections in CLAUDE.md', async () => {
-    await scaffold({ ...scaffoldOpts, targetDir });
-    const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
-
-    // Write CLAUDE.md with some fences but missing update-check
-    const partialContent = [
-      '<!-- patina:profile:start -->',
-      'profile content',
-      '<!-- patina:profile:end -->',
-      '',
-      '<!-- patina:guide:start -->',
-      'guide content',
-      '<!-- patina:guide:end -->',
-    ].join('\n');
-    writeFileSync(join(targetDir, 'CLAUDE.md'), partialContent, 'utf8');
-
-    const report = detectCorruption(targetDir, profile);
-    expect(report.ok).toBe(false);
-    const missingFindings = report.findings.filter(f => f.kind === 'missing-section');
-    expect(missingFindings.length).toBeGreaterThan(0);
-    expect(missingFindings.some(f => f.detail.includes('update-check'))).toBe(true);
-  });
 });
 
 describe('repairCorruption — dry run', () => {
@@ -261,7 +135,7 @@ describe('repairCorruption — dry run', () => {
     await scaffold({ ...scaffoldOpts, targetDir });
     const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
 
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
+    const corruptContent = '---\npatina: managed\n---\n# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
     writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
 
     const { report, repairedFiles } = await repairCorruption(targetDir, profile, { dryRun: true });
@@ -278,8 +152,8 @@ describe('repairCorruption — full repair', () => {
     await scaffold({ ...scaffoldOpts, targetDir });
     const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
 
-    // Corrupt: write raw template-like content with placeholders
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n**Company:** {{COMPANY_NAME}}\n';
+    // Corrupt: write raw template-like content with placeholders + keep marker so repair runs
+    const corruptContent = '---\npatina: managed\n---\n# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n**Company:** {{COMPANY_NAME}}\n';
     writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
 
     const { report, repairedFiles } = await repairCorruption(targetDir, profile, { dryRun: false });
@@ -293,11 +167,11 @@ describe('repairCorruption — full repair', () => {
     expect(repairedContent).not.toContain('{{COMPANY_NAME}}');
   });
 
-  it('updates checksums in state after repair', async () => {
+  it('after repair, detectCorruption returns ok=true', async () => {
     await scaffold({ ...scaffoldOpts, targetDir });
     const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
 
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
+    const corruptContent = '---\npatina: managed\n---\n# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
     writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
 
     await repairCorruption(targetDir, profile, { dryRun: false });
@@ -311,33 +185,12 @@ describe('repairCorruption — full repair', () => {
     await scaffold({ ...scaffoldOpts, targetDir });
     const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
 
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
+    const corruptContent = '---\npatina: managed\n---\n# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
     writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
 
     await repairCorruption(targetDir, profile, { dryRun: false });
     const { report: secondReport } = await repairCorruption(targetDir, profile, { dryRun: false });
     expect(secondReport.ok).toBe(true);
-  });
-
-  it('prunes orphaned checksum keys on repair', async () => {
-    await scaffold({ ...scaffoldOpts, targetDir });
-    const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
-
-    // Inject bogus orphaned key into state
-    const state = readState(targetDir);
-    writeState(targetDir, {
-      ...state,
-      checksums: { ...state.checksums, 'CLAUDE.md:bogus-orphan': 'abc123' },
-    });
-
-    // Corrupt CLAUDE.md so repairCorruption triggers (orphan-only isn't enough to repair)
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
-    writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
-
-    await repairCorruption(targetDir, profile, { dryRun: false });
-
-    const stateAfter = readState(targetDir);
-    expect(stateAfter.checksums['CLAUDE.md:bogus-orphan']).toBeUndefined();
   });
 
   it('does not touch graph/ content', async () => {
@@ -348,41 +201,12 @@ describe('repairCorruption — full repair', () => {
     const notePath = join(targetDir, 'graph', 'notes', 'my-note.md');
     writeFileSync(notePath, '# My Note\nThis is personal content.', 'utf8');
 
-    const corruptContent = '# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
+    const corruptContent = '---\npatina: managed\n---\n# CLAUDE.md\n\n**Name:** {{USER_NAME}}\n';
     writeFileSync(join(targetDir, 'CLAUDE.md'), corruptContent, 'utf8');
 
     await repairCorruption(targetDir, profile, { dryRun: false });
 
     // graph/ note must be untouched
     expect(readFileSync(notePath, 'utf8')).toBe('# My Note\nThis is personal content.');
-  });
-});
-
-describe('mergeSections — placeholder bypass', () => {
-  it('re-renders a section whose inner content has placeholders, not treating it as user edit', async () => {
-    // This tests the sections.ts change: hasPlaceholders(inner) → fall through to update
-    const { mergeSections } = await import('../sections.js');
-    const { hashContent } = await import('../checksums.js');
-
-    const inner = '**Name:** {{USER_NAME}}';
-    const existing = [
-      '<!-- patina:profile:start -->',
-      inner,
-      '<!-- patina:profile:end -->',
-    ].join('\n');
-
-    // Stored hash differs (simulating corruption where hash was recorded from raw template)
-    const { content, sections } = mergeSections(
-      existing,
-      { profile: 'Jane Doe — Senior Designer' },
-      { 'CLAUDE.md:profile': hashContent('different original content') },
-      'CLAUDE.md',
-      new Set()
-    );
-
-    // Should NOT skip — placeholder presence overrides user-edit detection
-    expect(sections[0].outcome).toBe('updated');
-    expect(content).toContain('Jane Doe — Senior Designer');
-    expect(content).not.toContain('{{USER_NAME}}');
   });
 });

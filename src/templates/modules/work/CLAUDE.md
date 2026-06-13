@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # Work Module Context
 
 This module holds {{USER_NAME}}'s raw professional artifacts — transcripts of meetings, periodic activity summaries, and reference documents. These are the upstream source material that feeds into skills and notes.

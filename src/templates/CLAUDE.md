@@ -1,8 +1,12 @@
+---
+patina: managed
+---
 # CLAUDE.md
 
 This file is loaded automatically each session to give you context about who you're working with and how this patina is organised.
 
-<!-- patina:profile:start -->
+Your own always-on instructions live in `CUSTOM.md` (patina never overwrites it).
+
 ## Who you're working with
 
 **Name:** {{USER_NAME}}
@@ -12,9 +16,7 @@ This file is loaded automatically each session to give you context about who you
 {{ROLE_DESCRIPTION}}
 
 {{COMPANY_DESCRIPTION}}
-<!-- patina:profile:end -->
 
-<!-- patina:guide:start -->
 ## What patina is
 
 Patina is a personal knowledge base for career and professional development. Notes about your work — projects, skills, decisions, outcomes — go into `{{CONTENT_DIR}}/`. Over time, patina synthesises those notes into a picture of who you are professionally, and uses that picture to generate content: profile updates, posts, skill inventories.
@@ -60,18 +62,17 @@ Deleting `inbox/.processed.json` simply resets tracking with no data loss — yo
 - Never delete notes — they are evidence. If something is wrong, add a correction note or use the exclusions list.
 - Never delete skill files automatically. Surface them to the user and wait for confirmation.
 - `{{CONTENT_DIR}}/notes/exclusions.md` overrides everything. If something is listed there, it must not appear in any generated output.
-<!-- patina:guide:end -->
 
-<!-- patina:commands:start -->
 ## Slash commands
 
 This table is regenerated whenever you install or update patina, so it always reflects the commands you actually have — including any from installed modules.
 
 {{COMMANDS_SECTION}}
-<!-- patina:commands:end -->
 
-<!-- patina:modules:start -->
 ## Modules
 
 {{MODULES_SECTION}}
-<!-- patina:modules:end -->
+
+{{LAUNCH_SECTION}}
+
+{{UPDATE_CHECK_SECTION}}

@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # /work-check — Work Module Reflect Hook
 
 You are running as part of `/reflect`. Scan the work artifact folders and surface a brief status.

@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refine the LinkedIn Headline.
 
 ## Context to load first

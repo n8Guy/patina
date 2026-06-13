@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refine the LinkedIn About section.
 
 ## Context to load first

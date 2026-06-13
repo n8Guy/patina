@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # Resume Module Context
 
 This module helps you keep your resume current by synthesising it from your patina graph.

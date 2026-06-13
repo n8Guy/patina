@@ -1,53 +1,37 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { hashContent, hashFile } from '../checksums.js';
+import { describe, it, expect } from 'vitest';
+import { MANAGED_FILES, SEED_FILES } from '../checksums.js';
 
-let tmp: string;
-
-beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'patina-test-'));
-});
-
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-});
-
-describe('hashContent', () => {
-  it('produces a 16-character hex string', () => {
-    expect(hashContent('hello')).toMatch(/^[0-9a-f]{16}$/);
+describe('MANAGED_FILES registry', () => {
+  it('contains core managed files', () => {
+    expect(MANAGED_FILES).toContain('CLAUDE.md');
+    expect(MANAGED_FILES).toContain('README.md');
+    expect(MANAGED_FILES).toContain('.claude/settings.json');
+    expect(MANAGED_FILES).toContain('.claude/commands/add.md');
+    expect(MANAGED_FILES).toContain('.claude/commands/reflect.md');
+    expect(MANAGED_FILES).toContain('.claude/commands/inbox.md');
+    expect(MANAGED_FILES).toContain('.claude/commands/status.md');
+    expect(MANAGED_FILES).toContain('.claude/commands/guide.md');
+    expect(MANAGED_FILES).toContain('.claude/inbox-routing.md');
   });
 
-  it('is deterministic', () => {
-    expect(hashContent('hello')).toBe(hashContent('hello'));
-  });
-
-  it('produces different hashes for different content', () => {
-    expect(hashContent('hello')).not.toBe(hashContent('world'));
-  });
-
-  it('is sensitive to whitespace', () => {
-    expect(hashContent('hello')).not.toBe(hashContent('hello '));
+  it('does not contain seed-once files', () => {
+    expect(MANAGED_FILES).not.toContain('CUSTOM.md');
+    expect(MANAGED_FILES).not.toContain('inbox/.gitkeep');
+    expect(MANAGED_FILES).not.toContain('inbox/.processed.json');
   });
 });
 
-describe('hashFile', () => {
-  it('returns null when the file does not exist', () => {
-    expect(hashFile(join(tmp, 'nonexistent.txt'))).toBeNull();
+describe('SEED_FILES registry', () => {
+  it('contains seed-once files', () => {
+    expect(SEED_FILES).toContain('CUSTOM.md');
+    expect(SEED_FILES).toContain('inbox/.gitkeep');
+    expect(SEED_FILES).toContain('inbox/.processed.json');
   });
 
-  it('returns a hash matching hashContent for the same content', () => {
-    const file = join(tmp, 'test.txt');
-    writeFileSync(file, 'hello world');
-    expect(hashFile(file)).toBe(hashContent('hello world'));
-  });
-
-  it('returns different hashes for files with different content', () => {
-    const a = join(tmp, 'a.txt');
-    const b = join(tmp, 'b.txt');
-    writeFileSync(a, 'aaa');
-    writeFileSync(b, 'bbb');
-    expect(hashFile(a)).not.toBe(hashFile(b));
+  it('does not overlap with MANAGED_FILES', () => {
+    const managed = new Set(MANAGED_FILES);
+    for (const f of SEED_FILES) {
+      expect((managed as Set<string>).has(f), `${f} should not be in both MANAGED_FILES and SEED_FILES`).toBe(false);
+    }
   });
 });

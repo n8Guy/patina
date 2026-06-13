@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refine the LinkedIn Experience section.
 
 ## Context to load first

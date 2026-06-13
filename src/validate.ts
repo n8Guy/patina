@@ -276,18 +276,6 @@ function corruptionToIssue(f: CorruptionFinding): ValidationIssue {
         file: f.file,
         message: `Unrendered template placeholders: ${f.detail}`,
       };
-    case 'missing-section':
-      return {
-        check: 'managed-file-missing-section' as ValidationCheckId,
-        file: f.file,
-        message: `Missing required section (${f.detail})`,
-      };
-    case 'orphaned-checksum':
-      return {
-        check: 'managed-file-orphaned-checksum' as ValidationCheckId,
-        file: f.file,
-        message: `Orphaned checksum key: ${f.detail}`,
-      };
     default:
       f.kind satisfies never;
       throw new Error(`Unknown corruption kind: ${f.kind}`);

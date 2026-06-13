@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { ChecksumMap } from './checksums.js';
 import type { DeferredModule, Profile } from './types.js';
 
 export interface UpdateCheck {
@@ -8,75 +7,11 @@ export interface UpdateCheck {
 }
 
 export interface PatinaState {
-  checksums: ChecksumMap;
   deferred_modules?: DeferredModule[];
   update_check?: UpdateCheck;
 }
 
 export const STATE_FILENAME = '.patina-state.json';
-
-/** Normalize all checksum keys to forward-slash paths to prevent Windows path mismatches. */
-function normalizeChecksums(checksums: ChecksumMap): ChecksumMap {
-  const result: ChecksumMap = {};
-  for (const [key, value] of Object.entries(checksums)) {
-    result[key.replace(/\\/g, '/')] = value;
-  }
-  return result;
-}
-
-/**
- * Read `.patina-state.json` from `root`. Migration-aware:
- *
- * - If `.patina-state.json` exists: parse it. Throws a clear error on corrupt JSON —
- *   returning empty checksums would silently disable overwrite protection.
- * - If `.patina-state.json` does NOT exist: read checksums from `profile._checksums`
- *   if a profile is provided (migration path for first post-upgrade run).
- *   Returns `{ checksums: {} }` for a fresh install.
- */
-export function readState(root: string, profile?: Profile): PatinaState {
-  const statePath = join(root, STATE_FILENAME);
-
-  if (existsSync(statePath)) {
-    const raw = readFileSync(statePath, 'utf8');
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      throw new Error(
-        `Corrupt ${STATE_FILENAME}: failed to parse JSON. ` +
-        `Fix or delete the file at ${statePath} and try again.`
-      );
-    }
-    const obj = parsed as Record<string, unknown>;
-    const rawChecksums = obj.checksums;
-    if (rawChecksums !== undefined && (typeof rawChecksums !== 'object' || Array.isArray(rawChecksums) || rawChecksums === null)) {
-      throw new Error(`Corrupt ${STATE_FILENAME}: 'checksums' must be an object at ${statePath}.`);
-    }
-    const checksums = normalizeChecksums((rawChecksums ?? {}) as ChecksumMap);
-    const rawDeferred = obj.deferred_modules;
-    const deferred_modules = Array.isArray(rawDeferred) ? (rawDeferred as DeferredModule[]) : undefined;
-    const rawUpdateCheck = obj.update_check;
-    let update_check: UpdateCheck | undefined;
-    if (
-      rawUpdateCheck !== null &&
-      typeof rawUpdateCheck === 'object' &&
-      !Array.isArray(rawUpdateCheck) &&
-      typeof (rawUpdateCheck as Record<string, unknown>).last_notified_version === 'string'
-    ) {
-      update_check = { last_notified_version: (rawUpdateCheck as Record<string, unknown>).last_notified_version as string };
-    }
-    return {
-      checksums,
-      ...(deferred_modules !== undefined ? { deferred_modules } : {}),
-      ...(update_check !== undefined ? { update_check } : {}),
-    };
-  }
-
-  // Migration: state file absent — read from legacy profile._checksums if available.
-  const legacyChecksums = (profile as Profile & { _checksums?: ChecksumMap })?._checksums;
-  const checksums = normalizeChecksums(legacyChecksums ?? {});
-  return { checksums };
-}
 
 /** Strip any legacy `_checksums` field written by older versions of patina. */
 export function stripLegacyChecksums(profile: Profile): Profile {
@@ -85,18 +20,59 @@ export function stripLegacyChecksums(profile: Profile): Profile {
 }
 
 /**
- * Write `.patina-state.json` to `root`. All checksum keys are normalized to
- * forward-slash paths before writing.
+ * Read `.patina-state.json` from `root`. Tolerates legacy state files that
+ * contain a `checksums` key — the field is silently ignored.
+ * Returns `{}` (empty state) for a fresh install or if the file is absent.
+ */
+export function readState(root: string): PatinaState {
+  const statePath = join(root, STATE_FILENAME);
+
+  if (!existsSync(statePath)) {
+    return {};
+  }
+
+  const raw = readFileSync(statePath, 'utf8');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `Corrupt ${STATE_FILENAME}: failed to parse JSON. ` +
+      `Fix or delete the file at ${statePath} and try again.`
+    );
+  }
+  const obj = parsed as Record<string, unknown>;
+
+  const rawDeferred = obj.deferred_modules;
+  const deferred_modules = Array.isArray(rawDeferred) ? (rawDeferred as DeferredModule[]) : undefined;
+
+  const rawUpdateCheck = obj.update_check;
+  let update_check: UpdateCheck | undefined;
+  if (
+    rawUpdateCheck !== null &&
+    typeof rawUpdateCheck === 'object' &&
+    !Array.isArray(rawUpdateCheck) &&
+    typeof (rawUpdateCheck as Record<string, unknown>).last_notified_version === 'string'
+  ) {
+    update_check = { last_notified_version: (rawUpdateCheck as Record<string, unknown>).last_notified_version as string };
+  }
+
+  return {
+    ...(deferred_modules !== undefined ? { deferred_modules } : {}),
+    ...(update_check !== undefined ? { update_check } : {}),
+  };
+}
+
+/**
+ * Write `.patina-state.json` to `root`. Does not include checksums.
  */
 export function writeState(root: string, state: PatinaState): void {
-  const normalized: PatinaState = {
-    checksums: normalizeChecksums(state.checksums),
-    ...(state.deferred_modules !== undefined ? { deferred_modules: state.deferred_modules } : {}),
-    ...(state.update_check !== undefined ? { update_check: state.update_check } : {}),
-  };
+  const toWrite: Record<string, unknown> = {};
+  if (state.deferred_modules !== undefined) toWrite.deferred_modules = state.deferred_modules;
+  if (state.update_check !== undefined) toWrite.update_check = state.update_check;
   writeFileSync(
     join(root, STATE_FILENAME),
-    JSON.stringify(normalized, null, 2) + '\n',
+    JSON.stringify(toWrite, null, 2) + '\n',
     'utf8'
   );
 }

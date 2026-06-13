@@ -203,8 +203,7 @@ export async function runInstall(cwd: string): Promise<void> {
       launchTasks,
     });
 
-    // Merge deferred entries into state after scaffold has written .patina-state.json with checksums.
-    // Never clobber the checksums scaffold just wrote — read first, then merge.
+    // Merge deferred entries into state after scaffold has written .patina-state.json.
     if (deferredModules.length > 0) {
       let state = readState(targetDir);
       for (const entry of deferredModules) {

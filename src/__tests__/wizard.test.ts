@@ -67,7 +67,7 @@ describe('snoozeUntilFor', () => {
 // ── addDeferredModule ─────────────────────────────────────────────────────────
 
 describe('addDeferredModule', () => {
-  const baseState: PatinaState = { checksums: {} };
+  const baseState: PatinaState = {};
 
   it('appends a new entry when none exists', () => {
     const result = addDeferredModule(baseState, 'linkedin', '2026-06-10');
@@ -78,7 +78,6 @@ describe('addDeferredModule', () => {
 
   it('replaces an existing entry for the same module (upsert)', () => {
     const state: PatinaState = {
-      checksums: {},
       deferred_modules: [{ module: 'linkedin', snooze_until: '2026-06-10' }],
     };
     const result = addDeferredModule(state, 'linkedin', '2026-07-10');
@@ -89,7 +88,6 @@ describe('addDeferredModule', () => {
 
   it('does not duplicate when the same module is added twice', () => {
     const state: PatinaState = {
-      checksums: {},
       deferred_modules: [
         { module: 'linkedin', snooze_until: '2026-06-10' },
         { module: 'resume', snooze_until: '2026-07-01' },
@@ -114,7 +112,6 @@ describe('addDeferredModule', () => {
 describe('clearDeferredModule', () => {
   it('removes the target entry', () => {
     const state: PatinaState = {
-      checksums: {},
       deferred_modules: [{ module: 'linkedin', snooze_until: '2026-06-10' }],
     };
     const result = clearDeferredModule(state, 'linkedin');
@@ -123,7 +120,6 @@ describe('clearDeferredModule', () => {
 
   it('leaves other entries intact', () => {
     const state: PatinaState = {
-      checksums: {},
       deferred_modules: [
         { module: 'linkedin', snooze_until: '2026-06-10' },
         { module: 'resume', snooze_until: '2026-07-01' },
@@ -137,7 +133,6 @@ describe('clearDeferredModule', () => {
 
   it('returns empty array (not undefined) when result is empty', () => {
     const state: PatinaState = {
-      checksums: {},
       deferred_modules: [{ module: 'linkedin', snooze_until: '2026-06-10' }],
     };
     const result = clearDeferredModule(state, 'linkedin');
@@ -146,13 +141,12 @@ describe('clearDeferredModule', () => {
   });
 
   it('handles empty deferred_modules gracefully', () => {
-    const result = clearDeferredModule({ checksums: {} }, 'linkedin');
+    const result = clearDeferredModule({}, 'linkedin');
     expect(result.deferred_modules).toEqual([]);
   });
 
   it('does not mutate the original state', () => {
     const state: PatinaState = {
-      checksums: {},
       deferred_modules: [{ module: 'linkedin', snooze_until: '2026-06-10' }],
     };
     clearDeferredModule(state, 'linkedin');

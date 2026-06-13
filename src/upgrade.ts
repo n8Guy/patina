@@ -1,144 +1,80 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { hashContent, type ChecksumMap } from './checksums.js';
-import { hasFences, hasPlaceholders, parseSections, mergeSections, type SectionOutcome } from './sections.js';
 import type { Profile } from './types.js';
 
 export type FileOutcome = 'added' | 'updated' | 'skipped';
 
 export interface WriteResult {
   outcome: FileOutcome;
-  checksum: string;
-  sections?: SectionOutcome[];
-}
-
-export interface UpgradeResult {
-  added: string[];
-  updated: string[];
-  skipped: string[];
 }
 
 /**
- * Write a managed file during install or upgrade.
+ * Returns true if the file's content carries a patina ownership marker.
+ * - Markdown/text: checks for `patina: managed` in YAML frontmatter.
+ * - JSON: checks for `_patina === 'managed'`.
+ * - .mjs/.js scripts: checks for `// patina: managed` comment on the first line.
+ */
+export function isMarkedManaged(relativePath: string, content: string): boolean {
+  if (relativePath.endsWith('.json')) {
+    try { return (JSON.parse(content) as Record<string, unknown>)._patina === 'managed'; }
+    catch { return false; }
+  }
+  if (relativePath.endsWith('.mjs') || relativePath.endsWith('.js')) {
+    return /^\/\/\s*patina:\s*managed\s*$/.test((content.split('\n')[0] ?? '').trimEnd());
+  }
+  // markdown / other text: check first frontmatter block for `patina: managed`
+  const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return false;
+  return /^\s*patina:\s*managed\s*$/m.test(m[1]);
+}
+
+/**
+ * Bridge: treat legacy fenced files as patina-owned so old installs converge on first update.
+ * Can be removed in a future major version once all active installs have been migrated.
+ */
+export function isLegacyManaged(content: string): boolean {
+  return /<!--\s*patina:/.test(content);
+}
+
+/**
+ * Write a managed file.
  *
  * - If the file doesn't exist: write it (added).
- * - If the file exists and its hash matches the stored checksum: update it.
- * - If the file exists and has been modified by the user: skip it.
- *
- * If `newContent` contains patina fences, delegates to `writeSectionedFile`
- * for per-section merge logic.
- *
- * Returns the outcome and the new checksum (for storage in .patina-state.json),
- * plus optional per-section outcomes for fenced files.
+ * - If the file on disk is marked managed (marker or legacy fence): overwrite (updated).
+ * - If the file on disk is unmarked: skip it (user-owned, skipped).
  */
 export function writeManagedFile(
   targetDir: string,
   relativePath: string,
   newContent: string,
-  storedChecksums: ChecksumMap,
-  overwrite?: Set<string>,
-  forceRepair?: Set<string>
 ): WriteResult {
-  if (hasFences(newContent)) {
-    return writeSectionedFile(targetDir, relativePath, newContent, storedChecksums, overwrite ?? new Set(), forceRepair);
-  }
-
   const fullPath = join(targetDir, relativePath);
-  const newChecksum = hashContent(newContent);
-
   if (!existsSync(fullPath)) {
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, newContent, 'utf8');
-    return { outcome: 'added', checksum: newChecksum };
+    return { outcome: 'added' };
   }
-
-  const currentContent = readFileSync(fullPath, 'utf8');
-  const currentHash = hashContent(currentContent);
-  const storedHash = storedChecksums[relativePath];
-
-  // Force repair: explicit forceRepair set or inline placeholder detection
-  if (forceRepair?.has(relativePath) || hasPlaceholders(currentContent)) {
+  const current = readFileSync(fullPath, 'utf8');
+  if (isMarkedManaged(relativePath, current) || isLegacyManaged(current)) {
     writeFileSync(fullPath, newContent, 'utf8');
-    return { outcome: 'updated', checksum: newChecksum };
+    return { outcome: 'updated' };
   }
-
-  if (!storedHash || currentHash === storedHash) {
-    writeFileSync(fullPath, newContent, 'utf8');
-    return { outcome: 'updated', checksum: newChecksum };
-  }
-
-  return { outcome: 'skipped', checksum: storedHash };
+  return { outcome: 'skipped' };
 }
 
 /**
- * Write a fenced (sectioned) managed file.
- *
- * 1. If file doesn't exist: write newContent directly, return sections with outcome 'added'.
- * 2. If file exists without fences (Case B migration):
- *    - Compare whole-file hash. Match (or no stored hash) → overwrite (introduces fences).
- *    - Mismatch → skip (user-edited).
- * 3. If file exists with fences: merge sections individually.
+ * Seed-once: write only if absent. Never overwrites existing content.
  */
-function writeSectionedFile(
+export function writeSeedFile(
   targetDir: string,
   relativePath: string,
-  newContent: string,
-  storedChecksums: ChecksumMap,
-  overwrite: Set<string>,
-  forceRepair?: Set<string>
-): WriteResult {
+  content: string,
+): 'added' | 'skipped' {
   const fullPath = join(targetDir, relativePath);
-
-  if (!existsSync(fullPath)) {
-    mkdirSync(dirname(fullPath), { recursive: true });
-    writeFileSync(fullPath, newContent, 'utf8');
-    const sections = parseSections(newContent).map(s => ({
-      id: s.id,
-      outcome: 'added' as const,
-      newChecksum: hashContent(s.inner),
-    }));
-    return { outcome: 'added', checksum: hashContent(newContent), sections };
-  }
-
-  const existingContent = readFileSync(fullPath, 'utf8');
-
-  if (!hasFences(existingContent)) {
-    // Case B migration: existing file has no fences
-    const currentHash = hashContent(existingContent);
-    const storedHash = storedChecksums[relativePath];
-    if (forceRepair?.has(relativePath) || hasPlaceholders(existingContent) || !storedHash || currentHash === storedHash) {
-      // Overwrite introducing fences — also fires when forceRepair is set or placeholders detected
-      writeFileSync(fullPath, newContent, 'utf8');
-      const sections = parseSections(newContent).map(s => ({
-        id: s.id,
-        outcome: 'added' as const,
-        newChecksum: hashContent(s.inner),
-      }));
-      return { outcome: 'updated', checksum: hashContent(newContent), sections };
-    } else {
-      // User has edited the file — skip
-      return { outcome: 'skipped', checksum: storedHash ?? currentHash, sections: undefined };
-    }
-  }
-
-  // Normal section-merge path: existing file has fences.
-  // hasPlaceholders bypass in mergeSections handles placeholder-bearing sections
-  // individually without clobbering hand-edited sections.
-  const newSectionMap: Record<string, string> = {};
-  for (const s of parseSections(newContent)) {
-    newSectionMap[s.id] = s.inner;
-  }
-
-  const { content: mergedContent, sections } = mergeSections(
-    existingContent,
-    newSectionMap,
-    storedChecksums,
-    relativePath,
-    overwrite
-  );
-
-  writeFileSync(fullPath, mergedContent, 'utf8');
-  return { outcome: 'updated', checksum: hashContent(mergedContent), sections };
+  if (existsSync(fullPath)) return 'skipped';
+  mkdirSync(dirname(fullPath), { recursive: true });
+  writeFileSync(fullPath, content, 'utf8');
+  return 'added';
 }
 
 /**

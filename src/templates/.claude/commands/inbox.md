@@ -1,14 +1,13 @@
+---
+patina: managed
+---
 # Process Your Inbox
 
 Loops through every file dropped in `inbox/` and runs the full `/add` flow on each one — deriving notes automatically from each file's content without stopping for per-file confirmation gates.
 
 ## Step 0 — Reconciliation preflight
 
-Read `.claude/inbox-routing.md`. Build a combined type→destination map from:
-1. The fenced table inside `<!-- patina:routing:start -->` / `<!-- patina:routing:end -->`
-2. Any rows in the "Custom rules" table below the fence
-
-For each row, the `type:` value is the first column (strip backticks) and the destination is the second column (strip backticks).
+Read `.claude/inbox-routing.md`. Build a type→destination map from all markdown tables in the file. For each table row, the `type:` value is the first column (strip backticks) and the destination is the second column (strip backticks).
 
 Scan only the top-level files in `{{CONTENT_DIR}}/notes/` — do not descend into subdirectories or dot directories — for any file whose frontmatter `type:` field matches a registered routable type. These are potentially misrouted artifacts.
 

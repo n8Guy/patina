@@ -214,29 +214,15 @@ describe('baseManagedFiles', () => {
     expect(paths).not.toContain('.mcp.json');
   });
 
-  it('includes inbox/.gitkeep, inbox/.processed.json, and inbox.md', () => {
+  it('includes inbox.md command but not inbox seed files', () => {
     const vars = profileToVars(makeProfile());
     const files = baseManagedFiles({ vars, editor: 'vscode' });
     const paths = files.map(([rel]) => rel);
-    expect(paths).toContain('inbox/.gitkeep');
-    expect(paths).toContain('inbox/.processed.json');
+    // inbox.md is a managed command file
     expect(paths).toContain('.claude/commands/inbox.md');
-  });
-
-  it('inbox/.gitkeep is an empty string', () => {
-    const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles({ vars, editor: 'vscode' });
-    const gitkeep = files.find(([rel]) => rel === 'inbox/.gitkeep');
-    expect(gitkeep).toBeDefined();
-    expect(gitkeep![1]).toBe('');
-  });
-
-  it('inbox/.processed.json seeds as an empty JSON array', () => {
-    const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles({ vars, editor: 'vscode' });
-    const processed = files.find(([rel]) => rel === 'inbox/.processed.json');
-    expect(processed).toBeDefined();
-    expect(JSON.parse(processed![1])).toEqual([]);
+    // inbox/.gitkeep and inbox/.processed.json are seed-once files, not in baseManagedFiles
+    expect(paths).not.toContain('inbox/.gitkeep');
+    expect(paths).not.toContain('inbox/.processed.json');
   });
 
   it('inbox.md has no unreplaced template variables', () => {
@@ -255,12 +241,13 @@ describe('baseManagedFiles', () => {
     expect(guideMd![1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('README.md content has patina:base fence', () => {
+  it('README.md content carries patina: managed frontmatter', () => {
     const vars = profileToVars(makeProfile());
     const files = baseManagedFiles({ vars, editor: 'vscode' });
     const readmeEntry = files.find(([rel]) => rel === 'README.md')!;
-    expect(readmeEntry[1]).toContain('<!-- patina:base:start -->');
-    expect(readmeEntry[1]).toContain('<!-- patina:base:end -->');
+    expect(readmeEntry[1]).toMatch(/^---\s*\npatina: managed\s*\n---/);
+    // No fence comments in new model
+    expect(readmeEntry[1]).not.toContain('<!-- patina:base:start -->');
   });
 
   it('README.md content has no unreplaced template variables', () => {

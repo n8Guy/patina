@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # /guide — Command Reference
 
 <!-- Pre-rendered by the patina wizard. Regenerated on every npx my-patina@latest run. -->

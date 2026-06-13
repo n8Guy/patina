@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # Goals Module Context
 
 This module tracks {{USER_NAME}}'s forward-looking goals. Goals are future commitments — distinct from notes, which capture past evidence.

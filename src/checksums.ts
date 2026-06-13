@@ -1,21 +1,8 @@
-import { createHash } from 'crypto';
-import { readFileSync, existsSync } from 'fs';
 import { MODULES } from './modules/registry.js';
-
-export type ChecksumMap = Record<string, string>;
-
-export function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16);
-}
-
-export function hashFile(filePath: string): string | null {
-  if (!existsSync(filePath)) return null;
-  return hashContent(readFileSync(filePath, 'utf8'));
-}
 
 export const CONTENT_SUBDIRS = ['notes', 'skills', 'posts'] as const;
 
-// Files patina manages and can safely update if the user hasn't modified them.
+// Files patina manages (marked managed, overwritten on update).
 // graph/** is intentionally excluded — patina never touches user content.
 export const MANAGED_FILES = [
   'README.md',
@@ -24,12 +11,20 @@ export const MANAGED_FILES = [
   '.claude/commands/add.md',
   '.claude/commands/reflect.md',
   '.mcp.json',
-  'inbox/.gitkeep',
-  'inbox/.processed.json',
   '.claude/commands/inbox.md',
   '.claude/commands/status.md',
   '.claude/commands/guide.md',
   '.claude/inbox-routing.md',
+  '.claude/scripts/check-update.mjs',
+  '.claude/scripts/staleness-check.mjs',
+  '.claude/scripts/health-check.mjs',
+] as const;
+
+// Files patina seeds once (written if absent, never overwritten).
+export const SEED_FILES = [
+  'CUSTOM.md',
+  'inbox/.gitkeep',
+  'inbox/.processed.json',
 ] as const;
 
 export const MODULE_MANAGED_FILES: Record<string, readonly string[]> =

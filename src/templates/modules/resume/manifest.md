@@ -1,4 +1,5 @@
 ---
+patina: managed
 name: resume
 label: Resume
 reflect_hook: resume-refresh

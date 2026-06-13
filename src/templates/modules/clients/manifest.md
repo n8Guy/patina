@@ -1,4 +1,5 @@
 ---
+patina: managed
 name: clients
 label: Clients
 reflect_hook: client-check

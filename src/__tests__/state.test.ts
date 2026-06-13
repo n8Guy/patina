@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'fs
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { readState, writeState, STATE_FILENAME } from '../state.js';
-import type { Profile } from '../types.js';
 
 let tmp: string;
 
@@ -15,133 +14,92 @@ afterEach(() => {
   rmSync(tmp, { recursive: true, force: true });
 });
 
+// ── readState — fresh install ─────────────────────────────────────────────────
+
+describe('readState — fresh install (no state file)', () => {
+  it('returns empty state for a fresh install', () => {
+    const state = readState(tmp);
+    expect(state).toEqual({});
+  });
+
+  it('returns undefined deferred_modules when absent', () => {
+    const state = readState(tmp);
+    expect(state.deferred_modules).toBeUndefined();
+  });
+
+  it('returns undefined update_check when absent', () => {
+    const state = readState(tmp);
+    expect(state.update_check).toBeUndefined();
+  });
+});
+
 // ── readState — existing state file ───────────────────────────────────────────
 
 describe('readState — existing .patina-state.json', () => {
-  it('reads checksums from the state file', () => {
+  it('returns empty state when state file is an empty object', () => {
+    writeFileSync(join(tmp, STATE_FILENAME), JSON.stringify({}), 'utf8');
+    const state = readState(tmp);
+    expect(state).toEqual({});
+  });
+
+  it('silently ignores legacy checksums field', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
       JSON.stringify({ checksums: { 'CLAUDE.md': 'abc123' } }, null, 2) + '\n',
       'utf8'
     );
-
     const state = readState(tmp);
-    expect(state.checksums['CLAUDE.md']).toBe('abc123');
-  });
-
-  it('normalizes backslash keys to forward slashes', () => {
-    writeFileSync(
-      join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: { '.claude\\commands\\add.md': 'def456' } }, null, 2) + '\n',
-      'utf8'
-    );
-
-    const state = readState(tmp);
-    expect(state.checksums['.claude/commands/add.md']).toBe('def456');
-    expect(state.checksums['.claude\\commands\\add.md']).toBeUndefined();
-  });
-
-  it('returns empty checksums when state file has no checksums key', () => {
-    writeFileSync(join(tmp, STATE_FILENAME), JSON.stringify({}), 'utf8');
-
-    const state = readState(tmp);
-    expect(state.checksums).toEqual({});
+    // checksums field should not appear on the returned state
+    expect((state as Record<string, unknown>).checksums).toBeUndefined();
   });
 
   it('throws on corrupt JSON', () => {
     writeFileSync(join(tmp, STATE_FILENAME), 'not valid json', 'utf8');
-
     expect(() => readState(tmp)).toThrow(/Corrupt/);
-  });
-
-  it('throws when checksums field is a string, not an object', () => {
-    writeFileSync(join(tmp, STATE_FILENAME), JSON.stringify({ checksums: 'bad' }), 'utf8');
-
-    expect(() => readState(tmp)).toThrow(/Corrupt/);
-  });
-
-  it('throws when checksums field is an array, not an object', () => {
-    writeFileSync(join(tmp, STATE_FILENAME), JSON.stringify({ checksums: ['a', 'b'] }), 'utf8');
-
-    expect(() => readState(tmp)).toThrow(/Corrupt/);
-  });
-
-  it('throws on corrupt JSON even if a profile is provided', () => {
-    writeFileSync(join(tmp, STATE_FILENAME), '{broken}', 'utf8');
-
-    const profile = { _checksums: { 'CLAUDE.md': 'fallback' } } as unknown as Profile;
-    expect(() => readState(tmp, profile)).toThrow(/Corrupt/);
-  });
-});
-
-// ── readState — migration (no state file) ─────────────────────────────────────
-
-describe('readState — migration (no .patina-state.json)', () => {
-  it('returns empty checksums for a fresh install (no profile)', () => {
-    const state = readState(tmp);
-    expect(state.checksums).toEqual({});
-  });
-
-  it('returns empty checksums when profile has no _checksums', () => {
-    const profile = { name: 'Test' } as unknown as Profile;
-    const state = readState(tmp, profile);
-    expect(state.checksums).toEqual({});
-  });
-
-  it('reads checksums from profile._checksums when state file absent', () => {
-    const profile = { _checksums: { 'CLAUDE.md': 'migrate-hash' } } as unknown as Profile;
-    const state = readState(tmp, profile);
-    expect(state.checksums['CLAUDE.md']).toBe('migrate-hash');
-  });
-
-  it('normalizes backslash keys from profile._checksums', () => {
-    const profile = {
-      _checksums: { '.claude\\commands\\add.md': 'win-hash' },
-    } as unknown as Profile;
-    const state = readState(tmp, profile);
-    expect(state.checksums['.claude/commands/add.md']).toBe('win-hash');
   });
 });
 
 // ── writeState ────────────────────────────────────────────────────────────────
 
 describe('writeState', () => {
-  it('creates .patina-state.json with correct content', () => {
-    writeState(tmp, { checksums: { 'CLAUDE.md': 'abc123' } });
-
+  it('creates .patina-state.json', () => {
+    writeState(tmp, {});
     expect(existsSync(join(tmp, STATE_FILENAME))).toBe(true);
   });
 
-  it('writes valid JSON that round-trips through readState', () => {
-    const checksums = { 'CLAUDE.md': 'abc123', '.claude/commands/add.md': 'def456' };
-    writeState(tmp, { checksums });
-
-    const state = readState(tmp);
-    expect(state.checksums).toEqual(checksums);
-  });
-
   it('writes pretty-printed JSON with a trailing newline', () => {
-    writeState(tmp, { checksums: { 'CLAUDE.md': 'abc' } });
-
+    writeState(tmp, {});
     const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
-    expect(raw).toContain('  '); // indented
     expect(raw.endsWith('\n')).toBe(true);
-  });
-
-  it('normalizes backslash keys on write', () => {
-    writeState(tmp, { checksums: { '.claude\\commands\\add.md': 'hash1' } });
-
-    const state = readState(tmp);
-    expect(state.checksums['.claude/commands/add.md']).toBe('hash1');
-    expect(state.checksums['.claude\\commands\\add.md']).toBeUndefined();
+    expect(JSON.parse(raw)).toEqual({});
   });
 
   it('overwrites an existing state file completely', () => {
-    writeState(tmp, { checksums: { 'CLAUDE.md': 'old-hash' } });
-    writeState(tmp, { checksums: { 'CLAUDE.md': 'new-hash' } });
-
+    writeState(tmp, { deferred_modules: [{ module: 'linkedin', snooze_until: '2026-06-10' }] });
+    writeState(tmp, {});
     const state = readState(tmp);
-    expect(state.checksums['CLAUDE.md']).toBe('new-hash');
+    expect(state.deferred_modules).toBeUndefined();
+  });
+
+  it('does not emit checksums key', () => {
+    writeState(tmp, {});
+    const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect('checksums' in parsed).toBe(false);
+  });
+
+  it('does not emit deferred_modules when undefined', () => {
+    writeState(tmp, { deferred_modules: undefined });
+    const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect('deferred_modules' in parsed).toBe(false);
+  });
+
+  it('does not emit update_check when undefined', () => {
+    writeState(tmp, { update_check: undefined });
+    const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect('update_check' in parsed).toBe(false);
   });
 });
 
@@ -150,7 +108,7 @@ describe('writeState', () => {
 describe('deferred_modules round-trip', () => {
   it('writeState → readState preserves deferred_modules', () => {
     const deferred = [{ module: 'linkedin' as const, snooze_until: '2026-06-10' }];
-    writeState(tmp, { checksums: {}, deferred_modules: deferred });
+    writeState(tmp, { deferred_modules: deferred });
 
     const state = readState(tmp);
     expect(state.deferred_modules).toEqual(deferred);
@@ -159,7 +117,7 @@ describe('deferred_modules round-trip', () => {
   it('readState returns undefined deferred_modules when field absent from file', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: {} }, null, 2) + '\n',
+      JSON.stringify({}, null, 2) + '\n',
       'utf8'
     );
 
@@ -170,7 +128,7 @@ describe('deferred_modules round-trip', () => {
   it('readState handles state file with empty deferred_modules array', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: {}, deferred_modules: [] }, null, 2) + '\n',
+      JSON.stringify({ deferred_modules: [] }, null, 2) + '\n',
       'utf8'
     );
 
@@ -181,7 +139,7 @@ describe('deferred_modules round-trip', () => {
   it('readState ignores non-array deferred_modules values', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: {}, deferred_modules: 'bad' }, null, 2) + '\n',
+      JSON.stringify({ deferred_modules: 'bad' }, null, 2) + '\n',
       'utf8'
     );
 
@@ -190,39 +148,12 @@ describe('deferred_modules round-trip', () => {
   });
 });
 
-// ── Migration end-to-end ──────────────────────────────────────────────────────
-
-describe('migration end-to-end', () => {
-  it('migrates checksums from profile._checksums on first read, state file created on write', () => {
-    // Simulate old-style profile with _checksums, no state file
-    const profile = {
-      _checksums: { 'CLAUDE.md': 'old-hash', '.claude/settings.json': 'settings-hash' },
-    } as unknown as Profile;
-
-    // First read: migrate from profile
-    const state = readState(tmp, profile);
-    expect(state.checksums['CLAUDE.md']).toBe('old-hash');
-    expect(state.checksums['.claude/settings.json']).toBe('settings-hash');
-
-    // State file does not yet exist (readState does not write it)
-    expect(existsSync(join(tmp, STATE_FILENAME))).toBe(false);
-
-    // Simulate an update: write the migrated state
-    writeState(tmp, state);
-    expect(existsSync(join(tmp, STATE_FILENAME))).toBe(true);
-
-    // Subsequent read uses the state file, not the profile
-    const state2 = readState(tmp);
-    expect(state2.checksums['CLAUDE.md']).toBe('old-hash');
-  });
-});
-
 // ── update_check ──────────────────────────────────────────────────────────────
 
 describe('update_check round-trip', () => {
   it('writeState → readState preserves update_check.last_notified_version', () => {
     const updateCheck = { last_notified_version: '1.5.0' };
-    writeState(tmp, { checksums: {}, update_check: updateCheck });
+    writeState(tmp, { update_check: updateCheck });
 
     const state = readState(tmp);
     expect(state.update_check).toEqual(updateCheck);
@@ -231,7 +162,7 @@ describe('update_check round-trip', () => {
   it('readState returns undefined update_check when field absent from file', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: {} }, null, 2) + '\n',
+      JSON.stringify({}, null, 2) + '\n',
       'utf8'
     );
 
@@ -242,7 +173,7 @@ describe('update_check round-trip', () => {
   it('readState ignores update_check with a non-string last_notified_version', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: {}, update_check: { last_notified_version: 42 } }, null, 2) + '\n',
+      JSON.stringify({ update_check: { last_notified_version: 42 } }, null, 2) + '\n',
       'utf8'
     );
 
@@ -253,19 +184,11 @@ describe('update_check round-trip', () => {
   it('readState ignores non-object update_check values', () => {
     writeFileSync(
       join(tmp, STATE_FILENAME),
-      JSON.stringify({ checksums: {}, update_check: 'bad' }, null, 2) + '\n',
+      JSON.stringify({ update_check: 'bad' }, null, 2) + '\n',
       'utf8'
     );
 
     const state = readState(tmp);
     expect(state.update_check).toBeUndefined();
-  });
-
-  it('writeState with update_check: undefined does not emit the key', () => {
-    writeState(tmp, { checksums: {}, update_check: undefined });
-
-    const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    expect('update_check' in parsed).toBe(false);
   });
 });

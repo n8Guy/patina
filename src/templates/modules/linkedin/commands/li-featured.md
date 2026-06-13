@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refine the LinkedIn Featured section or draft a post to pin.
 
 ## Context to load first
