@@ -15,7 +15,7 @@ A private holding area for raw professional artifacts — meeting transcripts, w
 
 ## How it works
 
-Drop files into `inbox/` and process them with `/inbox`. Artifacts are routed to the correct subfolder in `{{CONTENT_DIR}}/work/` automatically based on their type. You can also add context directly by running `/add` and describing something you've worked on.
+Drop files into `inbox/` and process them with `/inbox`. Artifacts are routed to the correct subfolder in `{{CONTENT_DIR}}/work/` per `.claude/inbox-routing.md`. You can also add context directly by running `/add` and describing something you've worked on.
 
 Your `{{CONTENT_DIR}}/work/profile.md` is a standing document about how you work in your role. Update it when your responsibilities, team, or focus changes.
 

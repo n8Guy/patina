@@ -203,7 +203,7 @@ describe('baseManagedFiles', () => {
   it('returns base command files for vscode', () => {
     const profile = makeProfile({ editor: 'vscode' });
     const vars = profileToVars(profile);
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const paths = files.map(([rel]) => rel);
     expect(paths).toContain('README.md');
     expect(paths).toContain('CLAUDE.md');
@@ -216,7 +216,7 @@ describe('baseManagedFiles', () => {
 
   it('includes inbox/.gitkeep, inbox/.processed.json, and inbox.md', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const paths = files.map(([rel]) => rel);
     expect(paths).toContain('inbox/.gitkeep');
     expect(paths).toContain('inbox/.processed.json');
@@ -225,7 +225,7 @@ describe('baseManagedFiles', () => {
 
   it('inbox/.gitkeep is an empty string', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const gitkeep = files.find(([rel]) => rel === 'inbox/.gitkeep');
     expect(gitkeep).toBeDefined();
     expect(gitkeep![1]).toBe('');
@@ -233,7 +233,7 @@ describe('baseManagedFiles', () => {
 
   it('inbox/.processed.json seeds as an empty JSON array', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const processed = files.find(([rel]) => rel === 'inbox/.processed.json');
     expect(processed).toBeDefined();
     expect(JSON.parse(processed![1])).toEqual([]);
@@ -241,7 +241,7 @@ describe('baseManagedFiles', () => {
 
   it('inbox.md has no unreplaced template variables', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const inboxMd = files.find(([rel]) => rel === '.claude/commands/inbox.md');
     expect(inboxMd).toBeDefined();
     expect(inboxMd![1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
@@ -249,7 +249,7 @@ describe('baseManagedFiles', () => {
 
   it('guide.md has no unreplaced template variables', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const guideMd = files.find(([rel]) => rel === '.claude/commands/guide.md');
     expect(guideMd).toBeDefined();
     expect(guideMd![1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
@@ -257,7 +257,7 @@ describe('baseManagedFiles', () => {
 
   it('README.md content has patina:base fence', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const readmeEntry = files.find(([rel]) => rel === 'README.md')!;
     expect(readmeEntry[1]).toContain('<!-- patina:base:start -->');
     expect(readmeEntry[1]).toContain('<!-- patina:base:end -->');
@@ -265,7 +265,7 @@ describe('baseManagedFiles', () => {
 
   it('README.md content has no unreplaced template variables', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const readmeEntry = files.find(([rel]) => rel === 'README.md')!;
     expect(readmeEntry[1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
@@ -273,7 +273,7 @@ describe('baseManagedFiles', () => {
   it('includes .mcp.json when editor is obsidian and targetDir provided', () => {
     const profile = makeProfile({ editor: 'obsidian' });
     const vars = profileToVars(profile);
-    const files = baseManagedFiles(vars, 'obsidian', tmp);
+    const files = baseManagedFiles({ vars, editor: 'obsidian', targetDir: tmp });
     const paths = files.map(([rel]) => rel);
     expect(paths).toContain('.mcp.json');
   });
@@ -281,7 +281,7 @@ describe('baseManagedFiles', () => {
   it('does NOT include .mcp.json when editor is obsidian but no targetDir', () => {
     const profile = makeProfile({ editor: 'obsidian' });
     const vars = profileToVars(profile);
-    const files = baseManagedFiles(vars, 'obsidian');
+    const files = baseManagedFiles({ vars, editor: 'obsidian' });
     const paths = files.map(([rel]) => rel);
     expect(paths).not.toContain('.mcp.json');
   });
@@ -289,7 +289,7 @@ describe('baseManagedFiles', () => {
   it('.mcp.json vault path contains content_dir', () => {
     const profile = makeProfile({ editor: 'obsidian', content_dir: 'graph' });
     const vars = profileToVars(profile);
-    const files = baseManagedFiles(vars, 'obsidian', tmp);
+    const files = baseManagedFiles({ vars, editor: 'obsidian', targetDir: tmp });
     const mcpEntry = files.find(([rel]) => rel === '.mcp.json');
     expect(mcpEntry).toBeDefined();
     const mcp = JSON.parse(mcpEntry![1]);
@@ -300,7 +300,7 @@ describe('baseManagedFiles', () => {
   it('.mcp.json vault path uses forward slashes on all platforms', () => {
     const profile = makeProfile({ editor: 'obsidian', content_dir: 'graph' });
     const vars = profileToVars(profile);
-    const files = baseManagedFiles(vars, 'obsidian', tmp);
+    const files = baseManagedFiles({ vars, editor: 'obsidian', targetDir: tmp });
     const mcpEntry = files.find(([rel]) => rel === '.mcp.json');
     expect(mcpEntry).toBeDefined();
     const mcp = JSON.parse(mcpEntry![1]);
@@ -310,14 +310,14 @@ describe('baseManagedFiles', () => {
 
   it('CLAUDE.md content contains the user name', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
     expect(claudeMd[1]).toContain('Jane Doe');
   });
 
   it('CLAUDE.md content contains no unreplaced template variables', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const claudeMd = files.find(([rel]) => rel === 'CLAUDE.md')!;
     expect(claudeMd[1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
@@ -325,7 +325,7 @@ describe('baseManagedFiles', () => {
   it('staleness-check.mjs renders custom staleness threshold', () => {
     const profile = makeProfile({ staleness_threshold_days: 60 });
     const vars = profileToVars(profile);
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const script = files.find(([rel]) => rel === '.claude/scripts/staleness-check.mjs')!;
     expect(script[1]).toContain("'60'");
     expect(script[1]).not.toContain("'30'");
@@ -333,7 +333,7 @@ describe('baseManagedFiles', () => {
 
   it('staleness-check.mjs renders default staleness threshold when not set', () => {
     const vars = profileToVars(makeProfile());
-    const files = baseManagedFiles(vars, 'vscode');
+    const files = baseManagedFiles({ vars, editor: 'vscode' });
     const script = files.find(([rel]) => rel === '.claude/scripts/staleness-check.mjs')!;
     expect(script[1]).toContain("'30'");
   });

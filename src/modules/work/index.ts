@@ -21,6 +21,12 @@ export const workModule = {
   label: 'Work',
   hint: 'capture and organise professional work artifacts',
 
+  inboxRoutes: [
+    { type: 'transcript', destination: 'work/transcripts/', description: 'Meeting and conversation transcripts' },
+    { type: 'weekly',     destination: 'work/weeklies/',    description: 'Periodic activity summaries' },
+    { type: 'reference',  destination: 'work/references/',  description: 'Supporting documents and context' },
+  ],
+
   commands: [
     { name: '/work-check', desc: 'Status count of artifacts across each work subfolder (no input needed — runs during /reflect too)' },
   ],
@@ -68,7 +74,7 @@ export const workModule = {
       '',
       '### Intake',
       '',
-      'Drop files into `inbox/` and run `/inbox`. Artifacts are routed to the correct subfolder automatically based on their `type` field.',
+      'Drop files into `inbox/` and run `/inbox`. Artifacts are routed to the correct subfolder based on the table in `.claude/inbox-routing.md`.',
       '',
       '### Commands',
       '',

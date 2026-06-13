@@ -29,6 +29,7 @@ export const MANAGED_FILES = [
   '.claude/commands/inbox.md',
   '.claude/commands/status.md',
   '.claude/commands/guide.md',
+  '.claude/inbox-routing.md',
 ] as const;
 
 export const MODULE_MANAGED_FILES: Record<string, readonly string[]> =

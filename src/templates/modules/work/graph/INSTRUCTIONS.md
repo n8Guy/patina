@@ -25,7 +25,7 @@ Read this file first before working with any files in `{{CONTENT_DIR}}/work/`. I
 
 ## How to add work artifacts
 
-**Via inbox (recommended):** Drop files into `inbox/` and run `/inbox`. The `type` field in the info block at the top of each file tells the routing logic where it belongs.
+**Via inbox (recommended):** Drop files into `inbox/` and run `/inbox`. The `type` field is matched against `.claude/inbox-routing.md` to choose the destination.
 
 **Via /add:** Run `/add` and describe a meeting, a week of work, or a piece of context. Claude will ask clarifying questions and write the file to the appropriate subfolder.
 
@@ -33,7 +33,7 @@ Read this file first before working with any files in `{{CONTENT_DIR}}/work/`. I
 
 ## Info block fields
 
-Every artifact file starts with an info block (the section between `---` markers at the top of the file). The `type` field drives routing and determines which subfolder the file lives in.
+Every artifact file starts with an info block (the section between `---` markers at the top of the file). The `type` field is matched against the routing table in `.claude/inbox-routing.md` to determine which subfolder the file lives in.
 
 ### Transcripts (`transcripts/`)
 

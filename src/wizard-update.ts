@@ -70,7 +70,7 @@ export function applyProfileUpdate(
   const migrationOutcome = migrateClaudeMdFile(cwd, stored);
 
   const files = [
-    ...baseManagedFiles(vars, updatedProfile.editor, cwd),
+    ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd }),
     ...updatedProfile.modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
@@ -276,7 +276,7 @@ async function runUpdateProfile(cwd: string, profile: Profile): Promise<void> {
   const previewVars = profileToVars(previewProfile);
   const storedChecksums = readState(cwd, profile).checksums;
   const previewFiles = [
-    ...baseManagedFiles(previewVars, previewProfile.editor, cwd),
+    ...baseManagedFiles({ vars: previewVars, editor: previewProfile.editor, modules: previewProfile.modules ?? [], targetDir: cwd }),
     ...previewProfile.modules.flatMap(m => moduleManagedFiles(m, previewVars)),
   ];
   for (const [rel, content] of previewFiles) {
@@ -441,7 +441,7 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   const repairedFiles: string[] = [];
 
   try {
-    for (const [rel, content] of baseManagedFiles(vars, profile.editor, cwd)) {
+    for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], targetDir: cwd })) {
       const result = writeManagedFile(cwd, rel, content, checksums, undefined, forceRepair);
       if (forceRepair?.has(rel) && result.outcome !== 'skipped') {
         repairedFiles.push(rel);

@@ -164,7 +164,7 @@ export function applyModuleChanges(
 
   // Regenerate base files once (with final module list so CLAUDE.md Modules section is correct)
   const finalVars = profileToVars(updatedProfile);
-  for (const [rel, content] of baseManagedFiles(finalVars, updatedProfile.editor, cwd)) {
+  for (const [rel, content] of baseManagedFiles({ vars: finalVars, editor: updatedProfile.editor, modules: updatedProfile.modules, targetDir: cwd })) {
     const result = writeManagedFile(cwd, rel, content, newChecksums);
     newChecksums[rel] = result.checksum;
     for (const s of result.sections ?? []) {

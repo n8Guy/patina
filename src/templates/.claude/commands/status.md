@@ -20,7 +20,18 @@ Read all files in `{{CONTENT_DIR}}/goals/`. For each, check the `status` field i
 
 Read `.patina-state.json`. If it contains a `deferred_modules` list, check each entry's `snooze_until` against today's date. List any where today is on or after `snooze_until`, using the module's friendly label. If none are due, show nothing for this section.
 
-## 5. Patina health
+## 5. Inbox routing
+
+Read `.claude/inbox-routing.md`. If the file does not exist (pre-#166 install), report: `Inbox routing — routing file not yet generated. Run \`npx my-patina@latest\` to update.` and skip this section.
+
+Build a combined type→destination map from both the fenced table (`<!-- patina:routing:start -->` / `<!-- patina:routing:end -->`) and the "Custom rules" table below the fence.
+
+Scan `{{CONTENT_DIR}}/notes/` (non-recursive; skip dot dirs) for any file whose frontmatter `type:` field matches a registered routable type. This is a read-only scan — do not move or modify anything.
+
+- If any misfiled files are found: `Inbox routing — N artifact(s) in {{CONTENT_DIR}}/notes/ look misfiled. Run /inbox to reconcile.` followed by the list of files (with their type and registered destination).
+- If none found: show nothing for this section.
+
+## 6. Patina health
 
 Run `node .claude/scripts/health-check.mjs` and show the output. If the command produces no output (exit 0), show nothing for this section.
 
@@ -32,6 +43,7 @@ Group results under these headers only if that section has something to show:
 **Inbox** — unprocessed files
 **Open goals** — open or in-progress goals
 **Module setup** — modules awaiting setup
+**Inbox routing** — misfiled artifacts detected in notes/
 **Patina health** — corruption and broken-link warnings from the health check
 
 If everything is clear, say: `All clear.`

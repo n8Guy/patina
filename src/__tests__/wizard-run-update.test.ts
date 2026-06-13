@@ -1068,6 +1068,95 @@ describe('migration — populated inbox/.processed.json survives legacy migratio
   });
 });
 
+// ── Inbox routing file: routing table updates with module changes ─────────────
+
+describe('applyModuleChanges — inbox routing file regenerates with modules', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+  });
+
+  it('routing file has _(none)_ when no modules installed', () => {
+    expect(read('.claude/inbox-routing.md')).toContain('_(none)_');
+  });
+
+  it('routing file contains work routes after adding work module', () => {
+    applyModuleChanges(targetDir, profile, ['work'], []);
+    const content = read('.claude/inbox-routing.md');
+    expect(content).toContain('`weekly`');
+    expect(content).toContain('graph/work/weeklies/');
+    expect(content).toContain('`transcript`');
+    expect(content).toContain('`reference`');
+  });
+
+  it('routing file reverts to _(none)_ after removing work module', () => {
+    applyModuleChanges(targetDir, profile, ['work'], []);
+    const p2 = loadProfile();
+    applyModuleChanges(targetDir, p2, [], ['work']);
+    expect(read('.claude/inbox-routing.md')).toContain('_(none)_');
+  });
+
+  it('custom rules outside the fence survive a routing file regeneration', () => {
+    // Add work module to get a routing file with the fence
+    applyModuleChanges(targetDir, profile, ['work'], []);
+
+    // Write a custom row in the Custom rules area (outside the fence)
+    const routingPath = join(targetDir, '.claude/inbox-routing.md');
+    const original = readFileSync(routingPath, 'utf8');
+    const withCustom = original + '| `client-acme` | `graph/clients/acme/` | Custom client route |\n';
+    writeFileSync(routingPath, withCustom, 'utf8');
+
+    // Run a profile update which regenerates base files
+    applyProfileUpdate(targetDir, loadProfile(), {
+      name: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design product experiences.',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'Acme Corp',
+      website: 'https://acme.com',
+      companyDescription: 'A software company.',
+    });
+
+    // The custom row should survive because it lives outside the fence
+    expect(read('.claude/inbox-routing.md')).toContain('`client-acme`');
+  });
+});
+
+describe('syncBaseFiles — upgrade path: creates inbox-routing.md for pre-#166 installs', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['work'] }));
+    profile = loadProfile();
+
+    // Simulate a pre-#166 install: remove routing file and its checksum
+    rmSync(join(targetDir, '.claude', 'inbox-routing.md'), { force: true });
+    const state = loadState();
+    delete state.checksums['.claude/inbox-routing.md'];
+    writeFileSync(join(targetDir, '.patina-state.json'), JSON.stringify(state), 'utf8');
+  });
+
+  it('creates .claude/inbox-routing.md without requiring a profile change', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(existsSync(join(targetDir, '.claude', 'inbox-routing.md'))).toBe(true);
+  });
+
+  it('stores the inbox-routing.md checksum in state', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(typeof loadState().checksums['.claude/inbox-routing.md']).toBe('string');
+  });
+
+  it('routing file contains work routes after upgrade', () => {
+    syncBaseFiles(targetDir, profile);
+    const content = read('.claude/inbox-routing.md');
+    expect(content).toContain('`weekly`');
+    expect(content).toContain('graph/work/weeklies/');
+  });
+});
+
 // ── syncBaseFiles: new template files land without a profile change ───────────
 
 describe('syncBaseFiles — upgrade path: creates guide.md for pre-guide installs', () => {

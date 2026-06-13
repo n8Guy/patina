@@ -821,6 +821,91 @@ describe('scaffold — inbox', () => {
   });
 });
 
+// ── Inbox routing file ────────────────────────────────────────────────────────
+
+describe('scaffold — inbox routing file (no modules)', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+  });
+
+  it('creates .claude/inbox-routing.md', () => {
+    expect(exists('.claude/inbox-routing.md')).toBe(true);
+  });
+
+  it('.claude/inbox-routing.md contains _(none)_ placeholder when no modules installed', () => {
+    expect(read('.claude/inbox-routing.md')).toContain('_(none)_');
+  });
+
+  it('.claude/inbox-routing.md contains routing fence markers', () => {
+    const content = read('.claude/inbox-routing.md');
+    expect(content).toContain('<!-- patina:routing:start -->');
+    expect(content).toContain('<!-- patina:routing:end -->');
+  });
+
+  it('.claude/inbox-routing.md contains no unreplaced template variables', () => {
+    expect(read('.claude/inbox-routing.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('.patina-state.json has a checksum for .claude/inbox-routing.md', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/inbox-routing.md']).toBe('string');
+  });
+});
+
+describe('scaffold — inbox routing file (work module)', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['work'] }));
+  });
+
+  it('.claude/inbox-routing.md exists', () => {
+    expect(exists('.claude/inbox-routing.md')).toBe(true);
+  });
+
+  it('.claude/inbox-routing.md contains transcript row', () => {
+    expect(read('.claude/inbox-routing.md')).toContain('`transcript`');
+  });
+
+  it('.claude/inbox-routing.md contains weekly row pointing to graph/work/weeklies/', () => {
+    expect(read('.claude/inbox-routing.md')).toContain('graph/work/weeklies/');
+  });
+
+  it('.claude/inbox-routing.md contains reference row', () => {
+    expect(read('.claude/inbox-routing.md')).toContain('`reference`');
+  });
+
+  it('.claude/inbox-routing.md contains routing fence markers', () => {
+    const content = read('.claude/inbox-routing.md');
+    expect(content).toContain('<!-- patina:routing:start -->');
+    expect(content).toContain('<!-- patina:routing:end -->');
+  });
+
+  it('.claude/inbox-routing.md contains no unreplaced template variables', () => {
+    expect(read('.claude/inbox-routing.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('.claude/inbox-routing.md has Custom rules section', () => {
+    expect(read('.claude/inbox-routing.md')).toContain('## Custom rules');
+  });
+
+  it('.patina-state.json has a checksum for .claude/inbox-routing.md', () => {
+    const state = loadState();
+    expect(typeof state.checksums['.claude/inbox-routing.md']).toBe('string');
+  });
+});
+
+describe('scaffold — inbox routing file (custom content dir)', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['work'], contentDir: 'mywork' }));
+  });
+
+  it('destinations reflect custom content dir', () => {
+    const content = read('.claude/inbox-routing.md');
+    expect(content).toContain('mywork/work/weeklies/');
+    expect(content).toContain('mywork/work/transcripts/');
+    expect(content).toContain('mywork/work/references/');
+  });
+});
+
 // ── Template rendering ────────────────────────────────────────────────────────
 
 describe('scaffold — template rendering', () => {

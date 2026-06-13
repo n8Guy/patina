@@ -38,7 +38,9 @@ The graph is the source of truth. Nothing gets added to generated content unless
 - `filename` — path relative to `inbox/` (e.g. `doc.pdf`, `archive/doc.pdf` once archived, or `2026-05/doc.pdf`)
 - `status` — `success` or `failed`
 - `processed_at` — ISO 8601 timestamp
-- `resulting_note_paths` — array of note paths written during processing
+- `resulting_paths` — array of paths written during processing
+
+Where each file lands is governed by `.claude/inbox-routing.md`; files without a routable `type:` go to `{{CONTENT_DIR}}/notes/`.
 
 Deleting `inbox/.processed.json` simply resets tracking with no data loss — your notes remain in `{{CONTENT_DIR}}/notes/`.
 
