@@ -31,7 +31,7 @@ describe('SEED_FILES registry', () => {
   it('does not overlap with MANAGED_FILES', () => {
     const managed = new Set(MANAGED_FILES);
     for (const f of SEED_FILES) {
-      expect(managed.has(f), `${f} should not be in both MANAGED_FILES and SEED_FILES`).toBe(false);
+      expect((managed as Set<string>).has(f), `${f} should not be in both MANAGED_FILES and SEED_FILES`).toBe(false);
     }
   });
 });

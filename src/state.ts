@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { DeferredModule } from './types.js';
+import type { DeferredModule, Profile } from './types.js';
 
 export interface UpdateCheck {
   last_notified_version: string;
