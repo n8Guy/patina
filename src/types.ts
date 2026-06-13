@@ -1,6 +1,9 @@
 export type Editor = 'obsidian' | 'vscode' | 'other';
 
-export type ValidationCheckId = 'wiki-links' | 'exclusions' | 'skill-notes';
+export type ValidationCheckId =
+  | 'wiki-links' | 'exclusions' | 'skill-notes'
+  | 'module-wiki-links'
+  | 'managed-file-placeholders' | 'managed-file-missing-section' | 'managed-file-orphaned-checksum';
 
 export interface ValidationIssue {
   check: ValidationCheckId;

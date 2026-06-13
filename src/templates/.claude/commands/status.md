@@ -32,6 +32,6 @@ Group results under these headers only if that section has something to show:
 **Inbox** — unprocessed files
 **Open goals** — open or in-progress goals
 **Module setup** — modules awaiting setup
-**Patina health** — corruption warnings from the health check
+**Patina health** — corruption and broken-link warnings from the health check
 
 If everything is clear, say: `All clear.`

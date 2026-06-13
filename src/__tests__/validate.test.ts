@@ -9,6 +9,8 @@ import {
   checkSkillNotes,
   checkWikiLinks,
   checkExclusions,
+  checkModuleWikiLinks,
+  checkManagedFileHealth,
   validate,
   findPatinaRoot,
 } from '../validate.js';
@@ -303,6 +305,89 @@ describe('validate', () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toHaveLength(4);
     // All file paths must use forward slashes
+    for (const issue of result.issues) {
+      expect(issue.file).not.toContain('\\');
+    }
+  });
+});
+
+// ─── checkModuleWikiLinks ─────────────────────────────────────────────────────
+
+describe('checkModuleWikiLinks', () => {
+  it('returns no issues when no modules are installed', () => {
+    setupPatina(tmp);
+    const profile = makeProfile();
+    // Even if there is a broken link in a module folder, no modules = no scan
+    mkdirSync(join(tmp, 'graph/linkedin'), { recursive: true });
+    writeFileSync(join(tmp, 'graph/linkedin/foo.md'), '[[missing]]');
+    expect(checkModuleWikiLinks(tmp, profile)).toEqual([]);
+  });
+
+  it('returns an issue for a broken wiki-link in a module content folder', () => {
+    setupPatina(tmp);
+    const profile = { ...makeProfile(), modules: ['linkedin' as const] };
+    mkdirSync(join(tmp, 'graph/linkedin'), { recursive: true });
+    writeFileSync(join(tmp, 'graph/linkedin/LinkedIn Current State.md'), 'See [[LinkedIn MOC]].\n');
+    const issues = checkModuleWikiLinks(tmp, profile);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].check).toBe('module-wiki-links');
+    expect(issues[0].message).toContain('"LinkedIn MOC"');
+    expect(issues[0].line).toBe(1);
+    expect(issues[0].file).not.toContain('\\');
+    expect(issues[0].file).toMatch(/linkedin/);
+  });
+
+  it('returns no issue when the linked note exists', () => {
+    setupPatina(tmp);
+    const profile = { ...makeProfile(), modules: ['linkedin' as const] };
+    writeFileSync(join(tmp, 'graph/notes/existing.md'), '# Existing');
+    mkdirSync(join(tmp, 'graph/linkedin'), { recursive: true });
+    writeFileSync(join(tmp, 'graph/linkedin/foo.md'), '[[existing]]');
+    expect(checkModuleWikiLinks(tmp, profile)).toEqual([]);
+  });
+});
+
+// ─── checkManagedFileHealth ───────────────────────────────────────────────────
+
+describe('checkManagedFileHealth', () => {
+  it('returns no issues for a patina with no managed files on disk', () => {
+    setupPatina(tmp);
+    const profile = makeProfile();
+    // No managed files written — detectCorruption will find nothing to check
+    writeFileSync(join(tmp, '.patina-state.json'), JSON.stringify({ checksums: {} }) + '\n');
+    const issues = checkManagedFileHealth(tmp, profile);
+    // No managed files on disk means no placeholder issues
+    const placeholderIssues = issues.filter(i => i.check === 'managed-file-placeholders');
+    expect(placeholderIssues).toHaveLength(0);
+  });
+
+  it('returns a managed-file-placeholders issue when CLAUDE.md has unrendered placeholders', () => {
+    setupPatina(tmp);
+    const profile = makeProfile();
+    writeFileSync(join(tmp, '.patina-state.json'), JSON.stringify({ checksums: {} }) + '\n');
+    writeFileSync(join(tmp, 'CLAUDE.md'), '# Hello {{USER_NAME}}\n');
+    const issues = checkManagedFileHealth(tmp, profile);
+    const placeholderIssues = issues.filter(i => i.check === 'managed-file-placeholders');
+    expect(placeholderIssues).toHaveLength(1);
+    expect(placeholderIssues[0].message).toContain('{{USER_NAME}}');
+    expect(placeholderIssues[0].file).toBe('CLAUDE.md');
+  });
+});
+
+// ─── validate (integration with new checks) ───────────────────────────────────
+
+describe('validate with module wiki links', () => {
+  it('returns ok=false when a module content folder has a broken link', () => {
+    setupPatina(tmp);
+    const profile = { ...makeProfile(), modules: ['linkedin' as const] };
+    mkdirSync(join(tmp, 'graph/linkedin'), { recursive: true });
+    writeFileSync(join(tmp, 'graph/linkedin/LinkedIn Current State.md'), '[[LinkedIn MOC]]');
+    writeFileSync(join(tmp, '.patina-state.json'), JSON.stringify({ checksums: {} }) + '\n');
+    const result = validate(tmp, profile);
+    expect(result.ok).toBe(false);
+    const moduleIssues = result.issues.filter(i => i.check === 'module-wiki-links');
+    expect(moduleIssues.length).toBeGreaterThan(0);
+    // Paths must use forward slashes
     for (const issue of result.issues) {
       expect(issue.file).not.toContain('\\');
     }

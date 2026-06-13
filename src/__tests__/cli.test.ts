@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 import { resolve } from 'path';
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -92,5 +92,65 @@ describe('cli repair', () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain('No corruption found');
     });
+  });
+});
+
+describe('cli validate --json', () => {
+  let tmp: string;
+  let patinaDir: string;
+
+  beforeEach(async () => {
+    tmp = mkdtempSync(join(tmpdir(), 'patina-cli-validate-json-test-'));
+    patinaDir = join(tmp, 'my-patina');
+    const { scaffold } = await import('../scaffold.js');
+    await scaffold({
+      targetDir: patinaDir,
+      patinaName: 'test-patina',
+      userName: 'Jane Doe',
+      title: 'Senior Designer',
+      roleDescription: 'I design things.',
+      jobDescriptionUrl: '',
+      work: {
+        self_employed: false,
+        company_name: 'Acme Corp',
+        website: 'https://acme.com',
+        company_description: 'A software company.',
+      },
+      editor: 'vscode',
+      modules: [],
+      liProfileUrl: '',
+      contentDir: 'graph',
+    });
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('validate --json exits 0 on a clean instance and outputs valid JSON', () => {
+    const result = cli(['validate', '--json'], patinaDir);
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.ok).toBe(true);
+    expect(Array.isArray(parsed.issues)).toBe(true);
+    expect(typeof parsed.filesChecked).toBe('number');
+  });
+
+  it('validate --json exits 1 with JSON ok=false when module folder has a broken link', () => {
+    // Add a linkedin-like content folder with a broken link (no module in profile, just test the file logic directly)
+    // Use the full module approach instead
+    mkdirSync(join(patinaDir, 'graph/linkedin'), { recursive: true });
+    writeFileSync(join(patinaDir, 'graph/linkedin/LinkedIn Current State.md'), '[[LinkedIn MOC]]\n');
+    // Patch profile.yaml to include linkedin module
+    writeFileSync(
+      join(patinaDir, 'profile.yaml'),
+      `patina_name: test-patina\nname: Jane Doe\ntitle: Senior Designer\nrole_description: I design things.\njob_description_url: ""\nwork:\n  self_employed: false\n  company_name: Acme Corp\n  website: https://acme.com\n  company_description: A software company.\neditor: vscode\nmodules:\n  - linkedin\ncontent_dir: graph\ncreated: 2025-01-01\n`
+    );
+    const result = cli(['validate', '--json'], patinaDir);
+    expect(result.status).toBe(1);
+    const parsed = JSON.parse(result.stdout);
+    expect(parsed.ok).toBe(false);
+    const moduleIssues = parsed.issues.filter((i: { check: string }) => i.check === 'module-wiki-links');
+    expect(moduleIssues.length).toBeGreaterThan(0);
   });
 });
