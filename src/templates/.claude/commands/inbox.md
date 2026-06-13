@@ -44,13 +44,13 @@ For files in subdirectories, `filename` is the path relative to `inbox/` — e.g
 
 `failed` means `/add` errored; the file will be retried on the next run.
 
-## Step 5 — Offer to archive source files
+## Step 5 — Archive source files
 
-After all files have been processed, ask:
+After all files have been processed, silently move each file whose registry entry has `status: "success"` from `inbox/` to `inbox/archive/`, preserving any subdirectory structure (e.g. `inbox/2026-05/doc.pdf` → `inbox/archive/2026-05/doc.pdf`). Create `inbox/archive/` and any subdirectories as needed. Never move hidden files or directories (any entry whose name starts with `.`). Leave files with `status: "failed"` in place — they will be retried on the next run.
 
-> All files processed. Would you like to move the source files to `inbox/archive/`? (default: keep in place)
+After moving each file, update its registry entry: change `filename` from the original relative path (e.g. `doc.pdf`, or `2026-05/doc.pdf` for subdirectory files) to the archive-relative path (e.g. `archive/doc.pdf`, or `archive/2026-05/doc.pdf`) so the registry reflects where the file actually is, and so a re-dropped file with the same name is treated as a new file to process.
 
-Wait for the user's response. **Default is to keep files in place** — patina never deletes source files. If the user says yes, move each file that was processed in this session from `inbox/` to `inbox/archive/`, preserving any subdirectory structure (e.g. `inbox/2026-05/doc.pdf` → `inbox/archive/2026-05/doc.pdf`). Create `inbox/archive/` and any subdirectories as needed. Registry entries remain regardless of what the user decides. Never move hidden files or directories (any entry whose name starts with `.`) — only move files that were actually processed in this session.
+Report the outcome in a single line: `Moved N files to inbox/archive/.`
 
 ## Edge cases
 
@@ -60,3 +60,4 @@ Wait for the user's response. **Default is to keep files in place** — patina n
 - Never process hidden files or directories (any entry whose name starts with `.`), including `.gitkeep` and `.processed.json`. This rule applies recursively.
 - Never process files inside `inbox/archive/` — that directory is excluded from Step 2.
 - If a file already exists at its archive destination, keep both by appending a numeric suffix (e.g. `doc-2.pdf`) rather than overwriting.
+- If a file was moved to `inbox/archive/` but its registry `filename` was not yet updated (interrupted session), the entry still shows `status: "success"` under the original path, so it will never be re-scanned or re-processed — the stale path is harmless.
