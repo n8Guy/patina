@@ -8,6 +8,16 @@ export interface LaunchTaskDefinition {
   template: string; // markdown instruction injected into CLAUDE.md launch block
 }
 
+/** A type→destination routing rule a module contributes to the inbox router. */
+export interface InboxRoute {
+  /** Exact `type:` frontmatter value, e.g. 'weekly'. */
+  type: string;
+  /** Destination folder relative to the content dir, e.g. 'work/weeklies/'. */
+  destination: string;
+  /** Optional human-readable note shown in the routing table. */
+  description?: string;
+}
+
 /** Inputs available to onAdd — collected before the helper is called. */
 export interface ModuleAddInputs {
   [key: string]: string | undefined;
@@ -68,6 +78,12 @@ export interface ModuleDefinition {
    * that patina appends when this module is installed.
    */
   readmeBlock?(vars: TemplateVars): string;
+  /**
+   * Optional: type→destination routing rules this module owns. Consumed by the CLI to
+   * (re)generate .claude/inbox-routing.md, which the /inbox command reads at runtime.
+   * Destinations are relative to the content dir.
+   */
+  inboxRoutes?: readonly InboxRoute[];
   /**
    * Optional: launch tasks this module contributes to the catalog.
    */

@@ -50,4 +50,4 @@ tags: []
 - Raw artifacts are **inputs**, not outputs. Do not edit them to look polished — keep them as-captured.
 - `profile.md` is the exception: it is authored, not transactional. Update it when role, responsibilities, or context changes.
 - When extracting skills or notes from work artifacts, write new files to `{{CONTENT_DIR}}/notes/` or `{{CONTENT_DIR}}/skills/` — do not modify the source artifact.
-- Routing from `inbox/` uses the `type` field in the info block to determine the destination subfolder.
+- Routing from `inbox/` is governed by `.claude/inbox-routing.md`. This module registers `transcript`, `weekly`, and `reference`.

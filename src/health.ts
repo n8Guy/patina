@@ -122,7 +122,7 @@ export function formatHealthReport(report: HealthReport): string {
 function buildExpectedKeys(cwd: string, profile: Profile): string[] {
   const vars = profileToVars(profile);
   const files: Array<[string, string]> = [
-    ...baseManagedFiles(vars, profile.editor, cwd),
+    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], targetDir: cwd }),
     ...profile.modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
@@ -175,7 +175,7 @@ export function detectCorruption(
 
   const vars = profileToVars(profile);
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles(vars, profile.editor, cwd),
+    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], targetDir: cwd }),
     ...profile.modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
@@ -258,7 +258,7 @@ export async function repairCorruption(
 
   const vars = profileToVars(profile);
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles(vars, profile.editor, cwd),
+    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], targetDir: cwd }),
     ...profile.modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
