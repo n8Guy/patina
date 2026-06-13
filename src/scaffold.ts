@@ -228,11 +228,12 @@ export function renderUpdateCheckSection(vars: TemplateVars): string {
   return `After you finish responding to the user's **first message** of this session — at the natural
 end of that response, not mid-task — check for \`.patina-update-check\`.
 
-If the file exists:
-- Read its contents. If it contains a version string (e.g. \`0.14.0\`):
-  - Read \`.patina-state.json\`. If \`update_check.last_notified_version\` matches the version in
-    the file, say nothing.
-  - Otherwise, append this notification to the end of your response (fill in the version numbers):
+If the file exists, parse it as JSON:
+- It looks like \`{ "checked_at": "<ISO timestamp>", "available_version": "<version or null>" }\`.
+- If \`available_version\` is null, missing, or not a valid semver string, say nothing.
+- Otherwise, read \`.patina-state.json\`. If \`update_check.last_notified_version\` equals
+  \`available_version\`, say nothing (already notified).
+- Otherwise, append this notification to the end of your response (fill in the version numbers):
 
     ---
     There's a newer version of patina available (you have ${vars.PATINA_VERSION}, the latest is [version]).
@@ -245,12 +246,13 @@ If the file exists:
     Your notes and settings will stay exactly as they are.
     ---
 
-  - After notifying, write \`update_check.last_notified_version\` to \`.patina-state.json\`.
-- If the file is empty or unparseable, say nothing.
-- In all cases, delete \`.patina-update-check\` after checking.
+  - After notifying, write \`available_version\` to \`update_check.last_notified_version\` in
+    \`.patina-state.json\`.
+- Do NOT delete \`.patina-update-check\`. The checker script re-runs automatically once \`checked_at\` is older than 24 hours.
+- If the file is absent or not valid JSON, say nothing.
 
 For version comparison, split on \`.\` and compare major, minor, and patch numerically. If
-either side is not a valid semver string, skip silently.
+the value is not a valid semver string, skip silently.
 
 Skip this step entirely in headless or non-interactive sessions.`;
 }

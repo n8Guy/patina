@@ -1,11 +1,12 @@
 // Patina update checker — runs via UserPromptSubmit hook before each session message.
 // Uses only Node.js built-ins (https, fs, url). No external dependencies.
 
-import { existsSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { request } from 'https';
 import { fileURLToPath } from 'url';
 
-const FLAG_FILE = '.patina-update-check';
+const SENTINEL_FILE = '.patina-update-check';
+const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
 const INSTALLED_VERSION = process.env.PATINA_MOCK_INSTALLED_VERSION ?? '{{PATINA_VERSION}}';
 const REGISTRY_URL = 'https://registry.npmjs.org/my-patina/latest';
 
@@ -31,6 +32,25 @@ function isNewer(a, b) {
 }
 
 export { isNewer };
+
+/**
+ * Returns true if a valid sentinel exists and its checked_at is within the TTL.
+ * Any read/parse failure (missing file, old plain-string format, corrupt JSON,
+ * missing/invalid checked_at) returns false → caller performs a fresh check.
+ * This is the migration path: old-format sentinels fail JSON.parse and re-check.
+ */
+function checkedRecently() {
+  try {
+    const raw = readFileSync(SENTINEL_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    const checkedAt = Date.parse(data.checked_at);
+    if (!Number.isFinite(checkedAt)) return false;
+    const age = Date.now() - checkedAt;
+    return age >= 0 && age < CHECK_INTERVAL_MS;
+  } catch {
+    return false;
+  }
+}
 
 function fetchLatestVersion() {
   if (process.env.PATINA_MOCK_LATEST_VERSION !== undefined) {
@@ -67,23 +87,27 @@ function fetchLatestVersion() {
 
 // Only run when executed directly (not when imported for testing).
 if (fileURLToPath(import.meta.url) === process.argv[1]) {
-  // Already ran this session — exit immediately without any network call.
-  if (existsSync(FLAG_FILE)) {
+  // Skip the network call if we checked within the TTL. Any parse/format/age
+  // failure falls through to a fresh check (this auto-recovers old-format sentinels).
+  if (checkedRecently()) {
     process.exit(0);
   }
 
   try {
     const latestVersion = await fetchLatestVersion();
-    if (isNewer(latestVersion, INSTALLED_VERSION)) {
-      // Write the latest version string — Claude will read this and notify the user.
-      writeFileSync(FLAG_FILE, latestVersion, 'utf8');
-    } else {
-      // Already up to date — write empty sentinel to prevent re-check this session.
-      writeFileSync(FLAG_FILE, '', 'utf8');
-    }
+    const availableVersion = isNewer(latestVersion, INSTALLED_VERSION) ? latestVersion : null;
+    const sentinel = {
+      _comment:
+        'Patina update-check sentinel. Auto-managed by .claude/scripts/check-update.mjs. ' +
+        'checked_at is the ISO 8601 time of the last npm registry check; available_version is ' +
+        'the newer version found (null when up to date). The checker re-runs automatically once ' +
+        'checked_at is older than 24h. Safe to delete.',
+      checked_at: new Date().toISOString(),
+      available_version: availableVersion,
+    };
+    writeFileSync(SENTINEL_FILE, JSON.stringify(sentinel, null, 2) + '\n', 'utf8');
   } catch {
-    // Any error (network, parse, etc.) — exit silently without writing flag file.
-    // The next session message will retry.
+    // Network/parse error — exit silently without writing. The next prompt retries.
     process.exit(0);
   }
 }
