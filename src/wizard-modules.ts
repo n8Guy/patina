@@ -1,15 +1,10 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { dirname, join } from 'path';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { label } from './wizard-brand.js';
-import { MULTISELECT_HINT, defaultSnoozeUntil, addDeferredModule, clearDeferredModule, onCancel, applyLaunchBlock, writeProfile, removeManagedFileIfUnmodified } from './wizard-shared.js';
-import { profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles, renderUpdateCheckSection } from './scaffold.js';
-import { writeManagedFile } from './upgrade.js';
-import { hashContent, type ChecksumMap } from './checksums.js';
-import { hasFences, inspectSections, removeSection, renderSection } from './sections.js';
+import { MULTISELECT_HINT, defaultSnoozeUntil, addDeferredModule, clearDeferredModule, onCancel, writeProfile, removeManagedFileIfManaged } from './wizard-shared.js';
+import { profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles } from './scaffold.js';
+import { writeManagedFile, writeSeedFile } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
-import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNING_MSG, type MigrationOutcome } from './migrate-claude.js';
 import { pruneLaunchTasks } from './launch-tasks.js';
 import { MODULES, getModule } from './modules/registry.js';
 import type { ModuleAddInputs } from './modules/types.js';
@@ -23,8 +18,6 @@ export interface ModuleChangeResult {
   skipped: string[];
   deleted: string[];
   kept: string[];
-  keptSections: string[];
-  migrationOutcome?: MigrationOutcome;
 }
 
 export function applyModuleChanges(
@@ -35,17 +28,12 @@ export function applyModuleChanges(
   moduleInputs?: Record<string, ModuleAddInputs>,
 ): ModuleChangeResult {
   const initialState = readState(cwd, profile);
-  const stored: ChecksumMap = initialState.checksums;
 
-  // Pre-pass: migrate CLAUDE.md from pre-#118 unfenced-prose layout if needed.
-  const migrationOutcome = migrateClaudeMdFile(cwd, stored);
-
-  const newChecksums: ChecksumMap = { ...stored };
   // Carry deferred_modules through; strip entries for removed modules.
   let deferredModules = initialState.deferred_modules;
   for (const module of toRemove) {
     if (deferredModules !== undefined) {
-      const cleared = clearDeferredModule({ checksums: {}, deferred_modules: deferredModules }, module);
+      const cleared = clearDeferredModule({ deferred_modules: deferredModules }, module);
       deferredModules = cleared.deferred_modules;
     }
   }
@@ -55,7 +43,6 @@ export function applyModuleChanges(
   const skippedFiles: string[] = [];
   const deleted: string[] = [];
   const kept: string[] = [];
-  const keptSections: string[] = [];
 
   for (const module of toAdd) {
     const def = getModule(module);
@@ -67,16 +54,7 @@ export function applyModuleChanges(
     const contentDir = updatedProfile.content_dir;
 
     for (const [rel, content] of moduleManagedFiles(module, vars)) {
-      const result = writeManagedFile(cwd, rel, content, newChecksums);
-      newChecksums[rel] = result.checksum;
-      for (const s of result.sections ?? []) {
-        const sKey = `${rel}:${s.id}`;
-        if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-        else {
-          newChecksums[sKey] = newChecksums[sKey] ?? '';
-          keptSections.push(sKey);
-        }
-      }
+      const result = writeManagedFile(cwd, rel, content);
       if (result.outcome === 'skipped') {
         skippedFiles.push(rel);
       } else {
@@ -85,30 +63,9 @@ export function applyModuleChanges(
     }
 
     for (const [relativePath, content] of moduleContentFiles(module, vars, contentDir)) {
-      const fullPath = join(cwd, relativePath);
-      if (!existsSync(fullPath)) {
-        mkdirSync(dirname(fullPath), { recursive: true });
-        writeFileSync(fullPath, content, 'utf8');
-        added.push(relativePath);
-      }
-    }
-
-    // Append README.md block for this module (migration guard: only if README has fences or doesn't exist)
-    if (def?.readmeBlock) {
-      const readmePath = join(cwd, 'README.md');
-      const readmeExists = existsSync(readmePath);
-      const readmeHasFences = readmeExists ? hasFences(readFileSync(readmePath, 'utf8')) : false;
-      if (!readmeExists || readmeHasFences) {
-        const block = renderSection(module, def.readmeBlock(vars));
-        const result = writeManagedFile(cwd, 'README.md', block, newChecksums);
-        newChecksums['README.md'] = result.checksum;
-        for (const s of result.sections ?? []) {
-          newChecksums[`README.md:${s.id}`] = s.newChecksum;
-        }
-        if (result.outcome !== 'skipped') added.push(`README.md:${module}`);
-      } else {
-        kept.push('README.md');
-      }
+      // Module content files are seed-once (never overwrite)
+      const outcome = writeSeedFile(cwd, relativePath, content);
+      if (outcome === 'added') added.push(relativePath);
     }
 
     if (!updatedProfile.modules.includes(module)) {
@@ -120,35 +77,11 @@ export function applyModuleChanges(
     const def = getModule(module);
     const managedRels = def?.managedPaths ?? [];
     for (const rel of managedRels) {
-      const result = removeManagedFileIfUnmodified(cwd, rel, stored);
+      const result = removeManagedFileIfManaged(cwd, rel);
       if (result === 'deleted') {
         deleted.push(rel);
-        delete newChecksums[rel];
-        // Remove any orphaned section-level checksum keys for this file
-        const prefix = rel + ':';
-        for (const key of Object.keys(newChecksums)) {
-          if (key.startsWith(prefix)) delete newChecksums[key];
-        }
       } else {
         kept.push(rel);
-      }
-    }
-
-    // Remove README.md block for this module (only if section is unmodified)
-    const readmePath = join(cwd, 'README.md');
-    if (existsSync(readmePath)) {
-      const before = readFileSync(readmePath, 'utf8');
-      const editedIds = inspectSections('README.md', before, stored);
-      if (!editedIds.includes(module)) {
-        const after = removeSection(module, before);
-        if (after !== before) {
-          writeFileSync(readmePath, after, 'utf8');
-          newChecksums['README.md'] = hashContent(after);
-          delete newChecksums[`README.md:${module}`];
-          deleted.push(`README.md:${module}`);
-        }
-      } else {
-        keptSections.push(`README.md:${module}`);
       }
     }
 
@@ -162,44 +95,17 @@ export function applyModuleChanges(
   const prunedTasks = pruneLaunchTasks(updatedProfile.launch_tasks, updatedProfile.modules);
   updatedProfile = { ...updatedProfile, launch_tasks: prunedTasks.length ? prunedTasks : undefined };
 
-  // Regenerate base files once (with final module list so CLAUDE.md Modules section is correct)
+  // Regenerate base files once with final module list so CLAUDE.md Modules section and
+  // README module blocks are correct
   const finalVars = profileToVars(updatedProfile);
   for (const [rel, content] of baseManagedFiles({ vars: finalVars, editor: updatedProfile.editor, modules: updatedProfile.modules, targetDir: cwd })) {
-    const result = writeManagedFile(cwd, rel, content, newChecksums);
-    newChecksums[rel] = result.checksum;
-    for (const s of result.sections ?? []) {
-      const sKey = `${rel}:${s.id}`;
-      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-      else {
-        newChecksums[sKey] = newChecksums[sKey] ?? '';
-        keptSections.push(sKey);
-      }
-    }
+    writeManagedFile(cwd, rel, content);
   }
 
-  // Re-render launch block so CLAUDE.md reflects orphan-pruned task list
-  const launchResult = applyLaunchBlock(cwd, updatedProfile.launch_tasks ?? [], updatedProfile.modules, finalVars, newChecksums);
-  keptSections.push(...launchResult.keptSections);
-
-  // Re-render update-check block so PATINA_VERSION stays current after module changes.
-  {
-    const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(finalVars));
-    const result = writeManagedFile(cwd, 'CLAUDE.md', updateCheckBlock, newChecksums);
-    newChecksums['CLAUDE.md'] = result.checksum;
-    for (const s of result.sections ?? []) {
-      const sKey = `CLAUDE.md:${s.id}`;
-      if (s.outcome !== 'skipped') newChecksums[sKey] = s.newChecksum;
-      else {
-        newChecksums[sKey] = newChecksums[sKey] ?? '';
-        keptSections.push(sKey);
-      }
-    }
-  }
-
-  writeState(cwd, { checksums: newChecksums, ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}), update_check: initialState.update_check });
+  writeState(cwd, { ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}), update_check: initialState.update_check });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
-  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept, keptSections, migrationOutcome };
+  return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept };
 }
 
 // ─── Branch B: Add or remove modules ─────────────────────────────────────────
@@ -236,16 +142,15 @@ export async function runUpdateModules(cwd: string, profile: Profile): Promise<v
   const changeLines: string[] = [];
   for (const m of toAdd) {
     const def = getModule(m);
-    changeLines.push(`Adding ${def?.label ?? m}: appends a section to README.md, adds a link to CLAUDE.md`);
+    changeLines.push(`Adding ${def?.label ?? m}: adds commands, updates README and CLAUDE.md`);
   }
   for (const m of toRemove) {
     const def = getModule(m);
-    changeLines.push(`Removing ${def?.label ?? m}: removes its section from README.md and its link from CLAUDE.md`);
+    changeLines.push(`Removing ${def?.label ?? m}: removes its commands and updates README and CLAUDE.md`);
   }
   p.note(changeLines.join('\n'), label('Planned changes'));
 
-  // Per-module now/later prompts (generic — driven by requiresConfig on each module def).
-  // Only modules being added and not already configured are prompted.
+  // Per-module now/later prompts
   const moduleInputs: Record<string, ModuleAddInputs> = {};
   const deferredUpdates: Array<{ moduleId: ModuleId; snoozeUntil: string }> = [];
   const clearDeferred: ModuleId[] = [];
@@ -274,10 +179,10 @@ export async function runUpdateModules(cwd: string, profile: Profile): Promise<v
     }
   }
 
-  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles, keptSections: keptSectionKeys, migrationOutcome } =
+  const { added: addedFiles, skipped: skippedFiles, deleted: deletedFiles, kept: keptFiles } =
     applyModuleChanges(cwd, profile, toAdd, toRemove, moduleInputs);
 
-  // Merge deferred state changes after applyModuleChanges (which writes state with checksums).
+  // Merge deferred state changes after applyModuleChanges (which writes state).
   if (deferredUpdates.length > 0 || clearDeferred.length > 0) {
     let state = readState(cwd);
     for (const { moduleId, snoozeUntil } of deferredUpdates) {
@@ -291,15 +196,9 @@ export async function runUpdateModules(cwd: string, profile: Profile): Promise<v
 
   const summaryLines: string[] = [];
   if (addedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Added: ${addedFiles.join(', ')}`));
-  if (keptSectionKeys.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${keptSectionKeys.join(', ')}`));
-  if (skippedFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edits: ${skippedFiles.join(', ')}`));
+  if (skippedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Kept (your own files): ${skippedFiles.join(', ')}`));
   if (deletedFiles.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Removed: ${deletedFiles.join(', ')}`));
-  if (keptFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept your edited files: ${keptFiles.join(', ')}`));
-  if (migrationOutcome === 'migrated') {
-    summaryLines.push(chalk.hex('#94A3B8')(MIGRATION_REFRESHED_MSG));
-  } else if (migrationOutcome === 'skipped-edited') {
-    summaryLines.push(chalk.hex('#FFAB2E')(MIGRATION_DUPLICATE_WARNING_MSG));
-  }
+  if (keptFiles.length > 0) summaryLines.push(chalk.hex('#FFAB2E')(`Kept (user-owned): ${keptFiles.join(', ')}`));
 
   p.note(summaryLines.join('\n') || 'No file changes.', label('Done'));
   p.outro(chalk.hex('#94A3B8')('Modules updated.'));

@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Update your LinkedIn posting strategy or draft a post.
 
 ## Context to load first

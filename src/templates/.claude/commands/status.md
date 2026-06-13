@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # /status — Patina Status
 
 Run each check below and report results in a single consolidated view. Do not ask questions or prompt for input — just show the current state.
@@ -24,7 +27,7 @@ Read `.patina-state.json`. If it contains a `deferred_modules` list, check each 
 
 Read `.claude/inbox-routing.md`. If the file does not exist (pre-#166 install), report: `Inbox routing — routing file not yet generated. Run \`npx my-patina@latest\` to update.` and skip this section.
 
-Build a combined type→destination map from both the fenced table (`<!-- patina:routing:start -->` / `<!-- patina:routing:end -->`) and the "Custom rules" table below the fence.
+Build a type→destination map from all markdown tables in the file.
 
 Scan `{{CONTENT_DIR}}/notes/` (non-recursive; skip dot dirs) for any file whose frontmatter `type:` field matches a registered routable type. This is a read-only scan — do not move or modify anything.
 

@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # Clients Module Context
 
 This module holds {{USER_NAME}}'s client relationship records — profiles, engagement histories, deliverables, and notes for freelance, consulting, and advisory work.

@@ -1,4 +1,5 @@
 ---
+patina: managed
 name: goals
 label: Goals
 reflect_hook: goal-review

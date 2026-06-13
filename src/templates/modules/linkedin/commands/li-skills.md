@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refine the LinkedIn Skills list.
 
 ## Context to load first

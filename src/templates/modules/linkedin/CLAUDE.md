@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # LinkedIn Module Context
 
 This module helps you draft and refine your LinkedIn profile using your patina graph as the source of truth.

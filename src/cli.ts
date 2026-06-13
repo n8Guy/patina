@@ -73,12 +73,7 @@ program
         const summary = lines.pop() ?? '';
         if (lines.length > 0) console.log(lines.join('\n'));
         console.log(report.ok ? chalk.green(summary) : chalk.red(summary));
-        // Exit non-zero only on managed-file findings (placeholders/missing-sections),
-        // not on orphaned-checksum-only findings
-        const managedFindings = report.findings.filter(
-          f => f.kind === 'placeholders' || f.kind === 'missing-section'
-        );
-        process.exit(managedFindings.length > 0 ? 1 : 0);
+        process.exit(report.findings.length > 0 ? 1 : 0);
       } else {
         // Interactive repair: detect first, show preview, ask for confirmation
         const preReport = detectCorruption(root, profile);
@@ -109,8 +104,7 @@ program
             console.log(formatHealthReport(report));
           }
         } else {
-          // Only orphaned checksums — report them (already pruned by repairCorruption)
-          console.log(chalk.hex('#94A3B8')('Orphaned checksum entries pruned from .patina-state.json.'));
+          console.log(chalk.hex('#94A3B8')('Nothing to repair.'));
         }
       }
     } catch (err) {

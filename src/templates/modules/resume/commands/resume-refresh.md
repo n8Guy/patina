@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Refresh the resume working draft based on the current state of your graph.
 
 This is a bulk refresh — the goal is to make sure `Resume Working Draft.md` accurately reflects everything in your graph right now. Run this after adding new notes or whenever your graph has changed significantly.

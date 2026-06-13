@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # Reflect — Review Your Graph
 
 Steps back and looks at everything you've captured to surface what's missing, what's grown since you last looked, and what might be out of date. Runs automatically after `/add`, or on its own as a full review.

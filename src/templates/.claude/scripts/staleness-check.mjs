@@ -1,3 +1,4 @@
+// patina: managed
 // Patina staleness checker — run on session start via CLAUDE.md instructions.
 // Outputs stale file slugs grouped by area, or an "all fresh" line.
 // Produces no output when the patina has no content yet (fresh install).

@@ -4,7 +4,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
 import { scaffold, markDemo, profileToVars, renderUpdateCheckSection } from '../scaffold.js';
-import { hashContent } from '../checksums.js';
 import { readState } from '../state.js';
 import { detectMode } from '../detect.js';
 import type { ScaffoldOptions, Profile } from '../types.js';
@@ -24,7 +23,6 @@ afterEach(() => {
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-// Factory — reads targetDir at call time so beforeEach assignment is picked up
 function opts(overrides: Partial<ScaffoldOptions> = {}): ScaffoldOptions {
   return {
     targetDir,
@@ -104,26 +102,23 @@ describe('scaffold — core files', () => {
     expect(p._checksums).toBeUndefined();
   });
 
-  it('.patina-state.json exists and stores checksums for managed files', () => {
-    const state = loadState();
-    expect(typeof state.checksums['CLAUDE.md']).toBe('string');
-    expect(typeof state.checksums['.claude/commands/add.md']).toBe('string');
-    expect(typeof state.checksums['.claude/commands/reflect.md']).toBe('string');
+  it('.patina-state.json exists', () => {
+    expect(exists('.patina-state.json')).toBe(true);
   });
 
-  it('.patina-state.json stores a section checksum for CLAUDE.md:profile', () => {
-    const state = loadState();
-    expect(typeof state.checksums['CLAUDE.md:profile']).toBe('string');
-  });
-
-  it('stored checksum matches actual file content', () => {
-    const state = loadState();
-    const actual = hashContent(read('CLAUDE.md'));
-    expect(state.checksums['CLAUDE.md']).toBe(actual);
+  it('.patina-state.json does not contain checksums', () => {
+    const raw = read('.patina-state.json');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect('checksums' in parsed).toBe(false);
   });
 
   it('creates CLAUDE.md', () => {
     expect(exists('CLAUDE.md')).toBe(true);
+  });
+
+  it('CLAUDE.md carries patina: managed frontmatter', () => {
+    const content = read('CLAUDE.md');
+    expect(content).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
   it('CLAUDE.md contains the user name', () => {
@@ -138,33 +133,17 @@ describe('scaffold — core files', () => {
     expect(read('CLAUDE.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('CLAUDE.md contains profile fence markers', () => {
+  it('CLAUDE.md does not contain fence comment markers', () => {
     const content = read('CLAUDE.md');
-    expect(content).toContain('<!-- patina:profile:start -->');
-    expect(content).toContain('<!-- patina:profile:end -->');
+    expect(content).not.toContain('<!-- patina:profile:start -->');
+    expect(content).not.toContain('<!-- patina:profile:end -->');
+    expect(content).not.toContain('<!-- patina:guide:start -->');
+    expect(content).not.toContain('<!-- patina:commands:start -->');
   });
 
-  it('CLAUDE.md contains guide fence markers', () => {
+  it('CLAUDE.md contains the Slash commands heading', () => {
     const content = read('CLAUDE.md');
-    expect(content).toContain('<!-- patina:guide:start -->');
-    expect(content).toContain('<!-- patina:guide:end -->');
-  });
-
-  it('.patina-state.json stores a section checksum for CLAUDE.md:guide', () => {
-    const state = loadState();
-    expect(typeof state.checksums['CLAUDE.md:guide']).toBe('string');
-  });
-
-  it('CLAUDE.md contains exactly one ## Slash commands heading (inside commands fence)', () => {
-    const content = read('CLAUDE.md');
-    const occurrences = content.split('## Slash commands').length - 1;
-    expect(occurrences).toBe(1);
-    // The heading must be inside the commands fence
-    const commandsStart = content.indexOf('<!-- patina:commands:start -->');
-    const commandsEnd = content.indexOf('<!-- patina:commands:end -->');
-    const slashCmdIdx = content.indexOf('## Slash commands');
-    expect(slashCmdIdx).toBeGreaterThan(commandsStart);
-    expect(slashCmdIdx).toBeLessThan(commandsEnd);
+    expect(content).toContain('## Slash commands');
   });
 
   it('CLAUDE.md does not contain startup flow (moved to /status)', () => {
@@ -185,13 +164,22 @@ describe('scaffold — core files', () => {
     expect(exists('.claude/settings.json')).toBe(true);
   });
 
+  it('settings.json carries _patina: managed marker', () => {
+    const settings = JSON.parse(read('.claude/settings.json')) as Record<string, unknown>;
+    expect(settings._patina).toBe('managed');
+  });
+
   it('settings.json does not contain a SessionStart hook (startup flow removed)', () => {
-    const settings = JSON.parse(read('.claude/settings.json'));
+    const settings = JSON.parse(read('.claude/settings.json')) as Record<string, { SessionStart?: unknown }>;
     expect(settings?.hooks?.SessionStart).toBeUndefined();
   });
 
   it('creates .claude/commands/add.md', () => {
     expect(exists('.claude/commands/add.md')).toBe(true);
+  });
+
+  it('.claude/commands/add.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/add.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
   it('creates .claude/commands/reflect.md', () => {
@@ -200,6 +188,14 @@ describe('scaffold — core files', () => {
 
   it('reflect.md contains the content dir', () => {
     expect(read('.claude/commands/reflect.md')).toContain('graph/');
+  });
+
+  it('creates CUSTOM.md as a seed file', () => {
+    expect(exists('CUSTOM.md')).toBe(true);
+  });
+
+  it('CUSTOM.md does not carry patina: managed frontmatter', () => {
+    expect(read('CUSTOM.md')).not.toMatch(/^---\s*\npatina: managed/);
   });
 
   it('creates .gitignore', () => {
@@ -238,7 +234,7 @@ describe('scaffold — graph structure', () => {
     expect(exists('graph/notes/exclusions.md')).toBe(true);
   });
 
-  it('exclusions.md contains today\'s date', () => {
+  it("exclusions.md contains today's date", () => {
     const today = new Date().toISOString().split('T')[0];
     expect(read('graph/notes/exclusions.md')).toContain(today);
   });
@@ -264,13 +260,13 @@ describe('scaffold — obsidian editor', () => {
   });
 
   it('.mcp.json contains mcp-obsidian server config', () => {
-    const mcp = JSON.parse(read('.mcp.json'));
+    const mcp = JSON.parse(read('.mcp.json')) as { mcpServers: { obsidian: { args: string[] } } };
     expect(mcp.mcpServers.obsidian).toBeDefined();
     expect(mcp.mcpServers.obsidian.args).toContain('mcp-obsidian@latest');
   });
 
   it('.mcp.json vault path points into the graph directory', () => {
-    const mcp = JSON.parse(read('.mcp.json'));
+    const mcp = JSON.parse(read('.mcp.json')) as { mcpServers: { obsidian: { args: string[] } } };
     const vaultPath = mcp.mcpServers.obsidian.args.at(-1) as string;
     expect(vaultPath).toContain('graph');
     expect(vaultPath).not.toContain('\\');
@@ -296,8 +292,13 @@ describe('scaffold — vscode editor', () => {
     expect(exists('.vscode/settings.json')).toBe(true);
   });
 
+  it('.vscode/settings.json carries _patina: managed marker', () => {
+    const settings = JSON.parse(read('.vscode/settings.json')) as Record<string, unknown>;
+    expect(settings._patina).toBe('managed');
+  });
+
   it('sets markdown files to open in preview by default', () => {
-    const settings = JSON.parse(read('.vscode/settings.json'));
+    const settings = JSON.parse(read('.vscode/settings.json')) as Record<string, Record<string, string>>;
     expect(settings['workbench.editorAssociations']['*.md']).toBe('vscode.markdown.preview.editor');
   });
 });
@@ -337,6 +338,10 @@ describe('scaffold — linkedin module', () => {
     expect(read('.claude/modules/linkedin/manifest.md')).toContain('reflect_hook: li-all');
   });
 
+  it('manifest carries patina: managed marker', () => {
+    expect(read('.claude/modules/linkedin/manifest.md')).toContain('patina: managed');
+  });
+
   it('creates graph/linkedin/ directory with all proposal files', () => {
     const files = [
       'INSTRUCTIONS.md',
@@ -361,10 +366,8 @@ describe('scaffold — linkedin module', () => {
     expect(read('graph/linkedin/INSTRUCTIONS.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('stores linkedin command checksums in .patina-state.json', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/commands/li-all.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/linkedin/manifest.md']).toBe('string');
+  it('li-all.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/li-all.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
   it('stores linkedin profile url in profile.yaml', () => {
@@ -445,10 +448,8 @@ describe('scaffold — goals module', () => {
     expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('stores goal command checksums in .patina-state.json', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/commands/goal.md']).toBe('string');
-    expect(typeof state.checksums['.claude/commands/goal-review.md']).toBe('string');
+  it('goal.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/goal.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 });
 
@@ -546,11 +547,8 @@ describe('scaffold — work module', () => {
     expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('stores work module checksums in .patina-state.json', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/commands/work-check.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/work/manifest.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/work/CLAUDE.md']).toBe('string');
+  it('work-check.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/work-check.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
   it('manifest contains reflect_hook: work-check', () => {
@@ -635,15 +633,6 @@ describe('scaffold — multiple modules (linkedin + resume)', () => {
     }
   });
 
-  it('stores checksums for both modules in .patina-state.json', () => {
-    // Only managed files are checksummed; content-dir files are written with writeRaw and intentionally untracked
-    const state = loadState();
-    expect(typeof state.checksums['.claude/commands/li-all.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/linkedin/manifest.md']).toBe('string');
-    expect(typeof state.checksums['.claude/commands/resume-refresh.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/resume/manifest.md']).toBe('string');
-  });
-
   it('profile.yaml lists both modules', () => {
     expect(profile().modules).toEqual(expect.arrayContaining(['linkedin', 'resume']));
     expect(profile().modules).toHaveLength(2);
@@ -673,16 +662,20 @@ describe('scaffold — README.md', () => {
     expect(exists('README.md')).toBe(true);
   });
 
-  it('README.md contains the patina:base fence', () => {
-    const content = read('README.md');
-    expect(content).toContain('<!-- patina:base:start -->');
-    expect(content).toContain('<!-- patina:base:end -->');
+  it('README.md carries patina: managed frontmatter', () => {
+    expect(read('README.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
-  it('state has checksums for README.md and README.md:base', () => {
-    const state = loadState();
-    expect(typeof state.checksums['README.md']).toBe('string');
-    expect(typeof state.checksums['README.md:base']).toBe('string');
+  it('README.md does not contain patina fence comments', () => {
+    const content = read('README.md');
+    expect(content).not.toContain('<!-- patina:base:start -->');
+    expect(content).not.toContain('<!-- patina:base:end -->');
+  });
+
+  it('README.md contains module blocks area', () => {
+    // No modules: MODULE_README_BLOCKS is empty or has placeholder
+    const content = read('README.md');
+    expect(content).toContain('## Installed modules');
   });
 });
 
@@ -691,10 +684,9 @@ describe('scaffold — README.md with linkedin module', () => {
     await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/janedoe' }));
   });
 
-  it('README.md contains patina:linkedin block', () => {
+  it('README.md contains linkedin module info', () => {
     const content = read('README.md');
-    expect(content).toContain('<!-- patina:linkedin:start -->');
-    expect(content).toContain('<!-- patina:linkedin:end -->');
+    expect(content.toLowerCase()).toContain('linkedin');
   });
 
   it('CLAUDE.md modules section links to linkedin CLAUDE.md', () => {
@@ -704,11 +696,6 @@ describe('scaffold — README.md with linkedin module', () => {
 
   it('creates .claude/modules/linkedin/CLAUDE.md', () => {
     expect(exists('.claude/modules/linkedin/CLAUDE.md')).toBe(true);
-  });
-
-  it('state has README.md:linkedin checksum', () => {
-    const state = loadState();
-    expect(typeof state.checksums['README.md:linkedin']).toBe('string');
   });
 });
 
@@ -723,19 +710,8 @@ describe('scaffold — with launch tasks', () => {
     expect(profile().launch_tasks).toEqual(['base/today-focus']);
   });
 
-  it('CLAUDE.md contains patina:launch fence', () => {
-    const content = read('CLAUDE.md');
-    expect(content).toContain('<!-- patina:launch:start -->');
-    expect(content).toContain('<!-- patina:launch:end -->');
-  });
-
   it('CLAUDE.md contains the rendered task text', () => {
     expect(read('CLAUDE.md')).toContain('Ask the user what they want to focus on today');
-  });
-
-  it('.patina-state.json has CLAUDE.md:launch checksum', () => {
-    const state = loadState();
-    expect(typeof state.checksums['CLAUDE.md:launch']).toBe('string');
   });
 
   it('CLAUDE.md contains no unreplaced template variables in launch section', () => {
@@ -759,11 +735,6 @@ describe('scaffold — without launch tasks', () => {
 
   it('profile.yaml has no launch_tasks', () => {
     expect(profile().launch_tasks).toBeUndefined();
-  });
-
-  it('CLAUDE.md has no patina:launch fence', () => {
-    const content = read('CLAUDE.md');
-    expect(content).not.toContain('patina:launch');
   });
 });
 
@@ -797,13 +768,6 @@ describe('scaffold — inbox', () => {
     expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('.patina-state.json has checksums for all three inbox files', () => {
-    const state = loadState();
-    expect(typeof state.checksums['inbox/.gitkeep']).toBe('string');
-    expect(typeof state.checksums['inbox/.processed.json']).toBe('string');
-    expect(typeof state.checksums['.claude/commands/inbox.md']).toBe('string');
-  });
-
   it('CLAUDE.md contains /inbox command reference', () => {
     expect(read('CLAUDE.md')).toContain('/inbox');
   });
@@ -818,6 +782,12 @@ describe('scaffold — inbox', () => {
 
   it('.gitignore includes inbox/.processed.json', () => {
     expect(read('.gitignore')).toContain('inbox/.processed.json');
+  });
+
+  it('inbox files do not carry patina: managed (they are seed-once)', () => {
+    // inbox/.processed.json is a JSON seed file — no _patina marker
+    const processed = JSON.parse(read('inbox/.processed.json'));
+    expect(Array.isArray(processed)).toBe(true);
   });
 });
 
@@ -836,19 +806,12 @@ describe('scaffold — inbox routing file (no modules)', () => {
     expect(read('.claude/inbox-routing.md')).toContain('_(none)_');
   });
 
-  it('.claude/inbox-routing.md contains routing fence markers', () => {
-    const content = read('.claude/inbox-routing.md');
-    expect(content).toContain('<!-- patina:routing:start -->');
-    expect(content).toContain('<!-- patina:routing:end -->');
+  it('.claude/inbox-routing.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/inbox-routing.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
   it('.claude/inbox-routing.md contains no unreplaced template variables', () => {
     expect(read('.claude/inbox-routing.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
-  });
-
-  it('.patina-state.json has a checksum for .claude/inbox-routing.md', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/inbox-routing.md']).toBe('string');
   });
 });
 
@@ -873,24 +836,10 @@ describe('scaffold — inbox routing file (work module)', () => {
     expect(read('.claude/inbox-routing.md')).toContain('`reference`');
   });
 
-  it('.claude/inbox-routing.md contains routing fence markers', () => {
-    const content = read('.claude/inbox-routing.md');
-    expect(content).toContain('<!-- patina:routing:start -->');
-    expect(content).toContain('<!-- patina:routing:end -->');
-  });
-
   it('.claude/inbox-routing.md contains no unreplaced template variables', () => {
     expect(read('.claude/inbox-routing.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('.claude/inbox-routing.md has Custom rules section', () => {
-    expect(read('.claude/inbox-routing.md')).toContain('## Custom rules');
-  });
-
-  it('.patina-state.json has a checksum for .claude/inbox-routing.md', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/inbox-routing.md']).toBe('string');
-  });
 });
 
 describe('scaffold — inbox routing file (custom content dir)', () => {
@@ -1004,7 +953,6 @@ describe('scaffold — demo mode', () => {
   });
 
   it('content files from modules have _demo: true in frontmatter', () => {
-    // LinkedIn About has frontmatter
     const about = read('graph/linkedin/LinkedIn About.md');
     expect(about).toContain('_demo: true');
   });
@@ -1031,8 +979,7 @@ describe('scaffold — demo mode', () => {
     }
   });
 
-  it('two runs produce byte-identical output', async () => {
-    // Build file map from first run (already done in beforeEach)
+  it('two runs produce byte-identical output (excluding .patina-state.json)', async () => {
     function collectFileMap(dir: string): Map<string, string> {
       const map = new Map<string, string>();
       function walk(d: string): void {
@@ -1053,7 +1000,6 @@ describe('scaffold — demo mode', () => {
 
     const firstRun = collectFileMap(targetDir);
 
-    // Run a second scaffold into a different targetDir
     const tmp2 = mkdtempSync(join(tmpdir(), 'patina-demo-run2-'));
     const targetDir2 = join(tmp2, 'patina-demo');
     try {
@@ -1063,21 +1009,9 @@ describe('scaffold — demo mode', () => {
       // Same set of files
       expect([...secondRun.keys()].sort()).toEqual([...firstRun.keys()].sort());
 
-      // Same content for each file.
-      // For .patina-state.json: parse both as JSON and compare checksum values
-      // (keys may differ by tmpdir path, so compare the checksum hash values).
+      // Same content for each file (skip .patina-state.json which may differ in structure)
       for (const [rel, content] of firstRun) {
-        if (rel === '.patina-state.json') {
-          const first = JSON.parse(content) as { checksums: Record<string, string> };
-          const second = JSON.parse(secondRun.get(rel)!) as { checksums: Record<string, string> };
-          // Same set of relative path keys
-          expect(Object.keys(second.checksums).sort()).toEqual(Object.keys(first.checksums).sort());
-          // Same checksum values for each key
-          for (const [key, hash] of Object.entries(first.checksums)) {
-            expect(second.checksums[key], `checksum for ${key}`).toBe(hash);
-          }
-          continue;
-        }
+        if (rel === '.patina-state.json') continue;
         expect(secondRun.get(rel), rel).toBe(content);
       }
     } finally {
@@ -1153,11 +1087,6 @@ describe('scaffold — check-update.mjs', () => {
     expect(content).not.toContain('{{PATINA_VERSION}}');
     expect(content).toMatch(/'\d+\.\d+\.\d+'/);
   });
-
-  it('.patina-state.json has a checksum for check-update.mjs', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/scripts/check-update.mjs']).toBe('string');
-  });
 });
 
 describe('scaffold — staleness-check.mjs', () => {
@@ -1177,13 +1106,8 @@ describe('scaffold — staleness-check.mjs', () => {
     expect(content).toContain("'30'");
   });
 
-  it('.patina-state.json has a checksum for staleness-check.mjs', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/scripts/staleness-check.mjs']).toBe('string');
-  });
-
   it('settings.json allows staleness-check.mjs', () => {
-    const settings = JSON.parse(read('.claude/settings.json'));
+    const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
     expect(settings.permissions.allow).toContain('Bash(node .claude/scripts/staleness-check.mjs)');
   });
 });
@@ -1198,29 +1122,21 @@ describe('scaffold — .gitignore update-check entry', () => {
   });
 });
 
-describe('scaffold — update-check CLAUDE.md section', () => {
+describe('scaffold — update-check section in CLAUDE.md', () => {
   beforeEach(async () => {
     await scaffold(opts());
   });
 
-  it('CLAUDE.md contains patina:update-check fence markers', () => {
-    const content = read('CLAUDE.md');
-    expect(content).toContain('<!-- patina:update-check:start -->');
-    expect(content).toContain('<!-- patina:update-check:end -->');
+  it('CLAUDE.md contains the update-check heading', () => {
+    expect(read('CLAUDE.md')).toContain('## Update check');
   });
 
   it('CLAUDE.md update-check section contains the patina version', () => {
-    const content = read('CLAUDE.md');
-    expect(content).toMatch(/you have \d+\.\d+\.\d+/);
+    expect(read('CLAUDE.md')).toMatch(/you have \d+\.\d+\.\d+/);
   });
 
   it('CLAUDE.md update-check section contains the update command', () => {
     expect(read('CLAUDE.md')).toContain('npx my-patina@latest');
-  });
-
-  it('.patina-state.json has CLAUDE.md:update-check checksum', () => {
-    const state = loadState();
-    expect(typeof state.checksums['CLAUDE.md:update-check']).toBe('string');
   });
 
   it('CLAUDE.md contains no unreplaced template variables in update-check section', () => {
@@ -1245,6 +1161,9 @@ describe('renderUpdateCheckSection', () => {
     COMMANDS_SECTION: '',
     GUIDE_COMMANDS: '',
     PATINA_VERSION: '1.2.3',
+    LAUNCH_SECTION: '',
+    UPDATE_CHECK_SECTION: '',
+    MODULE_README_BLOCKS: '',
   };
 
   it('returns a string containing the installed version', () => {
@@ -1274,7 +1193,6 @@ describe('renderUpdateCheckSection', () => {
 
   it('does not instruct Claude to delete .patina-update-check', () => {
     const result = renderUpdateCheckSection(vars);
-    // Must not contain a bare "delete" instruction (without a preceding "NOT" or "not")
     expect(result).not.toMatch(/(?<!NOT? )\bdelete\b[^.]*\.patina-update-check/i);
   });
 });
@@ -1332,11 +1250,8 @@ describe('scaffold — clients module', () => {
     expect(content).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('stores clients module checksums in .patina-state.json', () => {
-    const state = loadState();
-    expect(typeof state.checksums['.claude/commands/client-check.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/clients/manifest.md']).toBe('string');
-    expect(typeof state.checksums['.claude/modules/clients/CLAUDE.md']).toBe('string');
+  it('client-check.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/client-check.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 });
 

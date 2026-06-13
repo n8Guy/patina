@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 Review your open and in-progress goals.
 
 ## Step 1 — Load context

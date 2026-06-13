@@ -1,3 +1,4 @@
+// patina: managed
 // Patina health checker — delegates to the installed CLI for all checks.
 // Exits 0 with no output when healthy; exits 1 with problems when found.
 import { spawnSync } from 'child_process';

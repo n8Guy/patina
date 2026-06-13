@@ -1,3 +1,6 @@
+---
+patina: managed
+---
 # /client-check — Clients Module Reflect Hook
 
 You are running as part of `/reflect`. Scan the clients folder and surface a brief status of client relationships and engagement state.

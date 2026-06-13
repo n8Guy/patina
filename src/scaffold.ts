@@ -1,12 +1,10 @@
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import yaml from 'js-yaml';
 import { render } from './template.js';
-import { writeManagedFile } from './upgrade.js';
-import { type ChecksumMap } from './checksums.js';
+import { writeManagedFile, writeSeedFile } from './upgrade.js';
 import { tpl } from './template-loader.js';
 import { getModule } from './modules/registry.js';
-import { renderSection, hasFences } from './sections.js';
 import { writeState, STATE_FILENAME } from './state.js';
 import { renderLaunchSection } from './launch-tasks.js';
 import { markDemo as markDemoFn } from './demo/mark.js';
@@ -22,7 +20,7 @@ function writeRaw(targetDir: string, relativePath: string, content: string): voi
 function touch(targetDir: string, relativePath: string): void {
   const full = join(targetDir, relativePath);
   mkdirSync(dirname(full), { recursive: true });
-  writeFileSync(full, '', 'utf8');
+  if (!existsSync(full)) writeFileSync(full, '', 'utf8');
 }
 
 export const MANIFEST_REQUIRED_FIELDS = ['name', 'label', 'reflect_hook', 'description', 'commands', 'installed'] as const;
@@ -50,6 +48,11 @@ export function validateManifestFrontmatter(moduleName: string, content: string)
 /**
  * Build a TemplateVars object from a Profile. Centralizes the mapping so
  * both scaffold() and runUpdate() produce identical vars.
+ *
+ * Note: LAUNCH_SECTION and UPDATE_CHECK_SECTION are rendered inline here so
+ * they appear directly in CLAUDE.md without any separate append step.
+ * MODULE_README_BLOCKS is left empty here; callers that need it fill it via
+ * baseManagedFiles() which passes a populated MODULE_README_BLOCKS.
  */
 export function profileToVars(profile: Profile, liProfileUrl?: string, today?: string): TemplateVars {
   const resolvedToday = today ?? new Date().toISOString().split('T')[0];
@@ -64,7 +67,8 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
     : '_No modules installed._';
   const commandsSection = buildCommandsSection(profile.modules ?? []);
   const guideCommands = buildGuideCommands(profile.modules ?? []);
-  return {
+
+  const baseVars: TemplateVars = {
     PATINA_NAME: profile.patina_name,
     USER_NAME: profile.name,
     USER_TITLE: profile.title ?? '',
@@ -80,12 +84,26 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
     COMMANDS_SECTION: commandsSection,
     GUIDE_COMMANDS: guideCommands,
     PATINA_VERSION: getPatinaVersion(),
+    LAUNCH_SECTION: '',
+    UPDATE_CHECK_SECTION: '',
+    MODULE_README_BLOCKS: '',
   };
+
+  // Compute update-check section with vars (needs PATINA_VERSION)
+  baseVars.UPDATE_CHECK_SECTION = renderUpdateCheckSection(baseVars);
+
+  // Compute launch section (needs CONTENT_DIR etc)
+  const rawLaunch = renderLaunchSection(profile.launch_tasks, profile.modules ?? []);
+  if (rawLaunch) {
+    baseVars.LAUNCH_SECTION = render(rawLaunch, baseVars);
+  }
+
+  return baseVars;
 }
 
 /**
  * Core slash commands present in every patina, regardless of installed modules.
- * Rendered into the regenerated `patina:commands` table in CLAUDE.md.
+ * Rendered into the regenerated commands table in CLAUDE.md.
  */
 // Keep in sync with MANAGED_FILES in checksums.ts — every base command here needs
 // a corresponding entry there and in baseManagedFiles() below.
@@ -97,9 +115,7 @@ const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
 ];
 
 /**
- * Build the markdown table for the `patina:commands` section: the core commands
- * plus the commands of every installed module, in install order. Regenerated on
- * install and update so the table never goes stale as modules change.
+ * Build the markdown table for the commands section.
  */
 export function buildCommandsSection(modules: readonly string[]): string {
   const rows = [
@@ -114,8 +130,6 @@ export function buildCommandsSection(modules: readonly string[]): string {
 }
 
 // Structured source-of-truth for core commands.
-// GUIDE_CORE_LINES (for guide.md) and the wizard "nothing" note both derive from this
-// so descriptions can't drift independently.
 export const GUIDE_CORE_COMMANDS: ReadonlyArray<{ name: string; desc: string; example?: string }> = [
   { name: '/add <what you did>', desc: 'capture a project, skill, or win', example: '/add Delivered the Orca Studio brand refresh' },
   { name: '/reflect', desc: 'review your notes for skill gaps and stale entries' },
@@ -129,8 +143,7 @@ const GUIDE_CORE_LINES: ReadonlyArray<string> = GUIDE_CORE_COMMANDS.map(
 );
 
 /**
- * Build the pre-rendered command-reference block written into guide.md at wizard
- * run time. Stored so /guide just outputs it verbatim — no manifest reads needed.
+ * Build the pre-rendered command-reference block written into guide.md.
  */
 export function buildGuideCommands(modules: readonly string[]): string {
   const lines: string[] = [
@@ -151,8 +164,7 @@ export function buildGuideCommands(modules: readonly string[]): string {
 
 /**
  * Build the content of `.claude/inbox-routing.md` from all installed modules' declared
- * `inboxRoutes`. The table inside the fence is regenerated on every scaffold/update;
- * custom rows in the "Custom rules" section below the fence are preserved by `mergeSections`.
+ * `inboxRoutes`. Plain table with managed marker — overwritten on every update.
  */
 export function buildRoutingFile(modules: readonly string[], vars: TemplateVars): string {
   const routes = modules.flatMap(id => getModule(id)?.inboxRoutes ?? []);
@@ -170,6 +182,9 @@ export function buildRoutingFile(modules: readonly string[], vars: TemplateVars)
   ].join('\n');
 
   const preamble = [
+    '---',
+    'patina: managed',
+    '---',
     '# Inbox routing table',
     '',
     "This file maps the `type:` field in an artifact's frontmatter to the folder it",
@@ -178,22 +193,10 @@ export function buildRoutingFile(modules: readonly string[], vars: TemplateVars)
     'naming the type and the nearest registered match.',
     '',
     'The table below is regenerated by patina whenever you add or remove modules.',
-    'Edits **inside** the fenced block will be overwritten. To add your own rules,',
-    'add rows in the "Custom rules" section below the fence — they are preserved.',
     '',
   ].join('\n');
 
-  const custom = [
-    '',
-    '## Custom rules',
-    '',
-    'Add your own `type:` → folder rows here. They are never overwritten.',
-    '',
-    '| `type:` value | Destination | Notes |',
-    '|---------------|-------------|-------|',
-  ].join('\n');
-
-  return preamble + renderSection('routing', table) + '\n' + custom + '\n';
+  return preamble + table + '\n';
 }
 
 export interface BaseManagedFilesOptions {
@@ -204,8 +207,8 @@ export interface BaseManagedFilesOptions {
 }
 
 /**
- * Returns [relativePath, content] pairs for the base managed files:
- * CLAUDE.md, .claude/settings.json, add.md, reflect.md, and conditionally .mcp.json.
+ * Returns [relativePath, content] pairs for the base managed files.
+ * These are all marked (patina: managed) and overwritten on update.
  *
  * @param opts.targetDir - The absolute path to the patina directory. Required for
  *   the obsidian .mcp.json vault path. If omitted, .mcp.json is not produced
@@ -213,30 +216,36 @@ export interface BaseManagedFilesOptions {
  */
 export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, string]> {
   const { vars, editor, modules = [], targetDir } = opts;
+
+  // Build module README blocks inline
+  const moduleReadmeBlocks = modules
+    .map(id => getModule(id)?.readmeBlock?.(vars))
+    .filter((b): b is string => !!b)
+    .join('\n\n');
+  const moduleReadmeBlocksVar = moduleReadmeBlocks || '_No modules installed._';
+
+  // Re-render vars with MODULE_README_BLOCKS filled in
+  const fullVars: TemplateVars = { ...vars, MODULE_README_BLOCKS: moduleReadmeBlocksVar };
+
   const files: Array<[string, string]> = [
-    ['README.md', render(tpl('README.md'), vars)],
-    ['CLAUDE.md', render(tpl('CLAUDE.md'), vars)],
+    ['README.md', render(tpl('README.md'), fullVars)],
+    ['CLAUDE.md', render(tpl('CLAUDE.md'), fullVars)],
     ['.claude/settings.json', tpl('.claude/settings.json')],
-    ['.claude/scripts/check-update.mjs', render(tpl('.claude/scripts/check-update.mjs'), vars)],
-    ['.claude/scripts/staleness-check.mjs', render(tpl('.claude/scripts/staleness-check.mjs'), vars)],
+    ['.claude/scripts/check-update.mjs', render(tpl('.claude/scripts/check-update.mjs'), fullVars)],
+    ['.claude/scripts/staleness-check.mjs', render(tpl('.claude/scripts/staleness-check.mjs'), fullVars)],
     ['.claude/scripts/health-check.mjs', tpl('.claude/scripts/health-check.mjs')],
-    ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
-    ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
-    // Inlined as literals rather than template files to avoid dotfile packaging risk
-    // (.gitkeep and .processed.json may be skipped by glob copies into dist/).
-    ['inbox/.gitkeep', ''],
-    // Seeds as []; writeManagedFile preserves user/Claude entries on update via the
-    // hash-skip path (stored hash != current hash → skip). Deleting resets tracking
-    // with no data loss.
-    ['inbox/.processed.json', '[]\n'],
-    ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), vars)],
-    ['.claude/commands/status.md', render(tpl('.claude/commands/status.md'), vars)],
-    ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), vars)],
-    ['.claude/inbox-routing.md', buildRoutingFile(modules, vars)],
+    ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), fullVars)],
+    ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), fullVars)],
+    ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), fullVars)],
+    ['.claude/commands/status.md', render(tpl('.claude/commands/status.md'), fullVars)],
+    ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), fullVars)],
+    ['.claude/inbox-routing.md', buildRoutingFile(modules, fullVars)],
   ];
 
   if (editor === 'obsidian' && targetDir) {
     const mcp = {
+      _patina: 'managed',
+      _patina_note: 'This file is managed by patina and is overwritten on update. Remove the _patina key to take ownership.',
       mcpServers: {
         obsidian: {
           command: 'npx',
@@ -249,6 +258,8 @@ export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, 
 
   if (editor === 'vscode') {
     const vscodeSettings = {
+      _patina: 'managed',
+      _patina_note: 'This file is managed by patina and is overwritten on update. Remove the _patina key to take ownership.',
       'workbench.editorAssociations': {
         '*.md': 'vscode.markdown.preview.editor',
       },
@@ -276,12 +287,14 @@ export function moduleContentFiles(module: string, vars: TemplateVars, contentDi
 }
 
 /**
- * Build the body of the `patina:update-check` fenced section in CLAUDE.md.
+ * Build the body of the update-check section in CLAUDE.md.
  * The embedded version number is read from `vars.PATINA_VERSION` so it stays
  * accurate on upgrade without any user action.
  */
 export function renderUpdateCheckSection(vars: TemplateVars): string {
-  return `After you finish responding to the user's **first message** of this session — at the natural
+  return `## Update check
+
+After you finish responding to the user's **first message** of this session — at the natural
 end of that response, not mid-task — check for \`.patina-update-check\`.
 
 If the file exists, parse it as JSON:
@@ -322,6 +335,14 @@ export function markDemo(content: string, demo: boolean): string {
   return markDemoFn(content);
 }
 
+/**
+ * Returns true if the relative path is a content-dir file (not a setup file).
+ * Used to gate demo stamping so only content files get _demo: true.
+ */
+function isContentFile(relativePath: string, contentDir: string): boolean {
+  return relativePath.startsWith(contentDir + '/') || relativePath.startsWith(contentDir + '\\');
+}
+
 export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   const {
     targetDir, patinaName, userName, title, roleDescription,
@@ -353,27 +374,9 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
 
   mkdirSync(targetDir, { recursive: true });
 
-  const checksums: ChecksumMap = {};
-
-  // ── Managed files (tracked for safe upgrades)
-  // README.md migration guard: if a fence-free README already exists with no stored checksum,
-  // skip writing it to avoid overwriting a hand-crafted file.
-  const baseFiles = baseManagedFiles({ vars, editor, modules, targetDir });
-  const readmePath = join(targetDir, 'README.md');
-  const filteredBaseFiles = baseFiles.filter(([rel]) => {
-    if (rel === 'README.md') {
-      if (existsSync(readmePath)) {
-        const existing = readFileSync(readmePath, 'utf8');
-        if (!hasFences(existing)) {
-          return false; // skip fence-free existing README
-        }
-      }
-    }
-    return true;
-  });
-
+  // ── Managed files (marked, overwritten on update)
   const managedFiles: Array<[string, string]> = [
-    ...filteredBaseFiles,
+    ...baseManagedFiles({ vars, editor, modules, targetDir }),
     ...modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
@@ -383,51 +386,15 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   }
 
   for (const [relativePath, content] of managedFiles) {
-    // Apply _demo: true stamp to managed files with YAML frontmatter when in demo mode
-    const fileContent = (demo && content.startsWith('---')) ? markDemo(content, demo) : content;
-    const result = writeManagedFile(targetDir, relativePath, fileContent, {});
-    checksums[relativePath] = result.checksum;
-    for (const s of result.sections ?? []) {
-      checksums[`${relativePath}:${s.id}`] = s.newChecksum;
-    }
+    // Apply _demo: true stamp only to content-dir files with YAML frontmatter
+    const fileContent = (demo && isContentFile(relativePath, contentDir) && content.startsWith('---')) ? markDemo(content, demo) : content;
+    writeManagedFile(targetDir, relativePath, fileContent);
   }
 
-  // ── Append module README blocks
-  for (const module of modules) {
-    const def = getModule(module);
-    if (def?.readmeBlock) {
-      const block = renderSection(module, def.readmeBlock(vars));
-      const result = writeManagedFile(targetDir, 'README.md', block, checksums);
-      checksums['README.md'] = result.checksum;
-      for (const s of result.sections ?? []) {
-        checksums[`README.md:${s.id}`] = s.newChecksum;
-      }
-    }
-  }
-
-  // ── Append launch block (two-phase: render then expand vars)
-  // Phase 1 produces raw task templates; phase 2 expands {{CONTENT_DIR}} etc.
-  // render() is single-pass so we must expand before inserting into the fence.
-  const rawLaunch = renderLaunchSection(launchTasks, modules);
-  const expandedLaunch = rawLaunch ? render(rawLaunch, vars) : null;
-  if (expandedLaunch) {
-    const launchBlock = renderSection('launch', expandedLaunch);
-    const result = writeManagedFile(targetDir, 'CLAUDE.md', launchBlock, checksums);
-    checksums['CLAUDE.md'] = result.checksum;
-    for (const s of result.sections ?? []) {
-      checksums[`CLAUDE.md:${s.id}`] = s.newChecksum;
-    }
-  }
-
-  // ── Append update-check block
-  const updateCheckBlock = renderSection('update-check', renderUpdateCheckSection(vars));
-  {
-    const result = writeManagedFile(targetDir, 'CLAUDE.md', updateCheckBlock, checksums);
-    checksums['CLAUDE.md'] = result.checksum;
-    for (const s of result.sections ?? []) {
-      checksums[`CLAUDE.md:${s.id}`] = s.newChecksum;
-    }
-  }
+  // ── Seed files (written once if absent, never overwritten)
+  writeSeedFile(targetDir, 'CUSTOM.md', tpl('CUSTOM.md'));
+  writeSeedFile(targetDir, 'inbox/.gitkeep', '');
+  writeSeedFile(targetDir, 'inbox/.processed.json', '[]\n');
 
   // ── Content directory (never touched on upgrade)
   const baseDirs = ['notes', 'skills', 'posts'];
@@ -448,7 +415,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeRaw(targetDir, 'profile.yaml', yaml.dump(profileToWrite));
 
   // ── .patina-state.json (internal state, gitignored)
-  writeState(targetDir, { checksums });
+  writeState(targetDir, {});
 
   // ── .gitignore
   writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n.patina-update-check\n`);
