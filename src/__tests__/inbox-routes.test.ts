@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { MODULES } from '../modules/registry.js';
+import type { ModuleDefinition } from '../modules/types.js';
 import { workModule } from '../modules/work/index.js';
+
+const ALL_MODULES = MODULES as readonly ModuleDefinition[];
 
 // ── InboxRoute shape validation ───────────────────────────────────────────────
 
 describe('inboxRoutes — shape validation', () => {
-  for (const mod of MODULES) {
+  for (const mod of ALL_MODULES) {
     if (!mod.inboxRoutes?.length) continue;
 
     describe(`module: ${mod.id}`, () => {
@@ -32,7 +35,7 @@ describe('inboxRoutes — type uniqueness across all modules', () => {
     const seen = new Map<string, string>(); // type → module id
     const conflicts: string[] = [];
 
-    for (const mod of MODULES) {
+    for (const mod of ALL_MODULES) {
       for (const route of mod.inboxRoutes ?? []) {
         if (seen.has(route.type)) {
           conflicts.push(`type '${route.type}' claimed by both '${seen.get(route.type)}' and '${mod.id}'`);
