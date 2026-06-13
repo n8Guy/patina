@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import * as p from '@clack/prompts';
 import { main } from './wizard.js';
-import { findPatinaRoot, validate, formatReport } from './validate.js';
+import { findPatinaRoot, validate, formatReport, formatReportJson } from './validate.js';
 import { loadProfile } from './detect.js';
 import { runDemo } from './demo/index.js';
 import { detectCorruption, repairCorruption, formatHealthReport } from './health.js';
@@ -20,16 +20,25 @@ program
 program
   .command('validate')
   .description('Check your patina for broken links and excluded items')
-  .action(() => {
+  .option('--json', 'output results as JSON')
+  .action((opts: { json?: boolean }) => {
     try {
       const cwd = process.cwd();
       const root = findPatinaRoot(cwd);
       if (root === null) {
+        if (opts.json) {
+          process.stdout.write(JSON.stringify({ ok: false, error: 'not a patina directory', issues: [], filesChecked: 0 }) + '\n');
+          process.exit(1);
+        }
         console.error(chalk.red('No patina found here. Run this command from inside a patina directory.'));
         process.exit(1);
       }
       const profile = loadProfile(root);
       const result = validate(root, profile);
+      if (opts.json) {
+        process.stdout.write(formatReportJson(result));
+        process.exit(result.ok ? 0 : 1);
+      }
       const report = formatReport(result);
       const lines = report.split('\n');
       const summary = lines.pop() ?? '';

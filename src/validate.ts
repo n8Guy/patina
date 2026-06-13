@@ -1,7 +1,10 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
-import { join, relative, sep, basename } from 'path';
+import { join, relative, sep, basename, dirname, resolve } from 'path';
 import type { Profile, ValidationCheckId, ValidationIssue, ValidationResult } from './types.js';
 import { CONTENT_SUBDIRS } from './checksums.js';
+import { getModule } from './modules/registry.js';
+import { detectCorruption } from './health.js';
+import type { CorruptionFinding } from './health.js';
 
 // Destructure positionally — types enforce order: CONTENT_SUBDIRS is `readonly ['notes', 'skills', 'posts']`
 const NOTES: 'notes' = CONTENT_SUBDIRS[0];
@@ -208,14 +211,104 @@ export function checkExclusions(root: string, profile: Profile): ValidationIssue
   return issues;
 }
 
+// ─── Module wiki-link check ───────────────────────────────────────────────────
+
+export function checkModuleWikiLinks(root: string, profile: Profile): ValidationIssue[] {
+  const contentDir = join(root, profile.content_dir ?? 'graph');
+  const notesDir = join(contentDir, NOTES);
+  const skillsDir = join(contentDir, SKILLS);
+  const postsDir = join(contentDir, POSTS);
+
+  const noteFiles = listMarkdownFiles(notesDir);
+  const noteSlugs = new Set(noteFiles.map(f => basename(f, '.md')));
+
+  // Stub vars — contentFiles() uses contentDir directly, not template vars
+  const stubVars = new Proxy({} as Record<string, string>, { get: () => '' });
+
+  const issues: ValidationIssue[] = [];
+
+  for (const moduleId of profile.modules ?? []) {
+    const mod = getModule(moduleId);
+    if (!mod) continue;
+
+    // Derive content dirs from the paths contentFiles() returns.
+    // Exclude .gitkeep sentinels (they mark empty dirs and aren't real content).
+    // Normalize with resolve() for cross-platform path comparison.
+    const entries = mod.contentFiles(stubVars as never, contentDir);
+    const moduleDirs = [...new Set(
+      entries.filter(([p]) => !p.endsWith('.gitkeep')).map(([p]) => dirname(resolve(p)))
+    )];
+    const coreNotes = resolve(notesDir);
+    const coreSkills = resolve(skillsDir);
+    const corePosts = resolve(postsDir);
+
+    for (const dir of moduleDirs) {
+      // Skip dirs already covered by core checks to avoid double-reporting
+      if (dir === coreNotes || dir === coreSkills || dir === corePosts) continue;
+
+      for (const file of listMarkdownFiles(dir)) {
+        const content = readFileSync(file, 'utf8');
+        const links = extractWikiLinks(content);
+        for (const { target, line } of links) {
+          if (!noteSlugs.has(target)) {
+            issues.push({
+              check: 'module-wiki-links' as ValidationCheckId,
+              file: toRelForward(root, file),
+              line,
+              message: `Module content links to a note that doesn't exist: "${target}"`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ─── Managed-file health check ────────────────────────────────────────────────
+
+function corruptionToIssue(f: CorruptionFinding): ValidationIssue {
+  switch (f.kind) {
+    case 'placeholders':
+      return {
+        check: 'managed-file-placeholders' as ValidationCheckId,
+        file: f.file,
+        message: `Unrendered template placeholders: ${f.detail}`,
+      };
+    case 'missing-section':
+      return {
+        check: 'managed-file-missing-section' as ValidationCheckId,
+        file: f.file,
+        message: `Missing required section (${f.detail})`,
+      };
+    case 'orphaned-checksum':
+      return {
+        check: 'managed-file-orphaned-checksum' as ValidationCheckId,
+        file: f.file,
+        message: `Orphaned checksum key: ${f.detail}`,
+      };
+    default:
+      f.kind satisfies never;
+      throw new Error(`Unknown corruption kind: ${f.kind}`);
+  }
+}
+
+export function checkManagedFileHealth(root: string, profile: Profile): ValidationIssue[] {
+  const report = detectCorruption(root, profile);
+  return report.findings.map(corruptionToIssue);
+}
+
 // ─── Main validate ────────────────────────────────────────────────────────────
 
 export function validate(root: string, profile: Profile): ValidationResult {
   const skillNotesIssues = checkSkillNotes(root, profile);
   const wikiLinkIssues = checkWikiLinks(root, profile);
   const exclusionIssues = checkExclusions(root, profile);
+  const moduleWikiIssues = checkModuleWikiLinks(root, profile);
+  const managedFileIssues = checkManagedFileHealth(root, profile);
 
-  const allIssues = [...skillNotesIssues, ...wikiLinkIssues, ...exclusionIssues];
+  const allIssues = [...skillNotesIssues, ...wikiLinkIssues, ...exclusionIssues, ...moduleWikiIssues, ...managedFileIssues];
   allIssues.sort((a, b) => {
     if (a.file < b.file) return -1;
     if (a.file > b.file) return 1;
@@ -224,11 +317,27 @@ export function validate(root: string, profile: Profile): ValidationResult {
 
   // Count distinct files scanned
   const contentDir = join(root, profile.content_dir ?? 'graph');
+  const stubVars = new Proxy({} as Record<string, string>, { get: () => '' });
   const scannedFiles = new Set<string>([
     ...listMarkdownFiles(join(contentDir, NOTES)),
     ...listMarkdownFiles(join(contentDir, SKILLS)),
     ...listMarkdownFiles(join(contentDir, POSTS)),
   ]);
+
+  // Add module content files
+  for (const moduleId of profile.modules ?? []) {
+    const mod = getModule(moduleId);
+    if (!mod) continue;
+    const entries = mod.contentFiles(stubVars as never, contentDir);
+    const moduleDirs = [...new Set(
+      entries.filter(([p]) => !p.endsWith('.gitkeep')).map(([p]) => dirname(resolve(p)))
+    )];
+    for (const dir of moduleDirs) {
+      for (const file of listMarkdownFiles(dir)) {
+        scannedFiles.add(file);
+      }
+    }
+  }
 
   return {
     ok: allIssues.length === 0,
@@ -255,4 +364,8 @@ export function formatReport(result: ValidationResult): string {
   lines.push(`Found ${result.issues.length} problem${result.issues.length === 1 ? '' : 's'} in ${filesWithIssues} file${filesWithIssues === 1 ? '' : 's'}.`);
 
   return lines.join('\n');
+}
+
+export function formatReportJson(result: ValidationResult): string {
+  return JSON.stringify(result) + '\n';
 }
