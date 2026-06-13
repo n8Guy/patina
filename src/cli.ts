@@ -1,8 +1,10 @@
 import { Command } from 'commander';
+import * as p from '@clack/prompts';
 import { main } from './wizard.js';
 import { findPatinaRoot, validate, formatReport } from './validate.js';
 import { loadProfile } from './detect.js';
 import { runDemo } from './demo/index.js';
+import { detectCorruption, repairCorruption, formatHealthReport } from './health.js';
 import chalk from 'chalk';
 
 const program = new Command();
@@ -34,6 +36,74 @@ program
       if (lines.length > 0) console.log(lines.join('\n'));
       console.log(result.ok ? chalk.green(summary) : chalk.red(summary));
       process.exit(result.ok ? 0 : 1);
+    } catch (err) {
+      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('repair')
+  .description('Detect and repair corrupted managed files')
+  .option('--dry-run', 'report problems without writing any changes')
+  .action(async (opts: { dryRun?: boolean }) => {
+    try {
+      const cwd = process.cwd();
+      const root = findPatinaRoot(cwd);
+      if (root === null) {
+        console.error(chalk.red('No patina found here. Run this command from inside a patina directory.'));
+        process.exit(1);
+      }
+      const profile = loadProfile(root);
+
+      if (opts.dryRun) {
+        const report = detectCorruption(root, profile);
+        const formatted = formatHealthReport(report);
+        // Split off the last line as summary (like validate does)
+        const lines = formatted.split('\n');
+        const summary = lines.pop() ?? '';
+        if (lines.length > 0) console.log(lines.join('\n'));
+        console.log(report.ok ? chalk.green(summary) : chalk.red(summary));
+        // Exit non-zero only on managed-file findings (placeholders/missing-sections),
+        // not on orphaned-checksum-only findings
+        const managedFindings = report.findings.filter(
+          f => f.kind === 'placeholders' || f.kind === 'missing-section'
+        );
+        process.exit(managedFindings.length > 0 ? 1 : 0);
+      } else {
+        // Interactive repair: detect first, show preview, ask for confirmation
+        const preReport = detectCorruption(root, profile);
+        if (preReport.ok) {
+          console.log(chalk.green('No corruption found.'));
+          process.exit(0);
+        }
+
+        // Show preview of what will change
+        console.log(chalk.yellow('Corruption detected:'));
+        console.log(formatHealthReport(preReport));
+        console.log('');
+
+        const proceed = await p.confirm({
+          message: 'Repair these files? Your graph/ content will not be touched.',
+        });
+        if (p.isCancel(proceed) || !proceed) {
+          console.log('Aborted.');
+          process.exit(0);
+        }
+
+        const { report, repairedFiles } = await repairCorruption(root, profile, { dryRun: false });
+        if (repairedFiles.length > 0) {
+          console.log(chalk.green(`Repaired: ${repairedFiles.join(', ')}`));
+          console.log(chalk.hex('#94A3B8')('Your notes and settings in graph/ were not changed.'));
+          if (!report.ok) {
+            console.log(chalk.yellow('Warning: some issues could not be automatically repaired:'));
+            console.log(formatHealthReport(report));
+          }
+        } else {
+          // Only orphaned checksums — report them (already pruned by repairCorruption)
+          console.log(chalk.hex('#94A3B8')('Orphaned checksum entries pruned from .patina-state.json.'));
+        }
+      }
     } catch (err) {
       console.error(chalk.red(err instanceof Error ? err.message : String(err)));
       process.exit(1);

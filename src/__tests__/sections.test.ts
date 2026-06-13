@@ -1,6 +1,76 @@
 import { describe, it, expect } from 'vitest';
-import { hasFences, parseSections, renderSection, mergeSections, inspectSections, removeSection } from '../sections.js';
+import { hasFences, hasPlaceholders, parseSections, renderSection, mergeSections, inspectSections, removeSection } from '../sections.js';
 import { hashContent } from '../checksums.js';
+
+// ── hasPlaceholders ───────────────────────────────────────────────────────────
+
+describe('hasPlaceholders', () => {
+  it('returns false for content without placeholders', () => {
+    expect(hasPlaceholders('')).toBe(false);
+    expect(hasPlaceholders('Hello world')).toBe(false);
+    expect(hasPlaceholders('<!-- patina:profile:start -->')).toBe(false);
+    expect(hasPlaceholders('Jane Doe — Senior Designer')).toBe(false);
+  });
+
+  it('returns true for content with uppercase template tokens', () => {
+    expect(hasPlaceholders('Hello {{USER_NAME}}')).toBe(true);
+    expect(hasPlaceholders('**Company:** {{COMPANY_NAME}}')).toBe(true);
+  });
+
+  it('returns false for lowercase or mixed-case tokens', () => {
+    expect(hasPlaceholders('{{userName}}')).toBe(false);
+    expect(hasPlaceholders('{{user_name}}')).toBe(false);
+  });
+
+  it('returns false for patina fence ids (not uppercase)', () => {
+    expect(hasPlaceholders('<!-- patina:profile:start -->\ncontent\n<!-- patina:profile:end -->')).toBe(false);
+  });
+});
+
+// ── mergeSections — placeholder bypass ───────────────────────────────────────
+
+describe('mergeSections — placeholder bypass', () => {
+  it('overwrites a section whose inner content has unrendered placeholders', () => {
+    const corruptInner = '**Name:** {{USER_NAME}}';
+    const existing = [
+      '<!-- patina:profile:start -->',
+      corruptInner,
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const { content, sections } = mergeSections(
+      existing,
+      { profile: 'Jane Doe' },
+      { 'CLAUDE.md:profile': hashContent('original content') },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    // Should update, not skip — placeholder presence overrides user-edit detection
+    expect(sections[0].outcome).toBe('updated');
+    expect(content).toContain('Jane Doe');
+    expect(content).not.toContain('{{USER_NAME}}');
+  });
+
+  it('still skips user-edited sections without placeholders', () => {
+    const userEditedInner = 'I changed this myself (no placeholders)';
+    const existing = [
+      '<!-- patina:profile:start -->',
+      userEditedInner,
+      '<!-- patina:profile:end -->',
+    ].join('\n');
+
+    const { sections } = mergeSections(
+      existing,
+      { profile: 'wizard content' },
+      { 'CLAUDE.md:profile': hashContent('original content') },
+      'CLAUDE.md',
+      new Set()
+    );
+
+    expect(sections[0].outcome).toBe('skipped');
+  });
+});
 
 // ── hasFences ─────────────────────────────────────────────────────────────────
 

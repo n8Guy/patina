@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { hashContent, hashFile, type ChecksumMap } from './checksums.js';
-import { hasFences, parseSections, mergeSections, type SectionOutcome } from './sections.js';
+import { hashContent, type ChecksumMap } from './checksums.js';
+import { hasFences, hasPlaceholders, parseSections, mergeSections, type SectionOutcome } from './sections.js';
 import type { Profile } from './types.js';
 
 export type FileOutcome = 'added' | 'updated' | 'skipped';
@@ -36,10 +36,11 @@ export function writeManagedFile(
   relativePath: string,
   newContent: string,
   storedChecksums: ChecksumMap,
-  overwrite?: Set<string>
+  overwrite?: Set<string>,
+  forceRepair?: Set<string>
 ): WriteResult {
   if (hasFences(newContent)) {
-    return writeSectionedFile(targetDir, relativePath, newContent, storedChecksums, overwrite ?? new Set());
+    return writeSectionedFile(targetDir, relativePath, newContent, storedChecksums, overwrite ?? new Set(), forceRepair);
   }
 
   const fullPath = join(targetDir, relativePath);
@@ -51,8 +52,15 @@ export function writeManagedFile(
     return { outcome: 'added', checksum: newChecksum };
   }
 
-  const currentHash = hashFile(fullPath);
+  const currentContent = readFileSync(fullPath, 'utf8');
+  const currentHash = hashContent(currentContent);
   const storedHash = storedChecksums[relativePath];
+
+  // Force repair: explicit forceRepair set or inline placeholder detection
+  if (forceRepair?.has(relativePath) || hasPlaceholders(currentContent)) {
+    writeFileSync(fullPath, newContent, 'utf8');
+    return { outcome: 'updated', checksum: newChecksum };
+  }
 
   if (!storedHash || currentHash === storedHash) {
     writeFileSync(fullPath, newContent, 'utf8');
@@ -76,7 +84,8 @@ function writeSectionedFile(
   relativePath: string,
   newContent: string,
   storedChecksums: ChecksumMap,
-  overwrite: Set<string>
+  overwrite: Set<string>,
+  forceRepair?: Set<string>
 ): WriteResult {
   const fullPath = join(targetDir, relativePath);
 
@@ -95,11 +104,10 @@ function writeSectionedFile(
 
   if (!hasFences(existingContent)) {
     // Case B migration: existing file has no fences
-    const currentHash = hashFile(fullPath);
+    const currentHash = hashContent(existingContent);
     const storedHash = storedChecksums[relativePath];
-
-    if (!storedHash || currentHash === storedHash) {
-      // Whole-file hash matches (or no stored hash) → overwrite, introducing fences
+    if (forceRepair?.has(relativePath) || hasPlaceholders(existingContent) || !storedHash || currentHash === storedHash) {
+      // Overwrite introducing fences — also fires when forceRepair is set or placeholders detected
       writeFileSync(fullPath, newContent, 'utf8');
       const sections = parseSections(newContent).map(s => ({
         id: s.id,
@@ -109,11 +117,13 @@ function writeSectionedFile(
       return { outcome: 'updated', checksum: hashContent(newContent), sections };
     } else {
       // User has edited the file — skip
-      return { outcome: 'skipped', checksum: storedHash ?? (currentHash as string), sections: undefined };
+      return { outcome: 'skipped', checksum: storedHash ?? currentHash, sections: undefined };
     }
   }
 
-  // Normal section-merge path: existing file has fences
+  // Normal section-merge path: existing file has fences.
+  // hasPlaceholders bypass in mergeSections handles placeholder-bearing sections
+  // individually without clobbering hand-edited sections.
   const newSectionMap: Record<string, string> = {};
   for (const s of parseSections(newContent)) {
     newSectionMap[s.id] = s.inner;

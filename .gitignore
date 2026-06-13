@@ -6,3 +6,6 @@ dist/
 .implementation-plan.md
 .claude/settings.local.json
 .patina-update-check
+
+
+scratch-implementation-order.md
