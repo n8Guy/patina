@@ -8,7 +8,7 @@ Read `inbox/.processed.json`. If the file is missing or cannot be parsed as JSON
 
 ## Step 2 — Identify unprocessed files
 
-List all files in `inbox/`, excluding any file or directory whose name starts with `.` (this covers `.gitkeep`, `.processed.json`, and any hidden sync scaffolding such as `.tmp.drivedownload/`). Apply this exclusion recursively — do not traverse into any directory whose name starts with `.`.
+List all files in `inbox/`, excluding any file or directory whose name starts with `.` (this covers `.gitkeep`, `.processed.json`, and any hidden sync scaffolding such as `.tmp.drivedownload/`), and also excluding the `archive/` directory and its contents. Apply the dot-entry exclusion recursively — do not traverse into any directory whose name starts with `.`.
 
 A file is **unprocessed** if its path relative to `inbox/` (e.g. `doc.pdf`, or `2026-05/doc.pdf` for a subdirectory) does not appear in the registry with status `success`. Files recorded with status `failed` are retried.
 
@@ -44,13 +44,13 @@ For files in subdirectories, `filename` is the path relative to `inbox/` — e.g
 
 `failed` means `/add` errored; the file will be retried on the next run.
 
-## Step 5 — Offer to delete source files
+## Step 5 — Offer to archive source files
 
 After all files have been processed, ask:
 
-> All files processed. Would you like to delete the source files from `inbox/`? (default: keep)
+> All files processed. Would you like to move the source files to `inbox/archive/`? (default: keep in place)
 
-Wait for the user's response. **Default is to keep** — do not delete unless the user explicitly says yes. Registry entries remain regardless of what the user decides. Never delete hidden files or directories (any entry whose name starts with `.`) during cleanup — only delete files that were actually processed in this session.
+Wait for the user's response. **Default is to keep files in place** — patina never deletes source files. If the user says yes, move each file that was processed in this session from `inbox/` to `inbox/archive/`, preserving any subdirectory structure (e.g. `inbox/2026-05/doc.pdf` → `inbox/archive/2026-05/doc.pdf`). Create `inbox/archive/` and any subdirectories as needed. Registry entries remain regardless of what the user decides. Never move hidden files or directories (any entry whose name starts with `.`) — only move files that were actually processed in this session.
 
 ## Edge cases
 
@@ -58,3 +58,5 @@ Wait for the user's response. **Default is to keep** — do not delete unless th
 - Never re-process a file recorded as `success` unless the user drops it again.
 - `resulting_note_paths` is always an array — never a bare string.
 - Never process hidden files or directories (any entry whose name starts with `.`), including `.gitkeep` and `.processed.json`. This rule applies recursively.
+- Never process files inside `inbox/archive/` — that directory is excluded from Step 2.
+- If a file already exists at its archive destination, keep both by appending a numeric suffix (e.g. `doc-2.pdf`) rather than overwriting.

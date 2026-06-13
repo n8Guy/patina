@@ -14,7 +14,7 @@ Run `/guide` in your session to see all available commands with usage examples.
 
 Drop files into `inbox/` — documents, PDFs, notes, transcripts, anything you want to add to your graph. On your next session startup, patina will notice them and ask if you want to process them. Or run `/inbox` at any time to process them immediately.
 
-Processed files stay in `inbox/` — patina only reads them, it never moves or deletes them.
+Processed files stay in `inbox/` — patina never deletes them. After processing, you can optionally move them to `inbox/archive/` to keep your inbox tidy.
 
 ## Installed modules
 
