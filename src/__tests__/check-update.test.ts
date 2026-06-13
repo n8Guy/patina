@@ -54,28 +54,143 @@ describe('isNewer — invalid inputs return false without throwing', () => {
 
 // ── subprocess tests ──────────────────────────────────────────────────────────
 
-describe('flag-file sentinel — flag already exists', () => {
-  it('exits 0 immediately without modifying the flag file', () => {
+describe('TTL sentinel — fresh sentinel within TTL', () => {
+  it('exits 0, does not make network call, does not overwrite file', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
     try {
-      const flagFile = join(tmp, '.patina-update-check');
-      const sentinel = 'do-not-overwrite';
-      writeFileSync(flagFile, sentinel, 'utf8');
+      const sentinelFile = join(tmp, '.patina-update-check');
+      const original = JSON.stringify({
+        _comment: 'test',
+        checked_at: new Date().toISOString(),
+        available_version: '1.5.0',
+      }, null, 2) + '\n';
+      writeFileSync(sentinelFile, original, 'utf8');
 
-      const result = runScript(tmp);
+      // Mock a different version — if the network call ran, the file would change
+      const result = runScript(tmp, {
+        PATINA_MOCK_INSTALLED_VERSION: '1.0.0',
+        PATINA_MOCK_LATEST_VERSION: '9.9.9',
+      });
 
       expect(result.error).toBeUndefined();
       expect(result.signal).toBeNull();
       expect(result.status).toBe(0);
-      expect(readFileSync(flagFile, 'utf8')).toBe(sentinel);
+      expect(readFileSync(sentinelFile, 'utf8')).toBe(original);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
   });
 });
 
-describe('flag-file write paths — no flag file present', () => {
-  it('writes the latest version string when a newer version is available', () => {
+describe('TTL sentinel — stale sentinel (checked_at 25h ago)', () => {
+  it('re-runs and writes fresh JSON with updated checked_at', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
+    try {
+      const sentinelFile = join(tmp, '.patina-update-check');
+      const staleDate = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      writeFileSync(sentinelFile, JSON.stringify({
+        _comment: 'old',
+        checked_at: staleDate,
+        available_version: null,
+      }, null, 2) + '\n', 'utf8');
+
+      const result = runScript(tmp, {
+        PATINA_MOCK_INSTALLED_VERSION: '1.0.0',
+        PATINA_MOCK_LATEST_VERSION: '2.0.0',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(0);
+      const data = JSON.parse(readFileSync(sentinelFile, 'utf8'));
+      expect(data.available_version).toBe('2.0.0');
+      expect(Number.isFinite(Date.parse(data.checked_at))).toBe(true);
+      expect(data.checked_at).not.toBe(staleDate);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('TTL sentinel — old-format sentinel (bare version string)', () => {
+  it('migrates to JSON format on next run', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
+    try {
+      const sentinelFile = join(tmp, '.patina-update-check');
+      writeFileSync(sentinelFile, '0.5.0', 'utf8');
+
+      const result = runScript(tmp, {
+        PATINA_MOCK_INSTALLED_VERSION: '1.0.0',
+        PATINA_MOCK_LATEST_VERSION: '2.0.0',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(0);
+      const data = JSON.parse(readFileSync(sentinelFile, 'utf8'));
+      expect(data.available_version).toBe('2.0.0');
+      expect(Number.isFinite(Date.parse(data.checked_at))).toBe(true);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('TTL sentinel — old-format empty-string sentinel', () => {
+  it('migrates to JSON format on next run', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
+    try {
+      const sentinelFile = join(tmp, '.patina-update-check');
+      writeFileSync(sentinelFile, '', 'utf8');
+
+      const result = runScript(tmp, {
+        PATINA_MOCK_INSTALLED_VERSION: '1.0.0',
+        PATINA_MOCK_LATEST_VERSION: '2.0.0',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(0);
+      const data = JSON.parse(readFileSync(sentinelFile, 'utf8'));
+      expect(data.available_version).toBe('2.0.0');
+      expect(Number.isFinite(Date.parse(data.checked_at))).toBe(true);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('TTL sentinel — future timestamp in sentinel', () => {
+  it('treats it as expired and re-runs the check', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
+    try {
+      const sentinelFile = join(tmp, '.patina-update-check');
+      const futureDate = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+      writeFileSync(sentinelFile, JSON.stringify({
+        _comment: 'test',
+        checked_at: futureDate,
+        available_version: null,
+      }, null, 2) + '\n', 'utf8');
+
+      const result = runScript(tmp, {
+        PATINA_MOCK_INSTALLED_VERSION: '1.0.0',
+        PATINA_MOCK_LATEST_VERSION: '2.0.0',
+      });
+
+      expect(result.error).toBeUndefined();
+      expect(result.signal).toBeNull();
+      expect(result.status).toBe(0);
+      const data = JSON.parse(readFileSync(sentinelFile, 'utf8'));
+      expect(data.available_version).toBe('2.0.0');
+      expect(data.checked_at).not.toBe(futureDate);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('TTL sentinel — no file, newer version available', () => {
+  it('writes JSON with available_version set to latest', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
     try {
       const result = runScript(tmp, {
@@ -86,13 +201,18 @@ describe('flag-file write paths — no flag file present', () => {
       expect(result.error).toBeUndefined();
       expect(result.signal).toBeNull();
       expect(result.status).toBe(0);
-      expect(readFileSync(join(tmp, '.patina-update-check'), 'utf8')).toBe('2.0.0');
+      const data = JSON.parse(readFileSync(join(tmp, '.patina-update-check'), 'utf8'));
+      expect(data.available_version).toBe('2.0.0');
+      expect(Number.isFinite(Date.parse(data.checked_at))).toBe(true);
+      expect(typeof data._comment).toBe('string');
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
   });
+});
 
-  it('writes an empty sentinel when already up to date', () => {
+describe('TTL sentinel — no file, already up to date', () => {
+  it('writes JSON with available_version null', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
     try {
       const result = runScript(tmp, {
@@ -103,14 +223,17 @@ describe('flag-file write paths — no flag file present', () => {
       expect(result.error).toBeUndefined();
       expect(result.signal).toBeNull();
       expect(result.status).toBe(0);
-      expect(existsSync(join(tmp, '.patina-update-check'))).toBe(true);
-      expect(readFileSync(join(tmp, '.patina-update-check'), 'utf8')).toBe('');
+      const data = JSON.parse(readFileSync(join(tmp, '.patina-update-check'), 'utf8'));
+      expect(data.available_version).toBeNull();
+      expect(Number.isFinite(Date.parse(data.checked_at))).toBe(true);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
   });
+});
 
-  it('exits 0 silently without writing flag file on network failure', () => {
+describe('TTL sentinel — no file, network failure', () => {
+  it('exits 0 silently without writing any file', () => {
     const tmp = mkdtempSync(join(tmpdir(), 'patina-update-check-test-'));
     try {
       const result = runScript(tmp, {
@@ -127,3 +250,4 @@ describe('flag-file write paths — no flag file present', () => {
     }
   });
 });
+

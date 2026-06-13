@@ -1186,6 +1186,12 @@ describe('renderUpdateCheckSection', () => {
     const result = renderUpdateCheckSection(vars);
     expect(result).toContain('.patina-state.json');
   });
+
+  it('does not instruct Claude to delete .patina-update-check', () => {
+    const result = renderUpdateCheckSection(vars);
+    // Must not contain a bare "delete" instruction (without a preceding "NOT" or "not")
+    expect(result).not.toMatch(/(?<!NOT? )\bdelete\b[^.]*\.patina-update-check/i);
+  });
 });
 
 // ── Clients module ────────────────────────────────────────────────────────────
