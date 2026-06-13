@@ -20,7 +20,7 @@ export function isMarkedManaged(relativePath: string, content: string): boolean 
     catch { return false; }
   }
   if (relativePath.endsWith('.mjs') || relativePath.endsWith('.js')) {
-    return /^\/\/\s*patina:\s*managed\s*$/m.test(content.split('\n')[0] ?? '');
+    return /^\/\/\s*patina:\s*managed\s*$/.test((content.split('\n')[0] ?? '').trimEnd());
   }
   // markdown / other text: check first frontmatter block for `patina: managed`
   const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);

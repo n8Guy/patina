@@ -5,6 +5,7 @@ dist/
 .current-issue.md
 .implementation-plan.md
 .claude/settings.local.json
+.claude/worktrees/
 .patina-update-check
 
 

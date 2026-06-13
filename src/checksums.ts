@@ -15,6 +15,9 @@ export const MANAGED_FILES = [
   '.claude/commands/status.md',
   '.claude/commands/guide.md',
   '.claude/inbox-routing.md',
+  '.claude/scripts/check-update.mjs',
+  '.claude/scripts/staleness-check.mjs',
+  '.claude/scripts/health-check.mjs',
 ] as const;
 
 // Files patina seeds once (written if absent, never overwritten).

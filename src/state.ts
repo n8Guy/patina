@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import type { DeferredModule, Profile } from './types.js';
+import type { DeferredModule } from './types.js';
 
 export interface UpdateCheck {
   last_notified_version: string;
@@ -24,7 +24,7 @@ export function stripLegacyChecksums(profile: Profile): Profile {
  * contain a `checksums` key — the field is silently ignored.
  * Returns `{}` (empty state) for a fresh install or if the file is absent.
  */
-export function readState(root: string, _profile?: Profile): PatinaState {
+export function readState(root: string): PatinaState {
   const statePath = join(root, STATE_FILENAME);
 
   if (!existsSync(statePath)) {

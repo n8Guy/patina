@@ -1,7 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
 import { baseManagedFiles, moduleManagedFiles, profileToVars } from './scaffold.js';
-import { writeManagedFile } from './upgrade.js';
 import { readState, writeState } from './state.js';
 import type { Profile } from './types.js';
 
@@ -102,15 +101,16 @@ export function detectCorruption(
  * Repair corruption in a patina instance by re-rendering corrupt files from profile.yaml.
  *
  * - dryRun: if true, returns the report without writing anything.
- * - Corrupt files (those with placeholders) are always marked, so writeManagedFile
- *   will overwrite them.
+ * - Corrupt files are written unconditionally regardless of ownership marker, because
+ *   a corrupt file may have lost its frontmatter (e.g. truncated write) and would
+ *   otherwise be silently skipped by writeManagedFile.
  */
 export async function repairCorruption(
   cwd: string,
   profile: Profile,
   opts: { dryRun: boolean }
 ): Promise<{ report: HealthReport; repairedFiles: string[] }> {
-  const existingState = readState(cwd, profile);
+  const existingState = readState(cwd);
   const report = detectCorruption(cwd, profile);
 
   if (opts.dryRun || report.ok) {
@@ -127,10 +127,11 @@ export async function repairCorruption(
 
   for (const [rel, content] of managedFiles) {
     if (!report.corruptFiles.has(rel)) continue;
-    const result = writeManagedFile(cwd, rel, content);
-    if (result.outcome !== 'skipped') {
-      repairedFiles.push(rel);
-    }
+    // Write unconditionally — corrupt files may have lost their marker.
+    const fullPath = join(cwd, rel);
+    mkdirSync(dirname(fullPath), { recursive: true });
+    writeFileSync(fullPath, content, 'utf8');
+    repairedFiles.push(rel);
   }
 
   writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });

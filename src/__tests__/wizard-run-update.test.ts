@@ -665,6 +665,32 @@ describe('applyModuleChanges — inbox routing file regenerates with modules', (
   });
 });
 
+describe('applyProfileUpdate — inbox routing file is managed and overwrites user edits', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+  });
+
+  it('overwrites user edits to inbox-routing.md on profile update', () => {
+    writeFileSync(join(targetDir, '.claude', 'inbox-routing.md'), '---\npatina: managed\n---\n# Custom\n', 'utf8');
+    applyProfileUpdate(targetDir, profile, {
+      name: profile.name,
+      title: profile.title ?? '',
+      roleDescription: profile.role_description ?? '',
+      jobDescriptionUrl: profile.job_description_url ?? '',
+      selfEmployed: profile.work.self_employed,
+      companyName: profile.work.company_name,
+      website: profile.work.website ?? '',
+      companyDescription: profile.work.company_description ?? '',
+    });
+    const content = readFileSync(join(targetDir, '.claude', 'inbox-routing.md'), 'utf8');
+    expect(content).not.toContain('# Custom');
+    expect(content).toContain('patina: managed');
+  });
+});
+
 describe('syncBaseFiles — upgrade path: creates inbox-routing.md for pre-#166 installs', () => {
   let profile: Profile;
 

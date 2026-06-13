@@ -55,7 +55,7 @@ export function applyProfileUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const existingState = readState(cwd, profile);
+  const existingState = readState(cwd);
 
   const files = [
     ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd }),
@@ -209,7 +209,7 @@ export function applyLaunchTaskUpdate(
   };
 
   const vars = profileToVars(updatedProfile);
-  const existingState = readState(cwd, profile);
+  const existingState = readState(cwd);
 
   // Re-render all base managed files (CLAUDE.md now contains launch section inline)
   const files = baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd });
@@ -272,7 +272,7 @@ async function runValidate(cwd: string, profile: Profile): Promise<void> {
  * even when the user makes no profile changes.
  */
 export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: HealthReport; repairedFiles: string[] } {
-  const existingState = readState(cwd, profile);
+  const existingState = readState(cwd);
   const vars = profileToVars(profile);
 
   const healthReport = detectCorruption(cwd, profile);

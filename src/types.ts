@@ -88,5 +88,8 @@ export interface TemplateVars {
   COMMANDS_SECTION: string;
   GUIDE_COMMANDS: string;
   PATINA_VERSION: string;
+  LAUNCH_SECTION: string;
+  UPDATE_CHECK_SECTION: string;
+  MODULE_README_BLOCKS: string;
   [key: string]: string;
 }

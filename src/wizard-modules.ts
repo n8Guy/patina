@@ -27,7 +27,7 @@ export function applyModuleChanges(
   toRemove: ModuleId[],
   moduleInputs?: Record<string, ModuleAddInputs>,
 ): ModuleChangeResult {
-  const initialState = readState(cwd, profile);
+  const initialState = readState(cwd);
 
   // Carry deferred_modules through; strip entries for removed modules.
   let deferredModules = initialState.deferred_modules;
