@@ -1,6 +1,15 @@
 import { hashContent } from './checksums.js';
 import type { ChecksumMap } from './checksums.js';
 
+/**
+ * Returns true if content contains at least one unrendered template placeholder
+ * matching {{[A-Z][A-Z0-9_]+}}. Uppercase-only to avoid false positives on
+ * patina fence ids like <!-- patina:profile:start -->.
+ */
+export function hasPlaceholders(content: string): boolean {
+  return /\{\{[A-Z][A-Z0-9_]+\}\}/.test(content);
+}
+
 export interface ParsedSection {
   id: string;
   inner: string;  // content between start and end markers (normalized to \n)
@@ -122,8 +131,9 @@ export function mergeSections(
           replacement: renderSection(id, normalized),
         });
         outcomes.push({ id, outcome: 'updated', newChecksum: hashContent(normalized) });
-      } else if (storedHash && currentHash !== storedHash) {
-        // User has edited this section — skip
+      } else if (storedHash && currentHash !== storedHash && !hasPlaceholders(inner)) {
+        // User has edited this section — skip (unless it contains unrendered placeholders,
+        // which are never a legitimate user edit and indicate corruption).
         // newChecksum = preserved stored checksum
         outcomes.push({ id, outcome: 'skipped', newChecksum: storedHash });
       } else {

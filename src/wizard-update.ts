@@ -11,6 +11,7 @@ import { writeManagedFile } from './upgrade.js';
 import { type ChecksumMap } from './checksums.js';
 import { hasFences, inspectSections, renderSection } from './sections.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
+import { detectCorruption, repairCorruption, formatHealthReport, type HealthReport } from './health.js';
 import { migrateClaudeMdFile, MIGRATION_REFRESHED_MSG, MIGRATION_DUPLICATE_WARNING_MSG, type MigrationOutcome } from './migrate-claude.js';
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { getModule } from './modules/registry.js';
@@ -424,14 +425,27 @@ async function runValidate(cwd: string, profile: Profile): Promise<void> {
  * Sync base managed files to the patina directory without changing the profile.
  * Runs at the top of every update wizard invocation so new template files
  * (e.g. guide.md) land even when the user makes no profile changes.
+ *
+ * Also runs corruption detection and self-heals placeholder-bearing files
+ * by passing them through forceRepair. Returns the HealthReport so callers
+ * can surface repair results to the user.
  */
-export function syncBaseFiles(cwd: string, profile: Profile): void {
+export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: HealthReport; repairedFiles: string[] } {
   const existingState = readState(cwd, profile);
   const vars = profileToVars(profile);
   const checksums = { ...existingState.checksums };
+
+  // Detect corruption before syncing so we know which files to force-repair
+  const healthReport = detectCorruption(cwd, profile, existingState.checksums);
+  const forceRepair = healthReport.corruptFiles.size > 0 ? healthReport.corruptFiles : undefined;
+  const repairedFiles: string[] = [];
+
   try {
     for (const [rel, content] of baseManagedFiles(vars, profile.editor, cwd)) {
-      const result = writeManagedFile(cwd, rel, content, checksums);
+      const result = writeManagedFile(cwd, rel, content, checksums, undefined, forceRepair);
+      if (forceRepair?.has(rel) && result.outcome !== 'skipped') {
+        repairedFiles.push(rel);
+      }
       checksums[rel] = result.checksum;
       for (const s of result.sections ?? []) {
         const sKey = `${rel}:${s.id}`;
@@ -441,20 +455,34 @@ export function syncBaseFiles(cwd: string, profile: Profile): void {
     }
   } catch (err) {
     p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
-    return;
+    return { healthReport, repairedFiles: [] };
   }
   try {
     writeState(cwd, { ...existingState, checksums });
   } catch (err) {
     p.log.warn(`Patina files updated but state not saved — run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
+  return { healthReport, repairedFiles };
 }
 
 export async function runUpdate(cwd: string): Promise<void> {
   const profile = loadProfile(cwd);
   p.intro(chalk.hex('#94A3B8')(`Found: ${chalk.bold.white(profile.patina_name || 'patina')}`));
 
-  syncBaseFiles(cwd, profile);
+  const { healthReport, repairedFiles } = syncBaseFiles(cwd, profile);
+
+  // Surface repair results only when files were actually written (not just detected)
+  if (repairedFiles.length > 0) {
+    const noteLines = [
+      chalk.hex('#94A3B8')(`Repaired: ${repairedFiles.join(', ')}`),
+      chalk.hex('#94A3B8')('Your notes and settings in graph/ were not changed.'),
+    ];
+    const missingSections = healthReport.findings.filter(f => f.kind === 'missing-section');
+    for (const f of missingSections) {
+      noteLines.push(chalk.hex('#94A3B8')(`Restored: ${f.detail}`));
+    }
+    p.note(noteLines.join('\n'), label('Corruption repaired'));
+  }
 
   p.note(
     [

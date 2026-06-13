@@ -164,6 +164,7 @@ export function baseManagedFiles(vars: TemplateVars, editor: string, targetDir?:
     ['.claude/settings.json', tpl('.claude/settings.json')],
     ['.claude/scripts/check-update.mjs', render(tpl('.claude/scripts/check-update.mjs'), vars)],
     ['.claude/scripts/staleness-check.mjs', render(tpl('.claude/scripts/staleness-check.mjs'), vars)],
+    ['.claude/scripts/health-check.mjs', tpl('.claude/scripts/health-check.mjs')],
     ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
     ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
     // Inlined as literals rather than template files to avoid dotfile packaging risk

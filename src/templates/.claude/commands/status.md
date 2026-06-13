@@ -20,6 +20,10 @@ Read all files in `{{CONTENT_DIR}}/goals/`. For each, check the `status` field i
 
 Read `.patina-state.json`. If it contains a `deferred_modules` list, check each entry's `snooze_until` against today's date. List any where today is on or after `snooze_until`, using the module's friendly label. If none are due, show nothing for this section.
 
+## 5. Patina health
+
+Run `node .claude/scripts/health-check.mjs` and show the output. If the command produces no output (exit 0), show nothing for this section.
+
 ## Output format
 
 Group results under these headers only if that section has something to show:
@@ -28,5 +32,6 @@ Group results under these headers only if that section has something to show:
 **Inbox** — unprocessed files
 **Open goals** — open or in-progress goals
 **Module setup** — modules awaiting setup
+**Patina health** — corruption warnings from the health check
 
 If everything is clear, say: `All clear.`
