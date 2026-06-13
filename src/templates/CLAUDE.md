@@ -32,15 +32,17 @@ The graph is the source of truth. Nothing gets added to generated content unless
 
 ## The inbox
 
-`inbox/` is a drop zone for files you want to add to your graph without running `/add` manually on each one. Drop files there between sessions and process them on your next startup, or run `/inbox` at any time.
+`inbox/` is a drop zone for files you want to add to your graph without running `/add` manually on each one. Drop files there between sessions and process them on your next startup, or run `/inbox` at any time. After processing, files are moved to `inbox/archive/` automatically.
 
 `inbox/.processed.json` tracks which files have been processed. Each entry records:
-- `filename` — path relative to `inbox/` (e.g. `doc.pdf`, or `2026-05/doc.pdf`)
+- `filename` — path relative to `inbox/` (e.g. `doc.pdf`, `archive/doc.pdf` once archived, or `2026-05/doc.pdf`)
 - `status` — `success` or `failed`
 - `processed_at` — ISO 8601 timestamp
 - `resulting_note_paths` — array of note paths written during processing
 
 Deleting `inbox/.processed.json` simply resets tracking with no data loss — your notes remain in `{{CONTENT_DIR}}/notes/`.
+
+**Never read or scan `inbox/archive/`.** It is a storage area for already-processed source files, not part of the active graph. Treat it as opaque.
 
 ## How it works
 

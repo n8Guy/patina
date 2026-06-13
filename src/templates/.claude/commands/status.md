@@ -8,7 +8,7 @@ Run `node .claude/scripts/staleness-check.mjs` and show the output. If the comma
 
 ## 2. Inbox
 
-Read `inbox/.processed.json` (treat missing or unparseable as `[]`). List all files in `inbox/` excluding any file or directory whose name starts with `.` (covers `.gitkeep`, `.processed.json`, and hidden sync scaffolding such as `.tmp.drivedownload/`). Apply this exclusion recursively — do not traverse into any directory whose name starts with `.`. Any whose path relative to `inbox/` is not recorded with `status: "success"` is unprocessed.
+Read `inbox/.processed.json` (treat missing or unparseable as `[]`). List all files in `inbox/` excluding any file or directory whose name starts with `.` (covers `.gitkeep`, `.processed.json`, and hidden sync scaffolding such as `.tmp.drivedownload/`), and also excluding the `archive/` directory and its contents. Apply the dot-entry exclusion recursively — do not traverse into any directory whose name starts with `.`. Any whose path relative to `inbox/` is not recorded with `status: "success"` is unprocessed.
 
 If unprocessed files exist, list them. Otherwise show nothing for this section.
 
