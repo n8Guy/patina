@@ -8,14 +8,15 @@ import { join } from 'path';
 const CONTENT_DIR = process.env.PATINA_MOCK_CONTENT_DIR ?? '{{CONTENT_DIR}}';
 const THRESHOLD_DAYS = Number(process.env.PATINA_MOCK_THRESHOLD_DAYS ?? '{{STALENESS_THRESHOLD}}');
 if (!Number.isFinite(THRESHOLD_DAYS) || THRESHOLD_DAYS <= 0) process.exit(0);
-const SKIP = new Set(['.gitkeep', 'README.md', 'exclusions.md']);
+const SKIP = new Set(['README.md', 'exclusions.md']);
+const shouldSkip = (f) => f.startsWith('.') || SKIP.has(f);
 
 const cutoff = new Date(Date.now() - THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
 
 function listFiles(dir) {
   const full = join(CONTENT_DIR, dir);
   if (!existsSync(full)) return [];
-  try { return readdirSync(full).filter(f => !SKIP.has(f)); } catch { return []; }
+  try { return readdirSync(full).filter(f => !shouldSkip(f)); } catch { return []; }
 }
 
 const areas = ['notes', 'skills', 'posts'];
@@ -28,7 +29,7 @@ function staleIn(dir) {
   if (!existsSync(full)) return [];
   try {
     return readdirSync(full)
-      .filter(f => !SKIP.has(f))
+      .filter(f => !shouldSkip(f))
       .filter(f => { try { return statSync(join(full, f)).mtime < cutoff; } catch { return false; } })
       .map(f => f.replace(/\.[^.]+$/, ''));
   } catch { return []; }
