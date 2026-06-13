@@ -6,7 +6,7 @@ You are running as part of `/reflect`. Scan the work artifact folders and surfac
 
 1. Read `{{CONTENT_DIR}}/work/INSTRUCTIONS.md` for context on the folder structure.
 
-2. List all files in each subfolder (skip `.gitkeep`):
+2. List all files in each subfolder, skipping any entry whose name starts with `.`:
    - `{{CONTENT_DIR}}/work/transcripts/`
    - `{{CONTENT_DIR}}/work/weeklies/`
    - `{{CONTENT_DIR}}/work/references/`

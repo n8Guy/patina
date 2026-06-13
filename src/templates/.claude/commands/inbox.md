@@ -8,7 +8,7 @@ Read `inbox/.processed.json`. If the file is missing or cannot be parsed as JSON
 
 ## Step 2 — Identify unprocessed files
 
-List all files in `inbox/`, excluding `.gitkeep` and `.processed.json`.
+List all files in `inbox/`, excluding any file or directory whose name starts with `.` (this covers `.gitkeep`, `.processed.json`, and any hidden sync scaffolding such as `.tmp.drivedownload/`). Apply this exclusion recursively — do not traverse into any directory whose name starts with `.`.
 
 A file is **unprocessed** if its path relative to `inbox/` (e.g. `doc.pdf`, or `2026-05/doc.pdf` for a subdirectory) does not appear in the registry with status `success`. Files recorded with status `failed` are retried.
 
@@ -50,11 +50,11 @@ After all files have been processed, ask:
 
 > All files processed. Would you like to delete the source files from `inbox/`? (default: keep)
 
-Wait for the user's response. **Default is to keep** — do not delete unless the user explicitly says yes. Registry entries remain regardless of what the user decides.
+Wait for the user's response. **Default is to keep** — do not delete unless the user explicitly says yes. Registry entries remain regardless of what the user decides. Never delete hidden files or directories (any entry whose name starts with `.`) during cleanup — only delete files that were actually processed in this session.
 
 ## Edge cases
 
 - Files listed in the registry with status `success` but no longer present on disk are silently ignored — do not error or re-process them.
 - Never re-process a file recorded as `success` unless the user drops it again.
 - `resulting_note_paths` is always an array — never a bare string.
-- Never process `.gitkeep` or `.processed.json` themselves.
+- Never process hidden files or directories (any entry whose name starts with `.`), including `.gitkeep` and `.processed.json`. This rule applies recursively.
