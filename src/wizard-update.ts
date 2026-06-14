@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
-import { OPTIONAL_HINT, onCancel, writeProfile, removeManagedFileIfManaged, promptLaunchTasks, GUIDE_HINT_LOG } from './wizard-shared.js';
+import { OPTIONAL_HINT, onCancel, writeProfile, removeManagedFileIfManaged, promptLaunchTasks, GUIDE_HINT_LOG, snoozeUntilFor } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, GUIDE_CORE_COMMANDS } from './scaffold.js';
 import { writeManagedFile, isMarkedManaged } from './upgrade.js';
@@ -13,6 +13,7 @@ import { offerBackup, backupOfferKind } from './wizard-backup.js';
 import { detectCorruption, formatHealthReport, type HealthReport } from './health.js';
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { validate, formatReport } from './validate.js';
+import { getModule } from './modules/registry.js';
 import type { Profile } from './types.js';
 
 export { writeProfile, removeManagedFileIfManaged as removeManagedFileIfUnmodified };
@@ -308,6 +309,89 @@ async function runValidate(cwd: string, profile: Profile): Promise<void> {
   }
 }
 
+// ─── Deferred module prompting ────────────────────────────────────────────────
+
+/**
+ * For any deferred module whose snooze date has passed, prompt the user to act:
+ * set it up now, snooze again, or mark it done. Updates state on disk after each choice.
+ */
+export async function handleDeferredModules(cwd: string, profile: Profile): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const state = readState(cwd);
+  const due = (state.deferred_modules ?? []).filter(e => e.snooze_until <= today);
+  if (due.length === 0) return;
+
+  for (const entry of due) {
+    const module = getModule(entry.module);
+    const moduleName = module?.label ?? entry.module;
+
+    p.note(
+      chalk.hex('#94A3B8')(`You deferred setup for this module. It's ready when you are.`),
+      label(`${moduleName} setup pending`),
+    );
+
+    const choice = await p.select({
+      message: `What would you like to do with ${moduleName}?`,
+      options: [
+        { value: 'now', label: 'Set it up now' },
+        { value: 'snooze', label: 'Remind me later' },
+        { value: 'done', label: "Already done — stop reminding me" },
+      ],
+    });
+
+    if (p.isCancel(choice)) {
+      p.cancel(chalk.hex('#94A3B8')('Stopped early — any earlier changes were saved.'));
+      process.exit(0);
+    }
+
+    const currentState = readState(cwd);
+
+    if (choice === 'done') {
+      writeState(cwd, {
+        ...currentState,
+        deferred_modules: (currentState.deferred_modules ?? []).filter(e => e.module !== entry.module),
+      });
+      p.log.success(`${moduleName} marked as done.`);
+
+    } else if (choice === 'snooze') {
+      const snoozeChoice = await p.select({
+        message: 'Remind me in:',
+        options: [
+          { value: '1w', label: '1 week' },
+          { value: '1m', label: '1 month' },
+          { value: '3m', label: '3 months' },
+        ],
+      });
+      if (p.isCancel(snoozeChoice)) {
+        p.cancel(chalk.hex('#94A3B8')('Stopped early — any earlier changes were saved.'));
+        process.exit(0);
+      }
+      const newSnooze = snoozeUntilFor(snoozeChoice as '1w' | '1m' | '3m');
+      const without = (currentState.deferred_modules ?? []).filter(e => e.module !== entry.module);
+      writeState(cwd, {
+        ...currentState,
+        deferred_modules: [...without, { module: entry.module, snooze_until: newSnooze }],
+      });
+      p.log.info(`${moduleName} snoozed until ${newSnooze}.`);
+
+    } else if (choice === 'now') {
+      if (module?.promptsOnAdd) {
+        const inputs = await module.promptsOnAdd();
+        if (module.onAdd) {
+          const updatedProfile = module.onAdd(profile, inputs);
+          writeProfile(cwd, updatedProfile);
+          profile = updatedProfile;
+        }
+      }
+      writeState(cwd, {
+        ...currentState,
+        deferred_modules: (currentState.deferred_modules ?? []).filter(e => e.module !== entry.module),
+      });
+      p.log.success(`${moduleName} is set up. Use the module commands in your next session.`);
+    }
+  }
+}
+
 // ─── Update orchestrator ──────────────────────────────────────────────────────
 
 /**
@@ -389,6 +473,8 @@ export async function runUpdate(cwd: string): Promise<void> {
       });
     }
   }
+
+  await handleDeferredModules(cwd, profile);
 
   const action = await p.select({
     message: 'What do you want to do?',
