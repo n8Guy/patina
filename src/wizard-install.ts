@@ -6,6 +6,7 @@ import { detectObsidian, openInObsidian, detectVSCode, openInVSCode, detectClaud
 import { MULTISELECT_HINT, OPTIONAL_HINT, slugify, defaultSnoozeUntil, addDeferredModule, onCancel, promptLaunchTasks, GUIDE_HINT_INLINE } from './wizard-shared.js';
 import { scaffold } from './scaffold.js';
 import { readState, writeState } from './state.js';
+import { offerBackup } from './wizard-backup.js';
 import { MODULES, getModule } from './modules/registry.js';
 import { availableLaunchTasks } from './launch-tasks.js';
 import type { ModuleAddInputs } from './modules/types.js';
@@ -213,6 +214,13 @@ export async function runInstall(cwd: string): Promise<void> {
     }
 
     s.stop('Done.');
+
+    const backupOutcome = await offerBackup(targetDir);
+    const nowState = readState(targetDir);
+    writeState(targetDir, {
+      ...nowState,
+      backup_offer: { offered_at: new Date().toISOString(), outcome: backupOutcome },
+    });
   } catch (err) {
     s.error('Something went wrong.');
     p.log.error(err instanceof Error ? err.message : String(err));

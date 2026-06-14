@@ -102,7 +102,7 @@ export function applyModuleChanges(
     writeManagedFile(cwd, rel, content);
   }
 
-  writeState(cwd, { ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}), update_check: initialState.update_check });
+  writeState(cwd, { ...(deferredModules !== undefined ? { deferred_modules: deferredModules } : {}), update_check: initialState.update_check, backup_offer: initialState.backup_offer });
   const finalProfile = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, finalProfile);
   return { profile: finalProfile, added, skipped: skippedFiles, deleted, kept };

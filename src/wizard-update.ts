@@ -9,6 +9,7 @@ import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, GUIDE_CORE_COMMANDS } from './scaffold.js';
 import { writeManagedFile, isMarkedManaged } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
+import { offerBackup, backupOfferKind } from './wizard-backup.js';
 import { detectCorruption, formatHealthReport, type HealthReport } from './health.js';
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { validate, formatReport } from './validate.js';
@@ -129,7 +130,7 @@ export function applyProfileUpdate(
   // Remove or prune the legacy mcp-obsidian .mcp.json (no longer emitted by scaffold)
   cleanupObsidianMcpJson(cwd, updated);
 
-  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
+  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check, backup_offer: existingState.backup_offer });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
   return { profile: profileToWrite, updated, skipped };
@@ -269,7 +270,7 @@ export function applyLaunchTaskUpdate(
     }
   }
 
-  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
+  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check, backup_offer: existingState.backup_offer });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
   writeProfile(cwd, profileToWrite);
   return { profile: profileToWrite, updated, skipped };
@@ -336,7 +337,7 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   cleanupObsidianMcpJson(cwd, []);
 
   try {
-    writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
+    writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check, backup_offer: existingState.backup_offer });
   } catch (err) {
     p.log.warn(`Patina files updated but state not saved — run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
@@ -368,12 +369,34 @@ export async function runUpdate(cwd: string): Promise<void> {
     label('Current profile')
   );
 
+  const existingStateForBackup = readState(cwd);
+  if (!existingStateForBackup.backup_offer) {
+    const kind = backupOfferKind(cwd);
+    if (kind === 'offer') {
+      const backupOutcome = await offerBackup(cwd);
+      const nowState = readState(cwd);
+      writeState(cwd, {
+        deferred_modules: nowState.deferred_modules,
+        update_check: nowState.update_check,
+        backup_offer: { offered_at: new Date().toISOString(), outcome: backupOutcome },
+      });
+    } else if (kind === 'already-tracked') {
+      // Record silently so we don't re-evaluate on every update run
+      writeState(cwd, {
+        deferred_modules: existingStateForBackup.deferred_modules,
+        update_check: existingStateForBackup.update_check,
+        backup_offer: { offered_at: new Date().toISOString(), outcome: 'already-tracked' },
+      });
+    }
+  }
+
   const action = await p.select({
     message: 'What do you want to do?',
     options: [
       { value: 'profile', label: 'Update personal info' },
       { value: 'modules', label: 'Add or remove modules' },
       { value: 'launch-tasks', label: 'Set up launch tasks', hint: chalk.hex('#64748B')('tasks Claude runs every session') },
+      { value: 'backup', label: 'Back up your notes', hint: chalk.hex('#64748B')('version history — recover anything you delete') },
       { value: 'validate', label: 'Run health check', hint: chalk.hex('#64748B')('check for broken links and excluded items') },
       { value: 'nothing', label: 'Nothing — just checking' },
     ],
@@ -400,6 +423,14 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runUpdateModules(cwd, profile);
   } else if (action === 'launch-tasks') {
     await runUpdateLaunchTasks(cwd, profile);
+  } else if (action === 'backup') {
+    const backupOutcome = await offerBackup(cwd);
+    const nowState = readState(cwd);
+    writeState(cwd, {
+      deferred_modules: nowState.deferred_modules,
+      update_check: nowState.update_check,
+      backup_offer: { offered_at: new Date().toISOString(), outcome: backupOutcome },
+    });
   } else if (action === 'validate') {
     await runValidate(cwd, profile);
     return;

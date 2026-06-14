@@ -6,9 +6,15 @@ export interface UpdateCheck {
   last_notified_version: string;
 }
 
+export interface BackupOffer {
+  offered_at: string;
+  outcome: 'initialized' | 'declined' | 'already-tracked' | 'skipped';
+}
+
 export interface PatinaState {
   deferred_modules?: DeferredModule[];
   update_check?: UpdateCheck;
+  backup_offer?: BackupOffer;
 }
 
 export const STATE_FILENAME = '.patina-state.json';
@@ -57,9 +63,27 @@ export function readState(root: string): PatinaState {
     update_check = { last_notified_version: (rawUpdateCheck as Record<string, unknown>).last_notified_version as string };
   }
 
+  const rawBackupOffer = obj.backup_offer;
+  let backup_offer: BackupOffer | undefined;
+  const validOutcomes = new Set(['initialized', 'declined', 'already-tracked', 'skipped']);
+  if (
+    rawBackupOffer !== null &&
+    typeof rawBackupOffer === 'object' &&
+    !Array.isArray(rawBackupOffer) &&
+    typeof (rawBackupOffer as Record<string, unknown>).offered_at === 'string' &&
+    !isNaN(Date.parse((rawBackupOffer as Record<string, unknown>).offered_at as string)) &&
+    validOutcomes.has((rawBackupOffer as Record<string, unknown>).outcome as string)
+  ) {
+    backup_offer = {
+      offered_at: (rawBackupOffer as Record<string, unknown>).offered_at as string,
+      outcome: (rawBackupOffer as Record<string, unknown>).outcome as BackupOffer['outcome'],
+    };
+  }
+
   return {
     ...(deferred_modules !== undefined ? { deferred_modules } : {}),
     ...(update_check !== undefined ? { update_check } : {}),
+    ...(backup_offer !== undefined ? { backup_offer } : {}),
   };
 }
 
@@ -70,6 +94,7 @@ export function writeState(root: string, state: PatinaState): void {
   const toWrite: Record<string, unknown> = {};
   if (state.deferred_modules !== undefined) toWrite.deferred_modules = state.deferred_modules;
   if (state.update_check !== undefined) toWrite.update_check = state.update_check;
+  if (state.backup_offer !== undefined) toWrite.backup_offer = state.backup_offer;
   writeFileSync(
     join(root, STATE_FILENAME),
     JSON.stringify(toWrite, null, 2) + '\n',

@@ -134,7 +134,7 @@ export async function repairCorruption(
     repairedFiles.push(rel);
   }
 
-  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
+  writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check, backup_offer: existingState.backup_offer });
 
   // Post-repair validation
   const postReport = detectCorruption(cwd, profile);

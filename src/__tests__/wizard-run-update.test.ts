@@ -792,3 +792,59 @@ describe('applyModuleChanges — deferred entry cleared when module removed', ()
     expect(resumeEntry?.snooze_until).toBe('2026-07-01');
   });
 });
+
+// ── backup_offer state preservation ──────────────────────────────────────────
+
+describe('backup_offer survives writeState calls', () => {
+  let profile: Profile;
+  const backupOffer = { offered_at: '2026-06-14T10:00:00.000Z', outcome: 'initialized' as const };
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: [] }));
+    profile = loadProfile();
+    // Pre-write state with backup_offer set
+    const state = loadState();
+    writeFileSync(
+      join(targetDir, '.patina-state.json'),
+      JSON.stringify({ ...state, backup_offer: backupOffer }, null, 2) + '\n',
+      'utf8'
+    );
+  });
+
+  it('applyProfileUpdate preserves backup_offer', () => {
+    applyProfileUpdate(targetDir, profile, {
+      name: 'John Smith',
+      title: 'Staff Engineer',
+      roleDescription: '',
+      jobDescriptionUrl: '',
+      selfEmployed: false,
+      companyName: 'NewCorp',
+      website: '',
+      companyDescription: '',
+    });
+
+    const state = loadState();
+    expect(state.backup_offer).toEqual(backupOffer);
+  });
+
+  it('applyLaunchTaskUpdate preserves backup_offer', () => {
+    applyLaunchTaskUpdate(targetDir, profile, []);
+
+    const state = loadState();
+    expect(state.backup_offer).toEqual(backupOffer);
+  });
+
+  it('syncBaseFiles preserves backup_offer', () => {
+    syncBaseFiles(targetDir, profile);
+
+    const state = loadState();
+    expect(state.backup_offer).toEqual(backupOffer);
+  });
+
+  it('applyModuleChanges preserves backup_offer', () => {
+    applyModuleChanges(targetDir, profile, [], []);
+
+    const state = loadState();
+    expect(state.backup_offer).toEqual(backupOffer);
+  });
+});

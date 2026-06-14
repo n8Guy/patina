@@ -26,6 +26,24 @@ To add your own persistent instructions for Claude, edit `CUSTOM.md` — patina 
 
 To customise a patina command, copy it to a new filename and remove the `patina: managed` frontmatter. Unmarked files are yours and survive updates. For example, copy `.claude/commands/add.md` to `.claude/commands/add-work.md` (without the frontmatter) to create a specialised version.
 
+## Keeping your notes safe
+
+Everything in this folder lives only on your computer. Your notes are your career
+evidence — if this folder is lost (a dead laptop, an accidental delete), there's no
+copy unless you make one.
+
+Two simple safety nets:
+
+- **A backup.** Keep this folder somewhere that syncs or backs up automatically —
+  an external drive, Time Machine, or a synced cloud folder.
+- **Version history.** patina can turn this folder into a version-controlled
+  project, so you can recover anything you change or delete. patina offered this
+  during setup; if you skipped it, you can turn it on any time by re-running patina
+  and choosing "Back up your notes."
+
+If you already use git: this is a normal repository (or can become one). `.gitignore`
+is set up to keep machine-local files out of version control.
+
 ## Installed modules
 
 {{MODULE_README_BLOCKS}}
