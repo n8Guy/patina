@@ -6,7 +6,7 @@ patina: managed
 This is your patina — a personal knowledge base for your professional story.
 
 - Profile and config live in `profile.yaml` and `CLAUDE.md`.
-- Your notes, skills, and posts live in `{{CONTENT_DIR}}/`.
+- Your notes and skills live in `{{CONTENT_DIR}}/`.
 
 Your own always-on instructions live in `CUSTOM.md` — patina seeds it once and never overwrites it.
 

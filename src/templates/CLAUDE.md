@@ -19,7 +19,7 @@ Your own always-on instructions live in `CUSTOM.md` (patina never overwrites it)
 
 ## What patina is
 
-Patina is a personal knowledge base for career and professional development. Notes about your work — projects, skills, decisions, outcomes — go into `{{CONTENT_DIR}}/`. Over time, patina synthesises those notes into a picture of who you are professionally, and uses that picture to generate content: profile updates, posts, skill inventories.
+Patina is a personal knowledge base for career and professional development. Notes about your work — projects, skills, decisions, outcomes — go into `{{CONTENT_DIR}}/`. Over time, patina synthesises those notes into a picture of who you are professionally, and uses that picture to generate content: profile updates, skill inventories.
 
 The graph is the source of truth. Nothing gets added to generated content unless it's grounded in a note.
 
@@ -29,7 +29,6 @@ The graph is the source of truth. Nothing gets added to generated content unless
 {{CONTENT_DIR}}/
   notes/      — anything you've written manually: projects, prior experience, skills
   skills/     — synthesised skill inventory, built from notes
-  posts/      — generated content ready to share
 ```
 
 ## The inbox

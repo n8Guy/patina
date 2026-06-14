@@ -41,7 +41,7 @@ describe('fresh patina — no content', () => {
     const tmp = makeTmp();
     try {
       const contentDir = join(tmp, 'graph');
-      for (const dir of ['notes', 'skills', 'posts']) {
+      for (const dir of ['notes', 'skills']) {
         mkdirSync(join(contentDir, dir), { recursive: true });
         writeFileSync(join(contentDir, dir, '.gitkeep'), '');
       }
@@ -124,7 +124,6 @@ describe('patina with stale content', () => {
         mkdirSync(join(contentDir, dir), { recursive: true });
         touch(join(contentDir, dir, 'stale-item.md'), daysAgo(60));
       }
-      mkdirSync(join(contentDir, 'posts'), { recursive: true });
       const result = runScript(tmp, contentDir, 30);
       const out = result.stdout.toString();
       expect(out).toContain('Notes:');

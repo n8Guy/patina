@@ -46,7 +46,6 @@ function setupPatina(root: string, contentDir = 'graph'): void {
   writeFileSync(join(root, 'profile.yaml'), `patina_name: test\ncontent_dir: ${contentDir}\n`);
   mkdirSync(join(root, contentDir, 'notes'), { recursive: true });
   mkdirSync(join(root, contentDir, 'skills'), { recursive: true });
-  mkdirSync(join(root, contentDir, 'posts'), { recursive: true });
 }
 
 // ─── extractWikiLinks ─────────────────────────────────────────────────────────
@@ -200,16 +199,6 @@ describe('checkWikiLinks', () => {
     expect(checkWikiLinks(tmp, profile)).toEqual([]);
   });
 
-  it('returns an issue for a broken link in a post', () => {
-    setupPatina(tmp);
-    const profile = makeProfile();
-    writeFileSync(join(tmp, 'graph/posts/my-post.md'), 'See [[nonexistent]].');
-    const issues = checkWikiLinks(tmp, profile);
-    expect(issues).toHaveLength(1);
-    expect(issues[0].message).toBe('Reference points to a note that doesn\'t exist: "nonexistent"');
-    expect(issues[0].file).toMatch(/posts\/my-post\.md$/);
-  });
-
   it('does not scan skills (to avoid double-reporting)', () => {
     setupPatina(tmp);
     const profile = makeProfile();
@@ -248,16 +237,6 @@ describe('checkExclusions', () => {
     expect(issues[0].file).toMatch(/skills\/frontend\.md$/);
   });
 
-  it('returns an issue when excluded item appears in a post', () => {
-    setupPatina(tmp);
-    const profile = makeProfile();
-    writeFileSync(join(tmp, 'graph/notes/exclusions.md'), '| Item | Reason |\n|------|--------|\n| Angular | replaced |\n');
-    writeFileSync(join(tmp, 'graph/posts/my-post.md'), 'We tried Angular.');
-    const issues = checkExclusions(tmp, profile);
-    expect(issues).toHaveLength(1);
-    expect(issues[0].file).toMatch(/posts\/my-post\.md$/);
-  });
-
   it('does not report excluded items found in notes/', () => {
     setupPatina(tmp);
     const profile = makeProfile();
@@ -292,18 +271,16 @@ describe('validate', () => {
     expect(result.filesChecked).toBeGreaterThan(0);
   });
 
-  it('returns ok=false with exact issues for broken skill link + broken wiki-link + excluded items', () => {
+  it('returns ok=false with exact issues for broken skill link + excluded items', () => {
     setupPatina(tmp);
     const profile = makeProfile();
     writeFileSync(join(tmp, 'graph/notes/exclusions.md'), '| Item | Reason |\n|------|--------|\n| OldTech | deprecated |\n');
     // checkSkillNotes: [[missing-note]] in skill → 1 issue
+    // checkExclusions: OldTech in skill → 1 issue
     writeFileSync(join(tmp, 'graph/skills/frontend.md'), 'See [[missing-note]]. Also OldTech.');
-    // checkExclusions: OldTech in skill (1) + post (1) → 2 issues
-    writeFileSync(join(tmp, 'graph/posts/my-post.md'), 'OldTech was used here. See [[no-such-note]].');
-    // checkWikiLinks: [[no-such-note]] in post → 1 issue
     const result = validate(tmp, profile);
     expect(result.ok).toBe(false);
-    expect(result.issues).toHaveLength(4);
+    expect(result.issues).toHaveLength(2);
     // All file paths must use forward slashes
     for (const issue of result.issues) {
       expect(issue.file).not.toContain('\\');

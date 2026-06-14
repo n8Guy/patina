@@ -222,10 +222,6 @@ describe('scaffold — graph structure', () => {
     expect(exists('graph/skills/.gitkeep')).toBe(true);
   });
 
-  it('creates graph/posts/', () => {
-    expect(exists('graph/posts/.gitkeep')).toBe(true);
-  });
-
   it('creates graph/notes/README.md', () => {
     expect(exists('graph/notes/README.md')).toBe(true);
   });

@@ -378,7 +378,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeSeedFile(targetDir, 'inbox/.processed.json', '[]\n');
 
   // ── Content directory (never touched on upgrade)
-  const baseDirs = ['notes', 'skills', 'posts'];
+  const baseDirs = ['notes', 'skills'];
   for (const dir of baseDirs) {
     touch(targetDir, `${contentDir}/${dir}/.gitkeep`);
   }
