@@ -38,6 +38,20 @@ Rewrite `Resume Working Draft.md` to reflect the best current version — every 
 
 Update `last-updated` in the front matter to today's date. Add a row to `## Changelog` with today's date and a one-sentence summary of what changed.
 
+## Step 4b — Review the draft for AI patterns
+
+Before reporting, re-read the draft you just produced and scan it against the anti-AI patterns in `{{CONTENT_DIR}}/resume/INSTRUCTIONS.md`. Fix every occurrence in place:
+
+- Em dashes (—) → comma, period, or parentheses
+- AI vocabulary (pivotal, testament, landscape, delve, showcase, underscore, foster, garner, vibrant, robust, leverage, etc.) → plain words
+- Promotional language (groundbreaking, boasts, nestled, breathtaking, renowned, world-class, passionate about, results-driven, etc.) → cut or state plainly
+- Rule of three (forced groups of three) → keep only what the evidence supports
+- Superficial -ing tails ("highlighting that...", "ensuring...", "reflecting...") → cut or fold into a real clause
+- Negative parallelisms ("not just X, but Y") → plain statement
+- Passive voice where active is clearer → active voice
+
+Re-save `Resume Working Draft.md` if this pass changed anything, then continue to the report.
+
 ## Step 5 — Report
 
 After updating the file, give a summary of what changed:
