@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, existsSync, readFileSync, readdirSync } from 'fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
@@ -254,6 +254,29 @@ describe('scaffold — obsidian editor', () => {
   it('does not create .mcp.json', () => {
     expect(exists('.mcp.json')).toBe(false);
   });
+
+  it('seeds .obsidian/app.json', () => {
+    expect(exists('.obsidian/app.json')).toBe(true);
+  });
+
+  it('.obsidian/app.json sets attachmentFolderPath to contentDir/attachments', () => {
+    const config = JSON.parse(read('.obsidian/app.json')) as Record<string, string>;
+    expect(config.attachmentFolderPath).toBe('graph/attachments');
+  });
+
+  it('.obsidian/app.json is not overwritten on second scaffold run (seed semantics)', async () => {
+    const modified = JSON.stringify({ attachmentFolderPath: 'custom/path', custom: true }, null, 2) + '\n';
+    writeFileSync(join(targetDir, '.obsidian/app.json'), modified, 'utf8');
+    await scaffold(opts({ editor: 'obsidian' }));
+    expect(read('.obsidian/app.json')).toBe(modified);
+  });
+
+  it('.obsidian/app.json reflects a custom contentDir', async () => {
+    const customDir = join(targetDir, 'custom-content-target');
+    await scaffold(opts({ editor: 'obsidian', contentDir: 'mywork', targetDir: customDir }));
+    const config = JSON.parse(readFileSync(join(customDir, '.obsidian/app.json'), 'utf8')) as Record<string, string>;
+    expect(config.attachmentFolderPath).toBe('mywork/attachments');
+  });
 });
 
 describe('scaffold — vscode editor', () => {
@@ -283,6 +306,16 @@ describe('scaffold — non-vscode editor', () => {
 
   it('does not create .vscode/settings.json', () => {
     expect(exists('.vscode/settings.json')).toBe(false);
+  });
+});
+
+describe('scaffold — non-obsidian editor', () => {
+  beforeEach(async () => {
+    await scaffold(opts({ editor: 'vscode' }));
+  });
+
+  it('does not create .obsidian/app.json', () => {
+    expect(exists('.obsidian/app.json')).toBe(false);
   });
 });
 
