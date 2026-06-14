@@ -377,6 +377,12 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeSeedFile(targetDir, 'inbox/.gitkeep', '');
   writeSeedFile(targetDir, 'inbox/.processed.json', '[]\n');
 
+  if (editor === 'obsidian') {
+    // Written to disk only; .obsidian/ is intentionally gitignored — Obsidian reads it at runtime.
+    const obsidianConfig = { attachmentFolderPath: `${contentDir}/attachments` };
+    writeSeedFile(targetDir, '.obsidian/app.json', JSON.stringify(obsidianConfig, null, 2) + '\n');
+  }
+
   // ── Content directory (never touched on upgrade)
   const baseDirs = ['notes', 'skills'];
   for (const dir of baseDirs) {

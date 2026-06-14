@@ -20,10 +20,12 @@ export const MANAGED_FILES = [
 ] as const;
 
 // Files patina seeds once (written if absent, never overwritten).
+// Note: .obsidian/app.json is also seeded (editor-conditional, obsidian only).
 export const SEED_FILES = [
   'CUSTOM.md',
   'inbox/.gitkeep',
   'inbox/.processed.json',
+  '.obsidian/app.json',
 ] as const;
 
 export const MODULE_MANAGED_FILES: Record<string, readonly string[]> =
