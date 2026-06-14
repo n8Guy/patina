@@ -11,9 +11,9 @@ Check `$ARGUMENTS` before doing anything else.
 
 **Full refresh (default — no arguments):** Bulk reconciliation against all graph sources. Follow all steps below.
 
-**Prompt-only (arguments provided, no `--light` flag):** A refinement directive was passed (e.g. `/li-all make the tone more direct`). Skip Step 2 — do NOT read notes or skills. Load only the LinkedIn context (Step 1) and the six proposal files (Step 3). Apply the prompt as a style or phrasing directive across all six sections. Do not change the substance of any proposal unless the prompt explicitly asks for it. Still run Steps 4 and 5.
+**Prompt-only (arguments provided, no `--light` flag):** A refinement directive was passed (e.g. `/li-all make the tone more direct`). Skip Step 2 — do NOT read notes or skills. Load only the LinkedIn context (Step 1) and the six proposal files (Step 3). Apply the prompt as a style or phrasing directive across all six sections. Do not change the substance of any proposal unless the prompt explicitly asks for it. Still run Steps 3b, 4 and 5.
 
-**Light mode (`--light` flag present):** Same as prompt-only but explicit. Strip `--light` from the arguments and treat the remainder as the refinement directive. If no other arguments remain, apply a general phrasing and consistency pass using the voice guidelines from `INSTRUCTIONS.md`. Skip Step 2.
+**Light mode (`--light` flag present):** Same as prompt-only but explicit. Strip `--light` from the arguments and treat the remainder as the refinement directive. If no other arguments remain, apply a general phrasing and consistency pass using the voice guidelines from `INSTRUCTIONS.md`. Skip Step 2. Still run Steps 3b, 4 and 5.
 
 ---
 
@@ -57,6 +57,20 @@ Work through all six proposal files in order. For each one:
 - `{{CONTENT_DIR}}/linkedin/LinkedIn Activity.md`
 
 **For LinkedIn Skills.md specifically:** cross-reference the `{{CONTENT_DIR}}/skills/` notes against the proposed skills list. Add any skills that now have graph evidence and aren't listed. Remove or downgrade any that lack evidence.
+
+## Step 3b — Review all six proposals for AI patterns
+
+Before reporting, re-read each of the six proposals you just rewrote and scan all of them against the anti-AI patterns in `{{CONTENT_DIR}}/linkedin/INSTRUCTIONS.md`. Go section by section — About, Headline, Experience, Skills, Featured, Activity — and fix every occurrence in place:
+
+- Em dashes (—) → comma, period, or parentheses
+- AI vocabulary (pivotal, testament, landscape, delve, showcase, underscore, foster, garner, vibrant, robust, leverage, etc.) → plain words
+- Promotional language (groundbreaking, boasts, nestled, breathtaking, renowned, world-class, passionate about, results-driven, etc.) → cut or state plainly
+- Rule of three (forced groups of three) → keep only what the evidence supports
+- Superficial -ing tails ("highlighting that...", "ensuring...", "reflecting...") → cut or fold into a real clause
+- Negative parallelisms ("not just X, but Y") → plain statement
+- Passive voice where active is clearer → active voice
+
+Re-save any file you changed during this pass before continuing to the report.
 
 ## Step 4 — Report
 

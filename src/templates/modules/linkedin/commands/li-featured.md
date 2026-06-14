@@ -17,6 +17,20 @@ The user's message after `/li-featured` is the direction. It may be:
 
 **Posts drafted for Featured** can be more timely — a specific decision, launch, or lesson learned is fine. Ground every claim in graph notes.
 
+## Review for AI patterns
+
+Before writing the file, re-read the draft you just produced and scan it against the anti-AI patterns in `{{CONTENT_DIR}}/linkedin/INSTRUCTIONS.md`. Fix every occurrence in place:
+
+- Em dashes (—) → comma, period, or parentheses
+- AI vocabulary (pivotal, testament, landscape, delve, showcase, underscore, foster, garner, vibrant, robust, leverage, etc.) → plain words
+- Promotional language (groundbreaking, boasts, nestled, breathtaking, renowned, world-class, passionate about, results-driven, etc.) → cut or state plainly
+- Rule of three (forced groups of three) → keep only what the evidence supports
+- Superficial -ing tails ("highlighting that...", "ensuring...", "reflecting...") → cut or fold into a real clause
+- Negative parallelisms ("not just X, but Y") → plain statement
+- Passive voice where active is clearer → active voice
+
+Only continue to the write step once the draft is clean.
+
 ## Write the updated file
 - Edit `## Proposed` in `LinkedIn Featured.md`
 - Update `last-updated` in front matter to today's date

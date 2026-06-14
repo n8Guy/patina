@@ -114,6 +114,20 @@ Also update `last-updated` in the front matter.
 - **Do not write generic copy.** "Results-driven leader" and "passionate about innovation" are noise. Specificity is the point.
 - **Do not create new dated files for minor edits.** The changelog table handles revision history.
 
+## Anti-AI writing patterns
+
+Drafts are grounded in real notes, but they still pick up AI writing tells. Before any draft is saved, the text must be free of these. Watch for them while drafting, not just at review:
+
+- **Em dashes (—).** Rewrite with a comma, period, or parentheses. Straight hyphens in compound words are fine.
+- **AI vocabulary.** Cut or replace: pivotal, testament, landscape (figurative), delve, showcase, underscore, foster, garner, vibrant, robust, leverage, spearhead, tapestry, realm, intricate, seamless.
+- **Promotional language.** Cut: groundbreaking, boasts, nestled, breathtaking, renowned, world-class, cutting-edge, passionate about, results-driven.
+- **Rule of three.** Do not force ideas into groups of three for the sake of rhythm ("strategy, execution, and delivery"). Keep the items the evidence actually supports.
+- **Superficial -ing tails.** Cut clauses tacked on to fake depth: "highlighting that...", "ensuring...", "reflecting...", "showcasing...", "underscoring...".
+- **Negative parallelisms.** Rewrite "not just X, but Y" and "it's not about X, it's about Y" as a plain statement.
+- **Passive voice where active is clearer.** "Migration was led by me" becomes "I led the migration."
+
+When you find one, fix it in place. The goal is copy that reads like {{USER_NAME}} wrote it, not like it was generated.
+
 ## Sharing is your call
 
 Patina drafts; you publish. Nothing here is posted automatically, and nothing leaves your computer until you copy it somewhere yourself — so you are always the final reviewer.
