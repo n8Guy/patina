@@ -20,7 +20,7 @@ function listFiles(dir) {
   try { return readdirSync(full).filter(f => !shouldSkip(f)); } catch { return []; }
 }
 
-const areas = ['notes', 'skills', 'posts'];
+const areas = ['notes', 'skills'];
 
 // Fresh patina — no real content yet. Produce no output so CLAUDE.md skips the report.
 if (!areas.some(dir => listFiles(dir).length > 0)) process.exit(0);
@@ -36,7 +36,7 @@ function staleIn(dir) {
   } catch { return []; }
 }
 
-const labels = { notes: 'Notes', skills: 'Skills', posts: 'Posts' };
+const labels = { notes: 'Notes', skills: 'Skills' };
 const stale = areas
   .map(dir => ({ label: labels[dir], slugs: staleIn(dir) }))
   .filter(({ slugs }) => slugs.length > 0);

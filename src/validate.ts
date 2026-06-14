@@ -6,10 +6,8 @@ import { getModule } from './modules/registry.js';
 import { detectCorruption } from './health.js';
 import type { CorruptionFinding } from './health.js';
 
-// Destructure positionally — types enforce order: CONTENT_SUBDIRS is `readonly ['notes', 'skills', 'posts']`
 const NOTES: 'notes' = CONTENT_SUBDIRS[0];
 const SKILLS: 'skills' = CONTENT_SUBDIRS[1];
-const POSTS: 'posts' = CONTENT_SUBDIRS[2];
 
 // ─── Root detection ───────────────────────────────────────────────────────────
 
@@ -131,17 +129,15 @@ export function checkSkillNotes(root: string, profile: Profile): ValidationIssue
 export function checkWikiLinks(root: string, profile: Profile): ValidationIssue[] {
   const contentDir = join(root, profile.content_dir ?? 'graph');
   const notesDir = join(contentDir, NOTES);
-  const postsDir = join(contentDir, POSTS);
 
   const noteFiles = listMarkdownFiles(notesDir);
   const noteSlugs = new Set(noteFiles.map(f => basename(f, '.md')));
 
   const issues: ValidationIssue[] = [];
 
-  // Scan notes and posts — NOT skills (those are handled by checkSkillNotes)
+  // Scan notes — NOT skills (those are handled by checkSkillNotes)
   const filesToScan = [
     ...listMarkdownFiles(notesDir),
-    ...listMarkdownFiles(postsDir),
   ];
 
   for (const file of filesToScan) {
@@ -174,12 +170,10 @@ export function checkExclusions(root: string, profile: Profile): ValidationIssue
   if (items.length === 0) return [];
 
   const skillsDir = join(contentDir, SKILLS);
-  const postsDir = join(contentDir, POSTS);
 
-  // Scan skills and posts — NOT notes (exclusions.md lives there)
+  // Scan skills — NOT notes (exclusions.md lives there)
   const filesToScan = [
     ...listMarkdownFiles(skillsDir),
-    ...listMarkdownFiles(postsDir),
   ];
 
   const issues: ValidationIssue[] = [];
@@ -217,7 +211,6 @@ export function checkModuleWikiLinks(root: string, profile: Profile): Validation
   const contentDir = join(root, profile.content_dir ?? 'graph');
   const notesDir = join(contentDir, NOTES);
   const skillsDir = join(contentDir, SKILLS);
-  const postsDir = join(contentDir, POSTS);
 
   const noteFiles = listMarkdownFiles(notesDir);
   const noteSlugs = new Set(noteFiles.map(f => basename(f, '.md')));
@@ -240,11 +233,10 @@ export function checkModuleWikiLinks(root: string, profile: Profile): Validation
     )];
     const coreNotes = resolve(notesDir);
     const coreSkills = resolve(skillsDir);
-    const corePosts = resolve(postsDir);
 
     for (const dir of moduleDirs) {
       // Skip dirs already covered by core checks to avoid double-reporting
-      if (dir === coreNotes || dir === coreSkills || dir === corePosts) continue;
+      if (dir === coreNotes || dir === coreSkills) continue;
 
       for (const file of listMarkdownFiles(dir)) {
         const content = readFileSync(file, 'utf8');
@@ -309,7 +301,6 @@ export function validate(root: string, profile: Profile): ValidationResult {
   const scannedFiles = new Set<string>([
     ...listMarkdownFiles(join(contentDir, NOTES)),
     ...listMarkdownFiles(join(contentDir, SKILLS)),
-    ...listMarkdownFiles(join(contentDir, POSTS)),
   ]);
 
   // Add module content files

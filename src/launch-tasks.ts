@@ -15,11 +15,6 @@ export const BASE_LAUNCH_TASKS: readonly LaunchTaskDefinition[] = [
     label: 'Summarise notes changed in the last 7 days',
     template: '- Summarise any notes in `{{CONTENT_DIR}}/notes/` modified in the last 7 days, one line each.',
   },
-  {
-    id: 'open-posts',
-    label: 'List unfinished posts',
-    template: '- List any drafts in `{{CONTENT_DIR}}/posts/` that look unfinished and offer to continue one.',
-  },
 ];
 
 export interface AvailableLaunchTask {

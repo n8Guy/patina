@@ -1,6 +1,6 @@
 import { MODULES } from './modules/registry.js';
 
-export const CONTENT_SUBDIRS = ['notes', 'skills', 'posts'] as const;
+export const CONTENT_SUBDIRS = ['notes', 'skills'] as const;
 
 // Files patina manages (marked managed, overwritten on update).
 // graph/** is intentionally excluded — patina never touches user content.
