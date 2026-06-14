@@ -12,6 +12,7 @@ import {
   checkModuleWikiLinks,
   checkManagedFileHealth,
   validate,
+  formatReport,
   findPatinaRoot,
 } from '../validate.js';
 import type { Profile } from '../types.js';
@@ -381,5 +382,72 @@ describe('findPatinaRoot', () => {
 
   it('returns null when profile.yaml is absent', () => {
     expect(findPatinaRoot(tmp)).toBeNull();
+  });
+});
+
+// ─── formatReport ─────────────────────────────────────────────────────────────
+
+import type { ValidationResult } from '../types.js';
+
+describe('formatReport', () => {
+  it('returns a clean message when there are no issues', () => {
+    const result: ValidationResult = { ok: true, issues: [], filesChecked: 42 };
+    expect(formatReport(result)).toBe('Healthy — checked 42 files, no problems found.');
+  });
+
+  it('includes repair guidance for placeholder issues', () => {
+    const result: ValidationResult = {
+      ok: false,
+      issues: [{ check: 'managed-file-placeholders', file: 'CLAUDE.md', message: 'Unrendered: {{USER_NAME}}' }],
+      filesChecked: 1,
+    };
+    const report = formatReport(result);
+    expect(report).toContain('How to fix:');
+    expect(report).toContain('npx my-patina repair');
+    const nonEmpty = report.split('\n').filter(l => l.length > 0);
+    expect(nonEmpty.at(-1)).toMatch(/^Found 1 problem/);
+  });
+
+  it('includes manual-edit guidance for wiki-link issues', () => {
+    const result: ValidationResult = {
+      ok: false,
+      issues: [{ check: 'wiki-links', file: 'graph/notes/foo.md', line: 3, message: 'missing note' }],
+      filesChecked: 5,
+    };
+    const report = formatReport(result);
+    expect(report).toContain('How to fix:');
+    expect(report).toContain('Claude');
+    expect(report).not.toContain('npx my-patina repair');
+    const nonEmpty = report.split('\n').filter(l => l.length > 0);
+    expect(nonEmpty.at(-1)).toMatch(/^Found 1 problem/);
+  });
+
+  it('includes both guidance paths for mixed issues', () => {
+    const result: ValidationResult = {
+      ok: false,
+      issues: [
+        { check: 'managed-file-placeholders', file: 'CLAUDE.md', message: 'Unrendered: {{USER_NAME}}' },
+        { check: 'wiki-links', file: 'graph/notes/foo.md', line: 1, message: 'missing note' },
+      ],
+      filesChecked: 5,
+    };
+    const report = formatReport(result);
+    expect(report).toContain('npx my-patina repair');
+    expect(report).toContain('Claude');
+    const nonEmpty = report.split('\n').filter(l => l.length > 0);
+    expect(nonEmpty.at(-1)).toMatch(/^Found 2 problems/);
+  });
+
+  it('summary line is always the last non-empty line (contract: cli.ts pops it for coloring)', () => {
+    const result: ValidationResult = {
+      ok: false,
+      issues: [
+        { check: 'skill-notes', file: 'graph/skills/frontend.md', line: 1, message: 'missing' },
+        { check: 'exclusions', file: 'graph/skills/tech.md', line: 2, message: 'excluded' },
+      ],
+      filesChecked: 3,
+    };
+    const nonEmpty = formatReport(result).split('\n').filter(l => l.length > 0);
+    expect(nonEmpty.at(-1)).toMatch(/^Found \d+ problems/);
   });
 });

@@ -33,7 +33,7 @@ This module helps you draft and refine your LinkedIn profile using your patina g
 
 ## How it works
 
-LinkedIn commands read your `{{CONTENT_DIR}}/` graph — notes and skills — and draft profile copy grounded in that evidence. They never invent claims not supported by your notes.
+LinkedIn commands read your notes and skills in `{{CONTENT_DIR}}/` and draft profile copy grounded in that evidence. They never invent claims not supported by your notes.
 
 The `/reflect` command also runs the LinkedIn reflect hook (`/li-all`) to keep your drafts current.
 

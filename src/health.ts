@@ -32,6 +32,14 @@ export function findPlaceholders(content: string): string[] {
 }
 
 /**
+ * Shared repair command string for placeholder corruption.
+ * Used by both formatHealthReport (health.ts) and buildFixGuidance (validate.ts).
+ */
+export function placeholderRepairGuidance(): string {
+  return 'Run `npx my-patina repair` to fix unrendered template placeholders automatically.';
+}
+
+/**
  * Produces a plain-language summary of the health report for CLI/status output.
  */
 export function formatHealthReport(report: HealthReport): string {
@@ -47,7 +55,7 @@ export function formatHealthReport(report: HealthReport): string {
 
   const fileCount = report.corruptFiles.size;
   if (fileCount > 0) {
-    lines.push(`Run \`npx my-patina\` to repair ${fileCount} affected file${fileCount === 1 ? '' : 's'}.`);
+    lines.push(`${fileCount} affected file${fileCount === 1 ? '' : 's'}. ${placeholderRepairGuidance()}`);
   }
 
   return lines.join('\n');
