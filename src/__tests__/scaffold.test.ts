@@ -654,6 +654,24 @@ describe('scaffold — README.md', () => {
     const content = read('README.md');
     expect(content).toContain('## Installed modules');
   });
+
+  it('README.md contains the backup safety section', () => {
+    const content = read('README.md');
+    expect(content).toContain('## Keeping your notes safe');
+  });
+
+  it('README.md backup section appears before Installed modules', () => {
+    const content = read('README.md');
+    const backupIdx = content.indexOf('## Keeping your notes safe');
+    const modulesIdx = content.indexOf('## Installed modules');
+    expect(backupIdx).toBeGreaterThan(-1);
+    expect(modulesIdx).toBeGreaterThan(-1);
+    expect(backupIdx).toBeLessThan(modulesIdx);
+  });
+
+  it('scaffold does not create a .git directory', () => {
+    expect(exists('.git')).toBe(false);
+  });
 });
 
 describe('scaffold — README.md with linkedin module', () => {

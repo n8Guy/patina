@@ -192,3 +192,77 @@ describe('update_check round-trip', () => {
     expect(state.update_check).toBeUndefined();
   });
 });
+
+// ── backup_offer ──────────────────────────────────────────────────────────────
+
+describe('backup_offer round-trip', () => {
+  it('writeState → readState preserves backup_offer', () => {
+    const backupOffer = { offered_at: '2026-06-14T10:00:00.000Z', outcome: 'initialized' as const };
+    writeState(tmp, { backup_offer: backupOffer });
+
+    const state = readState(tmp);
+    expect(state.backup_offer).toEqual(backupOffer);
+  });
+
+  it('readState returns undefined backup_offer when field absent from file', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({}, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.backup_offer).toBeUndefined();
+  });
+
+  it('readState tolerates state written by an older patina (no backup_offer key)', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ deferred_modules: [], update_check: { last_notified_version: '1.0.0' } }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.backup_offer).toBeUndefined();
+    expect(state.update_check?.last_notified_version).toBe('1.0.0');
+  });
+
+  it('readState ignores backup_offer with invalid outcome', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ backup_offer: { offered_at: '2026-06-14T10:00:00.000Z', outcome: 'invalid' } }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.backup_offer).toBeUndefined();
+  });
+
+  it('readState ignores backup_offer missing offered_at', () => {
+    writeFileSync(
+      join(tmp, STATE_FILENAME),
+      JSON.stringify({ backup_offer: { outcome: 'declined' } }, null, 2) + '\n',
+      'utf8'
+    );
+
+    const state = readState(tmp);
+    expect(state.backup_offer).toBeUndefined();
+  });
+
+  it('all valid outcome values round-trip correctly', () => {
+    const outcomes = ['initialized', 'declined', 'already-tracked', 'skipped'] as const;
+    for (const outcome of outcomes) {
+      const backupOffer = { offered_at: '2026-06-14T10:00:00.000Z', outcome };
+      writeState(tmp, { backup_offer: backupOffer });
+      const state = readState(tmp);
+      expect(state.backup_offer?.outcome).toBe(outcome);
+    }
+  });
+
+  it('does not emit backup_offer key when undefined', () => {
+    writeState(tmp, { backup_offer: undefined });
+    const raw = readFileSync(join(tmp, STATE_FILENAME), 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    expect('backup_offer' in parsed).toBe(false);
+  });
+});
