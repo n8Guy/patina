@@ -1,19 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { describe, it, expect } from 'vitest';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, moduleContentFiles, buildGuideCommands } from '../scaffold.js';
 import type { Profile } from '../types.js';
-
-let tmp: string;
-
-beforeEach(() => {
-  tmp = mkdtempSync(join(tmpdir(), 'patina-helpers-test-'));
-});
-
-afterEach(() => {
-  rmSync(tmp, { recursive: true, force: true });
-});
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -214,6 +201,14 @@ describe('baseManagedFiles', () => {
     expect(paths).not.toContain('.mcp.json');
   });
 
+  it('does not include .mcp.json for obsidian editor', () => {
+    const profile = makeProfile({ editor: 'obsidian' });
+    const vars = profileToVars(profile);
+    const files = baseManagedFiles({ vars, editor: 'obsidian' });
+    const paths = files.map(([rel]) => rel);
+    expect(paths).not.toContain('.mcp.json');
+  });
+
   it('includes inbox.md command but not inbox seed files', () => {
     const vars = profileToVars(makeProfile());
     const files = baseManagedFiles({ vars, editor: 'vscode' });
@@ -255,44 +250,6 @@ describe('baseManagedFiles', () => {
     const files = baseManagedFiles({ vars, editor: 'vscode' });
     const readmeEntry = files.find(([rel]) => rel === 'README.md')!;
     expect(readmeEntry[1]).not.toMatch(/\{\{[A-Z_]+\}\}/);
-  });
-
-  it('includes .mcp.json when editor is obsidian and targetDir provided', () => {
-    const profile = makeProfile({ editor: 'obsidian' });
-    const vars = profileToVars(profile);
-    const files = baseManagedFiles({ vars, editor: 'obsidian', targetDir: tmp });
-    const paths = files.map(([rel]) => rel);
-    expect(paths).toContain('.mcp.json');
-  });
-
-  it('does NOT include .mcp.json when editor is obsidian but no targetDir', () => {
-    const profile = makeProfile({ editor: 'obsidian' });
-    const vars = profileToVars(profile);
-    const files = baseManagedFiles({ vars, editor: 'obsidian' });
-    const paths = files.map(([rel]) => rel);
-    expect(paths).not.toContain('.mcp.json');
-  });
-
-  it('.mcp.json vault path contains content_dir', () => {
-    const profile = makeProfile({ editor: 'obsidian', content_dir: 'graph' });
-    const vars = profileToVars(profile);
-    const files = baseManagedFiles({ vars, editor: 'obsidian', targetDir: tmp });
-    const mcpEntry = files.find(([rel]) => rel === '.mcp.json');
-    expect(mcpEntry).toBeDefined();
-    const mcp = JSON.parse(mcpEntry![1]);
-    const vaultPath = mcp.mcpServers.obsidian.args.at(-1) as string;
-    expect(vaultPath).toContain('graph');
-  });
-
-  it('.mcp.json vault path uses forward slashes on all platforms', () => {
-    const profile = makeProfile({ editor: 'obsidian', content_dir: 'graph' });
-    const vars = profileToVars(profile);
-    const files = baseManagedFiles({ vars, editor: 'obsidian', targetDir: tmp });
-    const mcpEntry = files.find(([rel]) => rel === '.mcp.json');
-    expect(mcpEntry).toBeDefined();
-    const mcp = JSON.parse(mcpEntry![1]);
-    const vaultPath = mcp.mcpServers.obsidian.args.at(-1) as string;
-    expect(vaultPath).not.toContain('\\');
   });
 
   it('CLAUDE.md content contains the user name', () => {

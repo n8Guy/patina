@@ -10,7 +10,6 @@ export const MANAGED_FILES = [
   '.claude/settings.json',
   '.claude/commands/add.md',
   '.claude/commands/reflect.md',
-  '.mcp.json',
   '.claude/commands/inbox.md',
   '.claude/commands/status.md',
   '.claude/commands/guide.md',

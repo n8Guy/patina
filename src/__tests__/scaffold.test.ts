@@ -255,29 +255,6 @@ describe('scaffold — obsidian editor', () => {
     await scaffold(opts({ editor: 'obsidian' }));
   });
 
-  it('creates .mcp.json', () => {
-    expect(exists('.mcp.json')).toBe(true);
-  });
-
-  it('.mcp.json contains mcp-obsidian server config', () => {
-    const mcp = JSON.parse(read('.mcp.json')) as { mcpServers: { obsidian: { args: string[] } } };
-    expect(mcp.mcpServers.obsidian).toBeDefined();
-    expect(mcp.mcpServers.obsidian.args).toContain('mcp-obsidian@latest');
-  });
-
-  it('.mcp.json vault path points into the graph directory', () => {
-    const mcp = JSON.parse(read('.mcp.json')) as { mcpServers: { obsidian: { args: string[] } } };
-    const vaultPath = mcp.mcpServers.obsidian.args.at(-1) as string;
-    expect(vaultPath).toContain('graph');
-    expect(vaultPath).not.toContain('\\');
-  });
-});
-
-describe('scaffold — non-obsidian editor', () => {
-  beforeEach(async () => {
-    await scaffold(opts({ editor: 'vscode' }));
-  });
-
   it('does not create .mcp.json', () => {
     expect(exists('.mcp.json')).toBe(false);
   });
