@@ -133,7 +133,7 @@ describe('handleDeferredModules', () => {
       id: 'linkedin',
       label: 'LinkedIn',
       promptsOnAdd: mockPromptsOnAdd,
-    } as ReturnType<typeof getModule>);
+    } as unknown as ReturnType<typeof getModule>);
     writeFileSync(join(tmp, 'profile.yaml'), 'name: Test\npatina_name: test\ncontent_dir: graph\n');
     writeState(tmp, { deferred_modules: [{ module: 'linkedin', snooze_until: PAST }] });
     mockSelect.mockResolvedValueOnce('now');
@@ -147,7 +147,7 @@ describe('handleDeferredModules', () => {
 
   it('"now" with unknown module ID still clears the deferral', async () => {
     mockGetModule.mockReturnValue(undefined);
-    writeState(tmp, { deferred_modules: [{ module: 'unknown-module', snooze_until: PAST }] });
+    writeState(tmp, { deferred_modules: [{ module: 'unknown-module' as unknown as import('../types.js').ModuleId, snooze_until: PAST }] });
     mockSelect.mockResolvedValueOnce('now');
 
     await handleDeferredModules(tmp, baseProfile());
@@ -158,7 +158,7 @@ describe('handleDeferredModules', () => {
 
   it('unknown module ID: still prompts and respects "done"', async () => {
     mockGetModule.mockReturnValue(undefined);
-    writeState(tmp, { deferred_modules: [{ module: 'unknown-module', snooze_until: PAST }] });
+    writeState(tmp, { deferred_modules: [{ module: 'unknown-module' as unknown as import('../types.js').ModuleId, snooze_until: PAST }] });
     mockSelect.mockResolvedValueOnce('done');
 
     await handleDeferredModules(tmp, baseProfile());
