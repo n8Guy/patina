@@ -1,6 +1,6 @@
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
@@ -15,6 +15,46 @@ import { validate, formatReport } from './validate.js';
 import type { Profile } from './types.js';
 
 export { writeProfile, removeManagedFileIfManaged as removeManagedFileIfUnmodified };
+
+/**
+ * Remove or prune the legacy mcp-obsidian .mcp.json left by older patina versions.
+ * - Patina-owned file with only obsidian server → delete the file.
+ * - Patina-owned file with other servers too → remove the obsidian entry and
+ *   drop the _patina markers so the file becomes user-owned.
+ * - User-owned (no _patina marker) → leave untouched.
+ *
+ * Exported for testing.
+ */
+export function cleanupObsidianMcpJson(cwd: string, updated: string[]): void {
+  const mcpPath = join(cwd, '.mcp.json');
+  if (!existsSync(mcpPath)) return;
+
+  const content = readFileSync(mcpPath, 'utf8');
+  if (!isMarkedManaged('.mcp.json', content)) return;
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(content) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+
+  const servers = (parsed.mcpServers ?? {}) as Record<string, unknown>;
+  const otherServers = Object.keys(servers).filter(k => k !== 'obsidian');
+
+  if (otherServers.length === 0) {
+    unlinkSync(mcpPath);
+  } else {
+    // Remove the obsidian entry and patina ownership markers, leave the rest
+    const { _patina, _patina_note, ...rest } = parsed as Record<string, unknown> & { _patina?: unknown; _patina_note?: unknown };
+    void _patina; void _patina_note;
+    const { obsidian: _obs, ...remainingServers } = servers as Record<string, unknown> & { obsidian?: unknown };
+    void _obs;
+    const pruned = { ...rest, mcpServers: remainingServers };
+    writeFileSync(mcpPath, JSON.stringify(pruned, null, 2) + '\n', 'utf8');
+  }
+  updated.push('.mcp.json');
+}
 
 // ─── Branch A: Update personal info ──────────────────────────────────────────
 
@@ -58,7 +98,7 @@ export function applyProfileUpdate(
   const existingState = readState(cwd);
 
   const files = [
-    ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd }),
+    ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [] }),
     ...(updatedProfile.modules ?? []).flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
@@ -85,6 +125,9 @@ export function applyProfileUpdate(
       }
     }
   }
+
+  // Remove or prune the legacy mcp-obsidian .mcp.json (no longer emitted by scaffold)
+  cleanupObsidianMcpJson(cwd, updated);
 
   writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   const profileToWrite = stripLegacyChecksums(updatedProfile);
@@ -212,7 +255,7 @@ export function applyLaunchTaskUpdate(
   const existingState = readState(cwd);
 
   // Re-render all base managed files (CLAUDE.md now contains launch section inline)
-  const files = baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], targetDir: cwd });
+  const files = baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? []});
 
   const updated: string[] = [];
   const skipped: string[] = [];
@@ -279,7 +322,7 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   const repairedFiles: string[] = [];
 
   try {
-    for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], targetDir: cwd })) {
+    for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? []})) {
       const result = writeManagedFile(cwd, rel, content);
       if (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped') {
         repairedFiles.push(rel);
@@ -289,6 +332,9 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
     p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
     return { healthReport, repairedFiles: [] };
   }
+  // Clean up the legacy mcp-obsidian .mcp.json on every update path
+  cleanupObsidianMcpJson(cwd, []);
+
   try {
     writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check });
   } catch (err) {

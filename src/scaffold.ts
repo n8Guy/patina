@@ -203,19 +203,14 @@ export interface BaseManagedFilesOptions {
   vars: TemplateVars;
   editor: string;
   modules?: readonly string[];
-  targetDir?: string;
 }
 
 /**
  * Returns [relativePath, content] pairs for the base managed files.
  * These are all marked (patina: managed) and overwritten on update.
- *
- * @param opts.targetDir - The absolute path to the patina directory. Required for
- *   the obsidian .mcp.json vault path. If omitted, .mcp.json is not produced
- *   (safe to omit when editor !== 'obsidian').
  */
 export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, string]> {
-  const { vars, editor, modules = [], targetDir } = opts;
+  const { vars, editor, modules = [] } = opts;
 
   // Build module README blocks inline
   const moduleReadmeBlocks = modules
@@ -241,20 +236,6 @@ export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, 
     ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), fullVars)],
     ['.claude/inbox-routing.md', buildRoutingFile(modules, fullVars)],
   ];
-
-  if (editor === 'obsidian' && targetDir) {
-    const mcp = {
-      _patina: 'managed',
-      _patina_note: 'This file is managed by patina and is overwritten on update. Remove the _patina key to take ownership.',
-      mcpServers: {
-        obsidian: {
-          command: 'npx',
-          args: ['-y', 'mcp-obsidian@latest', join(targetDir, vars.CONTENT_DIR).replace(/\\/g, '/')],
-        },
-      },
-    };
-    files.push(['.mcp.json', JSON.stringify(mcp, null, 2) + '\n']);
-  }
 
   if (editor === 'vscode') {
     const vscodeSettings = {
@@ -376,7 +357,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
 
   // ── Managed files (marked, overwritten on update)
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles({ vars, editor, modules, targetDir }),
+    ...baseManagedFiles({ vars, editor, modules }),
     ...modules.flatMap(m => moduleManagedFiles(m, vars)),
   ];
 
