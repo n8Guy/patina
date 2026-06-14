@@ -3,7 +3,7 @@ import { join, relative, sep, basename, dirname, resolve } from 'path';
 import type { Profile, ValidationCheckId, ValidationIssue, ValidationResult } from './types.js';
 import { CONTENT_SUBDIRS } from './checksums.js';
 import { getModule } from './modules/registry.js';
-import { detectCorruption } from './health.js';
+import { detectCorruption, placeholderRepairGuidance } from './health.js';
 import type { CorruptionFinding } from './health.js';
 
 const NOTES: 'notes' = CONTENT_SUBDIRS[0];
@@ -327,6 +327,32 @@ export function validate(root: string, profile: Profile): ValidationResult {
 
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
+function buildFixGuidance(issues: ValidationIssue[]): string {
+  const checks = new Set(issues.map(i => i.check));
+  const lines: string[] = ['How to fix:'];
+
+  if (checks.has('managed-file-placeholders')) {
+    lines.push(`  • ${placeholderRepairGuidance()}`);
+  }
+
+  // Note: 'managed-file-placeholders' is the only auto-repairable check type.
+  // All other check types require manual intervention.
+  const manualChecks: ValidationCheckId[] = ['wiki-links', 'skill-notes', 'module-wiki-links', 'exclusions'];
+  if (manualChecks.some(c => checks.has(c))) {
+    lines.push('  • Broken links or excluded items — open the listed files and edit them directly, or describe the issue to Claude for guided help.');
+  }
+
+  // Fallback: if a new check type is added to ValidationCheckId but not handled above,
+  // ensure the guidance block still has a useful bullet rather than just the header.
+  if (lines.length === 1) {
+    lines.push('  • Open Claude and describe the issue for guided help.');
+  }
+
+  return lines.join('\n');
+}
+
+// Consumer note: cli.ts line 44 pops the last line from this output to color it
+// as the summary. The summary line MUST remain the last non-empty line.
 export function formatReport(result: ValidationResult): string {
   if (result.ok) {
     return `Healthy — checked ${result.filesChecked} files, no problems found.`;
@@ -337,6 +363,10 @@ export function formatReport(result: ValidationResult): string {
     const loc = issue.line !== undefined ? `${issue.file}:${issue.line}` : issue.file;
     lines.push(`${loc}  ${issue.message}`);
   }
+
+  lines.push('');
+  lines.push(buildFixGuidance(result.issues));
+  lines.push('');
 
   // Count distinct files with issues
   const filesWithIssues = new Set(result.issues.map(i => i.file)).size;

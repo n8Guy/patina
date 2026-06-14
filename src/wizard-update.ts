@@ -10,7 +10,7 @@ import { profileToVars, baseManagedFiles, moduleManagedFiles, GUIDE_CORE_COMMAND
 import { writeManagedFile, isMarkedManaged } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { offerBackup, backupOfferKind } from './wizard-backup.js';
-import { detectCorruption, formatHealthReport, type HealthReport } from './health.js';
+import { detectCorruption, formatHealthReport, repairCorruption, type HealthReport } from './health.js';
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { validate, formatReport } from './validate.js';
 import { getModule } from './modules/registry.js';
@@ -302,6 +302,28 @@ async function runValidate(cwd: string, profile: Profile): Promise<void> {
   const result = validate(cwd, profile);
   const report = formatReport(result);
   p.note(report, label('Health check'));
+
+  // Note: 'managed-file-placeholders' is the only auto-repairable check type,
+  // so this branch specifically handles that case.
+  const hasPlaceholders = !result.ok && result.issues.some(i => i.check === 'managed-file-placeholders');
+  if (hasPlaceholders) {
+    const shouldRepair = await p.confirm({
+      message: 'Repair placeholder issues now?',
+    });
+    if (!p.isCancel(shouldRepair) && shouldRepair) {
+      try {
+        const { repairedFiles } = await repairCorruption(cwd, profile, { dryRun: false });
+        if (repairedFiles.length > 0) {
+          p.log.success(`Repaired: ${repairedFiles.join(', ')}`);
+        } else {
+          p.log.info('Nothing to repair.');
+        }
+      } catch (err) {
+        p.log.error(`Repair failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
   if (result.ok) {
     p.outro(chalk.green('All good.'));
   } else {

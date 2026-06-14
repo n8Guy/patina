@@ -22,7 +22,7 @@ This module helps you keep your resume current by synthesising it from your pati
 
 ## How it works
 
-The `/resume-refresh` command reads your `{{CONTENT_DIR}}/` graph — notes, skills, and experience — and updates your Resume Working Draft to reflect your current professional state. It never overwrites Resume Last Submitted; that file is yours to update manually when you send an application.
+The `/resume-refresh` command reads your notes, skills, and experience in `{{CONTENT_DIR}}/` and updates your Resume Working Draft to reflect your current professional state. It never overwrites Resume Last Submitted; that file is yours to update manually when you send an application.
 
 The working draft is compared against the last submitted version so you can see what has changed before sending.
 
