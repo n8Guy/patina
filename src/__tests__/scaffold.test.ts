@@ -1300,3 +1300,96 @@ describe('scaffold — no clients module', () => {
     expect(exists('.claude/commands/client-check.md')).toBe(false);
   });
 });
+
+// ── Audience commands ─────────────────────────────────────────────────────────
+
+describe('scaffold — audience commands', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates .claude/commands/audience.md', () => {
+    expect(exists('.claude/commands/audience.md')).toBe(true);
+  });
+
+  it('audience.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/audience.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('audience.md references .claude/agents/ as the storage location', () => {
+    expect(read('.claude/commands/audience.md')).toContain('.claude/agents/');
+  });
+
+  it('audience.md references role: audience frontmatter', () => {
+    expect(read('.claude/commands/audience.md')).toContain('role: audience');
+  });
+
+  it('audience.md does not reference the content dir (archetypes are not graph content)', () => {
+    expect(read('.claude/commands/audience.md')).not.toMatch(/\{\{CONTENT_DIR\}\}/);
+  });
+
+  it('audience.md has no unreplaced template variables', () => {
+    expect(read('.claude/commands/audience.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('creates .claude/commands/with-audience.md', () => {
+    expect(exists('.claude/commands/with-audience.md')).toBe(true);
+  });
+
+  it('with-audience.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/with-audience.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('with-audience.md discovers agents by role: audience frontmatter', () => {
+    expect(read('.claude/commands/with-audience.md')).toContain('role: audience');
+  });
+
+  it('with-audience.md references .claude/agents/ as the discovery location', () => {
+    expect(read('.claude/commands/with-audience.md')).toContain('.claude/agents/');
+  });
+
+  it('with-audience.md contains panel table column headers', () => {
+    const content = read('.claude/commands/with-audience.md');
+    expect(content).toContain('Audience');
+    expect(content).toContain('Reaction');
+    expect(content).toContain('Key Concerns');
+  });
+
+  it('with-audience.md defines the fixed reaction scale', () => {
+    const content = read('.claude/commands/with-audience.md');
+    expect(content).toContain('Positive');
+    expect(content).toContain('Negative');
+    expect(content).toContain('Neutral');
+    expect(content).toContain('Mixed');
+  });
+
+  it('with-audience.md contains guard to run /audience if no archetypes found', () => {
+    const content = read('.claude/commands/with-audience.md');
+    expect(content).toContain('Run `/audience`');
+    expect(content).toContain('Stop. Do not continue.');
+  });
+
+  it('with-audience.md does not reference the content dir for agent discovery', () => {
+    expect(read('.claude/commands/with-audience.md')).not.toMatch(/\{\{CONTENT_DIR\}\}/);
+  });
+
+  it('with-audience.md has no unreplaced template variables', () => {
+    expect(read('.claude/commands/with-audience.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('CLAUDE.md contains /audience', () => {
+    expect(read('CLAUDE.md')).toContain('/audience');
+  });
+
+  it('CLAUDE.md contains /with-audience', () => {
+    expect(read('CLAUDE.md')).toContain('/with-audience');
+  });
+
+  it('guide.md contains /audience', () => {
+    expect(read('.claude/commands/guide.md')).toContain('/audience');
+  });
+
+  it('guide.md contains /with-audience', () => {
+    expect(read('.claude/commands/guide.md')).toContain('/with-audience');
+  });
+});
