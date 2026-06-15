@@ -11,7 +11,9 @@ const LI_COMMANDS = [
   'li-draft.md', 'li-post.md',
 ] as const;
 
-// Single source of truth for managed paths — used by both managedPaths and managedFiles().
+// Paths deleted when the module is removed. Content-dir-relative managed files
+// (INSTRUCTIONS.md) are excluded — they live under graph/ and are left on disk like
+// other content files when the module is uninstalled.
 const LI_MANAGED_PATHS = [
   ...LI_COMMANDS.map(c => `.claude/commands/${c}`),
   '.claude/modules/linkedin/manifest.md',
@@ -19,7 +21,6 @@ const LI_MANAGED_PATHS = [
 ] as const;
 
 const CONTENT_FILE_NAMES = [
-  'INSTRUCTIONS.md',
   'LinkedIn Current State.md',
   'LinkedIn About.md',
   'LinkedIn Headline.md',
@@ -73,6 +74,10 @@ export const linkedinModule = {
     files.push([
       '.claude/modules/linkedin/CLAUDE.md',
       render(tpl('modules/linkedin/CLAUDE.md'), vars),
+    ]);
+    files.push([
+      `${vars.CONTENT_DIR}/linkedin/INSTRUCTIONS.md`,
+      render(tpl('modules/linkedin/graph/INSTRUCTIONS.md'), vars),
     ]);
     return files;
   },

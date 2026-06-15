@@ -1,4 +1,5 @@
 ---
+patina: managed
 date: {{TODAY}}
 type: instructions
 last-updated: {{TODAY}}

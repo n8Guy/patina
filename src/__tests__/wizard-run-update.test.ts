@@ -740,6 +740,55 @@ describe('syncBaseFiles — upgrade path: creates guide.md for pre-guide install
   });
 });
 
+// ── syncBaseFiles: module command files synced for installed modules ──────────
+
+describe('syncBaseFiles — upgrade path: syncs module command files for installed modules', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/x' }));
+    profile = loadProfile();
+
+    // Simulate pre-fix install: remove li-draft.md and li-post.md
+    rmSync(join(targetDir, '.claude', 'commands', 'li-draft.md'), { force: true });
+    rmSync(join(targetDir, '.claude', 'commands', 'li-post.md'), { force: true });
+  });
+
+  it('restores li-draft.md without requiring a profile change', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(existsSync(join(targetDir, '.claude', 'commands', 'li-draft.md'))).toBe(true);
+  });
+
+  it('restores li-post.md without requiring a profile change', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(existsSync(join(targetDir, '.claude', 'commands', 'li-post.md'))).toBe(true);
+  });
+
+  it('includes restored module command files in the returned repairedFiles list', () => {
+    const { repairedFiles } = syncBaseFiles(targetDir, profile);
+    expect(repairedFiles).toContain('.claude/commands/li-draft.md');
+    expect(repairedFiles).toContain('.claude/commands/li-post.md');
+  });
+
+  it('updates INSTRUCTIONS.md when it carries patina: managed marker', () => {
+    // Write a stale managed INSTRUCTIONS.md (has the marker but missing sections)
+    writeFileSync(
+      join(targetDir, 'graph', 'linkedin', 'INSTRUCTIONS.md'),
+      '---\npatina: managed\ntype: instructions\n---\n\n# Old instructions\n',
+      'utf8',
+    );
+    syncBaseFiles(targetDir, profile);
+    expect(read('graph/linkedin/INSTRUCTIONS.md')).toContain('Anti-AI writing patterns');
+  });
+
+  it('does not overwrite INSTRUCTIONS.md that lacks the patina: managed marker', () => {
+    const custom = '---\ntype: instructions\n---\n\n# Custom content\n';
+    writeFileSync(join(targetDir, 'graph', 'linkedin', 'INSTRUCTIONS.md'), custom, 'utf8');
+    syncBaseFiles(targetDir, profile);
+    expect(read('graph/linkedin/INSTRUCTIONS.md')).toBe(custom);
+  });
+});
+
 // ── Deferred module: applyModuleChanges clears entry on module remove ─────────
 
 describe('applyModuleChanges — deferred entry cleared when module removed', () => {
