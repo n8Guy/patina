@@ -1316,17 +1316,16 @@ describe('scaffold — audience commands', () => {
     expect(read('.claude/commands/audience.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
-  it('audience.md contains the rendered content dir', () => {
-    expect(read('.claude/commands/audience.md')).toContain('graph/');
+  it('audience.md references .claude/agents/ as the storage location', () => {
+    expect(read('.claude/commands/audience.md')).toContain('.claude/agents/');
   });
 
-  it('audience.md contains the required success message without "graph"', () => {
-    const content = read('.claude/commands/audience.md');
-    expect(content).toContain('audience.md in your patina folder');
-    // Lock the no-graph guarantee: the success step must not reference the content dir word
-    const step4 = content.slice(content.indexOf('## Step 4'));
-    expect(step4).not.toContain('graph');
-    expect(step4).not.toContain('graph/');
+  it('audience.md references role: audience frontmatter', () => {
+    expect(read('.claude/commands/audience.md')).toContain('role: audience');
+  });
+
+  it('audience.md does not reference the content dir (archetypes are not graph content)', () => {
+    expect(read('.claude/commands/audience.md')).not.toMatch(/\{\{CONTENT_DIR\}\}/);
   });
 
   it('audience.md has no unreplaced template variables', () => {
@@ -1341,14 +1340,37 @@ describe('scaffold — audience commands', () => {
     expect(read('.claude/commands/with-audience.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
-  it('with-audience.md contains the rendered audience file path', () => {
-    expect(read('.claude/commands/with-audience.md')).toContain('graph/audience.md');
+  it('with-audience.md discovers agents by role: audience frontmatter', () => {
+    expect(read('.claude/commands/with-audience.md')).toContain('role: audience');
   });
 
-  it('with-audience.md contains specific guard to run /audience if file is missing', () => {
+  it('with-audience.md references .claude/agents/ as the discovery location', () => {
+    expect(read('.claude/commands/with-audience.md')).toContain('.claude/agents/');
+  });
+
+  it('with-audience.md contains panel table column headers', () => {
     const content = read('.claude/commands/with-audience.md');
-    expect(content).toContain('Run `/audience` first');
+    expect(content).toContain('Audience');
+    expect(content).toContain('Reaction');
+    expect(content).toContain('Key Concerns');
+  });
+
+  it('with-audience.md defines the fixed reaction scale', () => {
+    const content = read('.claude/commands/with-audience.md');
+    expect(content).toContain('Positive');
+    expect(content).toContain('Negative');
+    expect(content).toContain('Neutral');
+    expect(content).toContain('Mixed');
+  });
+
+  it('with-audience.md contains guard to run /audience if no archetypes found', () => {
+    const content = read('.claude/commands/with-audience.md');
+    expect(content).toContain('Run `/audience`');
     expect(content).toContain('Stop. Do not continue.');
+  });
+
+  it('with-audience.md does not reference the content dir for agent discovery', () => {
+    expect(read('.claude/commands/with-audience.md')).not.toMatch(/\{\{CONTENT_DIR\}\}/);
   });
 
   it('with-audience.md has no unreplaced template variables', () => {
