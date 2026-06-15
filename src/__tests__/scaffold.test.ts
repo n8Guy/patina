@@ -1300,3 +1300,74 @@ describe('scaffold — no clients module', () => {
     expect(exists('.claude/commands/client-check.md')).toBe(false);
   });
 });
+
+// ── Audience commands ─────────────────────────────────────────────────────────
+
+describe('scaffold — audience commands', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates .claude/commands/audience.md', () => {
+    expect(exists('.claude/commands/audience.md')).toBe(true);
+  });
+
+  it('audience.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/audience.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('audience.md contains the rendered content dir', () => {
+    expect(read('.claude/commands/audience.md')).toContain('graph/');
+  });
+
+  it('audience.md contains the required success message without "graph"', () => {
+    const content = read('.claude/commands/audience.md');
+    expect(content).toContain('audience.md in your patina folder');
+    // Lock the no-graph guarantee: the success step must not reference the content dir word
+    const step4 = content.slice(content.indexOf('## Step 4'));
+    expect(step4).not.toContain('graph');
+    expect(step4).not.toContain('graph/');
+  });
+
+  it('audience.md has no unreplaced template variables', () => {
+    expect(read('.claude/commands/audience.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('creates .claude/commands/with-audience.md', () => {
+    expect(exists('.claude/commands/with-audience.md')).toBe(true);
+  });
+
+  it('with-audience.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/with-audience.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('with-audience.md contains the rendered audience file path', () => {
+    expect(read('.claude/commands/with-audience.md')).toContain('graph/audience.md');
+  });
+
+  it('with-audience.md contains specific guard to run /audience if file is missing', () => {
+    const content = read('.claude/commands/with-audience.md');
+    expect(content).toContain('Run `/audience` first');
+    expect(content).toContain('Stop. Do not continue.');
+  });
+
+  it('with-audience.md has no unreplaced template variables', () => {
+    expect(read('.claude/commands/with-audience.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('CLAUDE.md contains /audience', () => {
+    expect(read('CLAUDE.md')).toContain('/audience');
+  });
+
+  it('CLAUDE.md contains /with-audience', () => {
+    expect(read('CLAUDE.md')).toContain('/with-audience');
+  });
+
+  it('guide.md contains /audience', () => {
+    expect(read('.claude/commands/guide.md')).toContain('/audience');
+  });
+
+  it('guide.md contains /with-audience', () => {
+    expect(read('.claude/commands/guide.md')).toContain('/with-audience');
+  });
+});

@@ -112,6 +112,8 @@ const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
   { name: '/reflect [slug]', desc: 'Review your graph for gaps, completions, and stale skills — also runs installed module hooks' },
   { name: '/inbox', desc: 'Process files dropped into inbox/ automatically' },
   { name: '/guide', desc: 'Show all available commands with usage examples' },
+  { name: '/audience', desc: 'Define who you are speaking to' },
+  { name: '/with-audience', desc: 'Talk through your draft as your defined audience' },
 ];
 
 /**
@@ -136,6 +138,8 @@ export const GUIDE_CORE_COMMANDS: ReadonlyArray<{ name: string; desc: string; ex
   { name: '/inbox', desc: "process any files you've dropped into `inbox/`" },
   { name: '/status', desc: 'show stale content, inbox, open goals, and pending module setup' },
   { name: '/guide', desc: 'show this command reference any time' },
+  { name: '/audience', desc: 'set up who you are writing for' },
+  { name: '/with-audience', desc: 'discuss a draft as that audience' },
 ];
 
 const GUIDE_CORE_LINES: ReadonlyArray<string> = GUIDE_CORE_COMMANDS.map(
@@ -234,6 +238,8 @@ export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, 
     ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), fullVars)],
     ['.claude/commands/status.md', render(tpl('.claude/commands/status.md'), fullVars)],
     ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), fullVars)],
+    ['.claude/commands/audience.md', render(tpl('.claude/commands/audience.md'), fullVars)],
+    ['.claude/commands/with-audience.md', render(tpl('.claude/commands/with-audience.md'), fullVars)],
     ['.claude/inbox-routing.md', buildRoutingFile(modules, fullVars)],
   ];
 

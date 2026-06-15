@@ -13,6 +13,8 @@ export const MANAGED_FILES = [
   '.claude/commands/inbox.md',
   '.claude/commands/status.md',
   '.claude/commands/guide.md',
+  '.claude/commands/audience.md',
+  '.claude/commands/with-audience.md',
   '.claude/inbox-routing.md',
   '.claude/scripts/check-update.mjs',
   '.claude/scripts/staleness-check.mjs',
