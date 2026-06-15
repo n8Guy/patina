@@ -42,9 +42,11 @@ export interface ModuleDefinition {
    */
   commands: readonly ModuleCommand[];
   /**
-   * Static managed file paths — must reference the same paths produced by managedFiles().
-   * Define as a const in the module file and use it in both managedPaths and managedFiles()
-   * to keep them in sync (single source of truth).
+   * Static paths for files that should be deleted when the module is removed.
+   * Must be static (no template variables) so the removal path can use them without
+   * rendering. Content-dir-relative files (e.g. graph/linkedin/INSTRUCTIONS.md) are
+   * excluded even if they appear in managedFiles() — they are left on disk on removal,
+   * consistent with other user content files.
    */
   managedPaths: readonly string[];
   contentFileNames: readonly string[];

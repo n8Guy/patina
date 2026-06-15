@@ -286,10 +286,10 @@ describe('baseManagedFiles', () => {
 // ── moduleManagedFiles ────────────────────────────────────────────────────────
 
 describe('moduleManagedFiles — linkedin', () => {
-  it('returns 11 files (9 commands + manifest + CLAUDE.md)', () => {
+  it('returns 12 files (9 commands + manifest + CLAUDE.md + INSTRUCTIONS.md)', () => {
     const vars = profileToVars(makeProfile());
     const files = moduleManagedFiles('linkedin', vars);
-    expect(files).toHaveLength(11);
+    expect(files).toHaveLength(12);
   });
 
   it('includes all 9 li command files', () => {
@@ -310,6 +310,34 @@ describe('moduleManagedFiles — linkedin', () => {
     const vars = profileToVars(makeProfile());
     const paths = moduleManagedFiles('linkedin', vars).map(([rel]) => rel);
     expect(paths).toContain('.claude/modules/linkedin/CLAUDE.md');
+  });
+
+  it('includes INSTRUCTIONS.md at graph/linkedin/INSTRUCTIONS.md', () => {
+    const vars = profileToVars(makeProfile());
+    const paths = moduleManagedFiles('linkedin', vars).map(([rel]) => rel);
+    expect(paths).toContain('graph/linkedin/INSTRUCTIONS.md');
+  });
+
+  it('INSTRUCTIONS.md carries patina: managed frontmatter', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleManagedFiles('linkedin', vars);
+    const instructions = files.find(([rel]) => rel === 'graph/linkedin/INSTRUCTIONS.md');
+    expect(instructions).toBeDefined();
+    expect(instructions![1]).toContain('patina: managed');
+  });
+
+  it('INSTRUCTIONS.md contains user name', () => {
+    const vars = profileToVars(makeProfile());
+    const files = moduleManagedFiles('linkedin', vars);
+    const instructions = files.find(([rel]) => rel === 'graph/linkedin/INSTRUCTIONS.md');
+    expect(instructions).toBeDefined();
+    expect(instructions![1]).toContain('Jane Doe');
+  });
+
+  it('INSTRUCTIONS.md respects a custom contentDir', () => {
+    const vars = profileToVars(makeProfile({ content_dir: 'mywork' }));
+    const paths = moduleManagedFiles('linkedin', vars).map(([rel]) => rel);
+    expect(paths).toContain('mywork/linkedin/INSTRUCTIONS.md');
   });
 
   it('renders the content dir into command content', () => {
@@ -377,10 +405,10 @@ describe('moduleManagedFiles — resume', () => {
 // ── moduleContentFiles ────────────────────────────────────────────────────────
 
 describe('moduleContentFiles — linkedin', () => {
-  it('returns 8 content files', () => {
+  it('returns 7 content files (INSTRUCTIONS.md is now a managed file)', () => {
     const vars = profileToVars(makeProfile(), 'https://linkedin.com/in/jane');
     const files = moduleContentFiles('linkedin', vars, 'graph');
-    expect(files).toHaveLength(8);
+    expect(files).toHaveLength(7);
   });
 
   it('all paths are under graph/linkedin/', () => {
@@ -399,18 +427,10 @@ describe('moduleContentFiles — linkedin', () => {
     }
   });
 
-  it('includes INSTRUCTIONS.md', () => {
+  it('does not include INSTRUCTIONS.md (moved to managed files)', () => {
     const vars = profileToVars(makeProfile());
     const paths = moduleContentFiles('linkedin', vars, 'graph').map(([rel]) => rel);
-    expect(paths).toContain('graph/linkedin/INSTRUCTIONS.md');
-  });
-
-  it('INSTRUCTIONS.md contains user name', () => {
-    const vars = profileToVars(makeProfile());
-    const files = moduleContentFiles('linkedin', vars, 'graph');
-    const instructions = files.find(([rel]) => rel === 'graph/linkedin/INSTRUCTIONS.md');
-    expect(instructions).toBeDefined();
-    expect(instructions![1]).toContain('Jane Doe');
+    expect(paths).not.toContain('graph/linkedin/INSTRUCTIONS.md');
   });
 
   it('has no unreplaced template vars in any file', () => {

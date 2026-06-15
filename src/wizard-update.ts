@@ -435,6 +435,14 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
         repairedFiles.push(rel);
       }
     }
+    for (const module of profile.modules ?? []) {
+      for (const [rel, content] of moduleManagedFiles(module, vars)) {
+        const result = writeManagedFile(cwd, rel, content);
+        if (result.outcome === 'added' || (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped')) {
+          repairedFiles.push(rel);
+        }
+      }
+    }
   } catch (err) {
     p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
     return { healthReport, repairedFiles: [] };
