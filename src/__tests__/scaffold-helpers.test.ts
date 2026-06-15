@@ -286,16 +286,16 @@ describe('baseManagedFiles', () => {
 // ── moduleManagedFiles ────────────────────────────────────────────────────────
 
 describe('moduleManagedFiles — linkedin', () => {
-  it('returns 9 files (7 commands + manifest + CLAUDE.md)', () => {
+  it('returns 11 files (9 commands + manifest + CLAUDE.md)', () => {
     const vars = profileToVars(makeProfile());
     const files = moduleManagedFiles('linkedin', vars);
-    expect(files).toHaveLength(9);
+    expect(files).toHaveLength(11);
   });
 
-  it('includes all 7 li command files', () => {
+  it('includes all 9 li command files', () => {
     const vars = profileToVars(makeProfile());
     const paths = moduleManagedFiles('linkedin', vars).map(([rel]) => rel);
-    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity']) {
+    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity', 'li-draft', 'li-post']) {
       expect(paths).toContain(`.claude/commands/${cmd}.md`);
     }
   });

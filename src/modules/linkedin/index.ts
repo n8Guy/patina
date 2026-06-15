@@ -8,6 +8,7 @@ import type { TemplateVars, Profile } from '../../types.js';
 const LI_COMMANDS = [
   'li-all.md', 'li-about.md', 'li-headline.md', 'li-experience.md',
   'li-skills.md', 'li-featured.md', 'li-activity.md',
+  'li-draft.md', 'li-post.md',
 ] as const;
 
 // Single source of truth for managed paths — used by both managedPaths and managedFiles().
@@ -41,6 +42,8 @@ export const linkedinModule = {
     { name: '/li-skills', desc: 'Refine your skills list draft (no input needed — Claude reads your graph)' },
     { name: '/li-featured', desc: 'Refine Featured or draft a post to pin (no input needed — Claude reads your graph)' },
     { name: '/li-activity', desc: 'Update your posting strategy or draft a post (no input needed — Claude reads your graph)' },
+    { name: '/li-draft', desc: 'Promote a suggestion or start a new post/article draft' },
+    { name: '/li-post', desc: 'Mark a draft as posted and move it to the posted folder' },
   ],
 
   requiresConfig: true,
@@ -344,7 +347,9 @@ status: reference
       '  LinkedIn Experience.md       — draft for your experience entries',
       '  LinkedIn Skills.md           — draft for your skills section',
       '  LinkedIn Featured.md         — draft for featured content',
-      '  LinkedIn Activity.md         — draft for activity/posts section',
+      '  LinkedIn Activity.md         — suggestion backlog for posts',
+      '  activity/drafts/             — in-progress post and article drafts',
+      '  activity/posted/             — published posts (moved here by /li-post)',
       '```',
       '',
       '### Commands',
@@ -358,6 +363,8 @@ status: reference
       '| `/li-skills` | Draft or refine your LinkedIn skills section |',
       '| `/li-featured` | Draft or refine your LinkedIn featured content |',
       '| `/li-activity` | Draft or refine your LinkedIn activity section |',
+      '| `/li-draft` | Promote a suggestion or start a new post/article draft |',
+      '| `/li-post` | Mark a draft as posted and move it to the posted folder |',
     ].join('\n');
   },
 } satisfies ModuleDefinition;

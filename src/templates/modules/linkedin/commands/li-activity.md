@@ -7,6 +7,19 @@ Update your LinkedIn posting strategy or draft a post.
 1. Read `{{CONTENT_DIR}}/linkedin/INSTRUCTIONS.md` — voice guidelines, identity context, and file conventions
 2. Read `{{CONTENT_DIR}}/linkedin/LinkedIn Activity.md` — the current posting strategy and post candidates
 
+## Check for stale drafts
+
+After loading context, scan `{{CONTENT_DIR}}/linkedin/activity/drafts/` for files that have not been modified in more than 14 days. If the directory does not exist or is empty, skip this step silently.
+
+If any stale drafts are found, surface them before continuing:
+
+> "These drafts have been sitting for over 14 days — did you post any of them? If so, run `/li-post <name>`."
+> - `<filename>` (last modified: <date>)
+
+Only scan `activity/drafts/`. Do NOT scan `LinkedIn Activity.md` for staleness. Do NOT scan `activity/posted/`.
+
+This is a nudge only — do not block the user. Continue with the rest of the command after surfacing any stale drafts.
+
 ## Apply the direction
 The user's message after `/li-activity` is the direction. It may be:
 - A request to update the posting strategy ("post more about leadership", "focus on my freelance work")

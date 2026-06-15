@@ -19,6 +19,10 @@ commands:
     desc: Refine Featured or draft a post to pin (no input needed — Claude reads your graph)
   - name: /li-activity
     desc: Update your posting strategy or draft a post (no input needed — Claude reads your graph)
+  - name: /li-draft
+    desc: Promote a suggestion or start a new post/article draft
+  - name: /li-post
+    desc: Mark a draft as posted and move it to the posted folder
 installed: {{TODAY}}
 ---
 
@@ -45,6 +49,8 @@ A private drafting workspace for your LinkedIn profile. You add notes about your
 | `/li-skills` | Refine your skills list draft |
 | `/li-featured` | Refine Featured or draft a post to pin |
 | `/li-activity` | Update your posting strategy or draft a post |
+| `/li-draft` | Promote a suggestion or start a new post/article draft |
+| `/li-post` | Mark a draft as posted and move it to the posted folder |
 
 ## What this module does not do
 
