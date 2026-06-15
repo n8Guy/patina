@@ -16,7 +16,9 @@ This module helps you draft and refine your LinkedIn profile using your patina g
   LinkedIn Experience.md       — draft for your experience entries
   LinkedIn Skills.md           — draft for your skills section
   LinkedIn Featured.md         — draft for featured content
-  LinkedIn Activity.md         — draft for activity/posts section
+  LinkedIn Activity.md         — suggestion backlog for posts
+  activity/drafts/             — in-progress post and article drafts
+  activity/posted/             — published posts (moved here by /li-post)
 ```
 
 ## Slash commands
@@ -30,6 +32,8 @@ This module helps you draft and refine your LinkedIn profile using your patina g
 | `/li-skills` | Draft or refine your LinkedIn skills section |
 | `/li-featured` | Draft or refine your LinkedIn featured content |
 | `/li-activity` | Draft or refine your LinkedIn activity section |
+| `/li-draft` | Promote a suggestion or start a new post/article draft |
+| `/li-post` | Mark a draft as posted and move it to the posted folder |
 
 ## How it works
 

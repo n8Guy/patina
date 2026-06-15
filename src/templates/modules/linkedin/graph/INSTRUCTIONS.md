@@ -36,7 +36,9 @@ Read this file first before working on any LinkedIn proposal files. It tells you
   LinkedIn Experience.md       ← draft for the Experience section
   LinkedIn Skills.md           ← draft for the Skills section
   LinkedIn Featured.md         ← draft for the Featured section
-  LinkedIn Activity.md         ← posting strategy
+  LinkedIn Activity.md         ← posting strategy and suggestion backlog
+  activity/drafts/             ← in-progress post and article drafts
+  activity/posted/             ← published posts (moved here by /li-post)
 ```
 
 **Current State** is the ground truth of what exists on LinkedIn right now. Keep it accurate — only update it when a change has actually been published.
@@ -167,3 +169,17 @@ When that happens, mention it once for the whole draft: name the source and ask 
 ### Activity
 - **The strategy is evergreen.** Post types, cadence, and voice guidelines don't change week to week.
 - **Post candidates are timely.** The list rotates as new graph content arrives.
+
+### Activity lifecycle
+
+Content moves through three states. The folder location is the source of truth for status:
+
+1. **Suggested** — entries live in `LinkedIn Activity.md` as a backlog list. This file is managed by `/li-activity`.
+2. **In progress** — `/li-draft` promotes a suggestion (or starts a fresh draft) into `{{CONTENT_DIR}}/linkedin/activity/drafts/<slug>.md`. When promoting a suggestion, the entry is removed from `LinkedIn Activity.md` backlog. When starting fresh, `LinkedIn Activity.md` is not touched.
+3. **Posted** — `/li-post` moves the draft file from `activity/drafts/` to `{{CONTENT_DIR}}/linkedin/activity/posted/<slug>.md` and stamps `posted_at` in the frontmatter.
+
+Rules:
+- No dates in filenames. `created_at` and `posted_at` in frontmatter carry all timing information.
+- `posted_at` is an ISO datetime from the session context at the moment `/li-post` is run — not a frozen scaffold token.
+- `/li-post` does not touch `LinkedIn Activity.md`.
+- `activity/posted/` is read-only after a file lands there — do not edit or move posted files.

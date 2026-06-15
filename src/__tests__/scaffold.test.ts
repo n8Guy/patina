@@ -327,7 +327,7 @@ describe('scaffold — linkedin module', () => {
   });
 
   it('creates linkedin commands', () => {
-    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity']) {
+    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity', 'li-draft', 'li-post']) {
       expect(exists(`.claude/commands/${cmd}.md`), `${cmd}.md`).toBe(true);
     }
   });
@@ -374,6 +374,96 @@ describe('scaffold — linkedin module', () => {
 
   it('li-all.md carries patina: managed frontmatter', () => {
     expect(read('.claude/commands/li-all.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('li-draft.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/li-draft.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('li-draft.md contains post and article type schema', () => {
+    const content = read('.claude/commands/li-draft.md');
+    expect(content).toContain('type: linkedin-post');
+    expect(content).toContain('type: linkedin-article');
+  });
+
+  it('li-draft.md contains status: draft', () => {
+    expect(read('.claude/commands/li-draft.md')).toContain('status: draft');
+  });
+
+  it('li-draft.md contains created_at', () => {
+    expect(read('.claude/commands/li-draft.md')).toContain('created_at');
+  });
+
+  it('li-draft.md scaffolds to activity/drafts/', () => {
+    expect(read('.claude/commands/li-draft.md')).toContain('activity/drafts/');
+  });
+
+  it('li-draft.md contains post section headers (Hook/Body/CTA)', () => {
+    const content = read('.claude/commands/li-draft.md');
+    expect(content).toContain('## Hook');
+    expect(content).toContain('## Body');
+    expect(content).toContain('## CTA');
+  });
+
+  it('li-draft.md contains article section headers (Intro/Conclusion)', () => {
+    const content = read('.claude/commands/li-draft.md');
+    expect(content).toContain('## Intro');
+    expect(content).toContain('## Conclusion');
+  });
+
+  it('li-draft.md does not use frozen {{TODAY}} for created_at', () => {
+    const content = read('.claude/commands/li-draft.md');
+    // created_at must not be hardwired to the {{TODAY}} token
+    expect(content).not.toMatch(/created_at:.*\{\{TODAY\}\}/);
+  });
+
+  it('li-draft.md has no unreplaced template variables', () => {
+    expect(read('.claude/commands/li-draft.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('li-post.md carries patina: managed frontmatter', () => {
+    expect(read('.claude/commands/li-post.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
+  });
+
+  it('li-post.md references activity/drafts/', () => {
+    expect(read('.claude/commands/li-post.md')).toContain('activity/drafts/');
+  });
+
+  it('li-post.md references activity/posted/', () => {
+    expect(read('.claude/commands/li-post.md')).toContain('activity/posted/');
+  });
+
+  it('li-post.md contains posted_at', () => {
+    expect(read('.claude/commands/li-post.md')).toContain('posted_at');
+  });
+
+  it('li-post.md does not touch LinkedIn Activity.md', () => {
+    expect(read('.claude/commands/li-post.md')).not.toMatch(/edit.*LinkedIn Activity/i);
+    expect(read('.claude/commands/li-post.md')).toContain('Do NOT touch `LinkedIn Activity.md`');
+  });
+
+  it('li-post.md has no unreplaced template variables', () => {
+    expect(read('.claude/commands/li-post.md')).not.toMatch(/\{\{[A-Z_]+\}\}/);
+  });
+
+  it('li-activity.md references activity/drafts/ for stale-draft scanning', () => {
+    expect(read('.claude/commands/li-activity.md')).toContain('activity/drafts/');
+  });
+
+  it('li-activity.md mentions 14-day staleness threshold', () => {
+    expect(read('.claude/commands/li-activity.md')).toContain('14 days');
+  });
+
+  it('li-activity.md does not scan LinkedIn Activity.md for staleness', () => {
+    expect(read('.claude/commands/li-activity.md')).toContain('Do NOT scan `LinkedIn Activity.md`');
+  });
+
+  it('li-draft.md does not touch LinkedIn Activity.md on a fresh draft', () => {
+    expect(read('.claude/commands/li-draft.md')).toContain('Do NOT touch `LinkedIn Activity.md`');
+  });
+
+  it('li-post.md does not use frozen {{TODAY}} for posted_at', () => {
+    expect(read('.claude/commands/li-post.md')).not.toMatch(/posted_at:.*\{\{TODAY\}\}/);
   });
 
   it('stores linkedin profile url in profile.yaml', () => {
@@ -600,7 +690,7 @@ describe('scaffold — multiple modules (linkedin + resume)', () => {
   });
 
   it('writes all linkedin command files', () => {
-    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity']) {
+    for (const cmd of ['li-all', 'li-about', 'li-headline', 'li-experience', 'li-skills', 'li-featured', 'li-activity', 'li-draft', 'li-post']) {
       expect(exists(`.claude/commands/${cmd}.md`), `${cmd}.md`).toBe(true);
     }
   });
