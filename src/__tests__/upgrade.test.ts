@@ -147,6 +147,38 @@ describe('writeManagedFile', () => {
     expect(outcome).toBe('added');
     expect(readFileSync(join(tmp, '.claude/commands/include.md'), 'utf8')).toBe('---\npatina: managed\n---\ncontent');
   });
+
+  describe('skipIfAbsent option', () => {
+    it('skips writing when file is absent and skipIfAbsent is true', () => {
+      const { outcome } = writeManagedFile(tmp, 'absent.md', '---\npatina: managed\n---\ncontent', { skipIfAbsent: true });
+      expect(outcome).toBe('skipped');
+      expect(existsSync(join(tmp, 'absent.md'))).toBe(false);
+    });
+
+    it('overwrites an installed managed file even when skipIfAbsent is true', () => {
+      const original = '---\npatina: managed\n---\noriginal';
+      writeFileSync(join(tmp, 'cfo.md'), original);
+
+      const { outcome } = writeManagedFile(tmp, 'cfo.md', '---\npatina: managed\n---\nupdated', { skipIfAbsent: true });
+      expect(outcome).toBe('updated');
+      expect(readFileSync(join(tmp, 'cfo.md'), 'utf8')).toBe('---\npatina: managed\n---\nupdated');
+    });
+
+    it('preserves user-created file when skipIfAbsent is true', () => {
+      const userContent = '---\nname: My CFO\nrole: audience\n---\ncustom content';
+      writeFileSync(join(tmp, 'cfo.md'), userContent);
+
+      const { outcome } = writeManagedFile(tmp, 'cfo.md', '---\npatina: managed\n---\ncanonical', { skipIfAbsent: true });
+      expect(outcome).toBe('skipped');
+      expect(readFileSync(join(tmp, 'cfo.md'), 'utf8')).toBe(userContent);
+    });
+
+    it('writes normally when skipIfAbsent is false or omitted', () => {
+      const { outcome } = writeManagedFile(tmp, 'new.md', '---\npatina: managed\n---\ncontent', { skipIfAbsent: false });
+      expect(outcome).toBe('added');
+      expect(existsSync(join(tmp, 'new.md'))).toBe(true);
+    });
+  });
 });
 
 // ── writeSeedFile ─────────────────────────────────────────────────────────────

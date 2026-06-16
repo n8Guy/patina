@@ -4,9 +4,9 @@ import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { loadProfile } from './detect.js';
 import { label } from './wizard-brand.js';
-import { OPTIONAL_HINT, onCancel, writeProfile, removeManagedFileIfManaged, promptLaunchTasks, GUIDE_HINT_LOG, snoozeUntilFor } from './wizard-shared.js';
+import { MULTISELECT_HINT, OPTIONAL_HINT, onCancel, writeProfile, removeManagedFileIfManaged, promptLaunchTasks, GUIDE_HINT_LOG, snoozeUntilFor } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
-import { profileToVars, baseManagedFiles, moduleManagedFiles, GUIDE_CORE_COMMANDS } from './scaffold.js';
+import { profileToVars, baseManagedFiles, moduleManagedFiles, baseManagedArchetypeFiles, PREDEFINED_ARCHETYPES, GUIDE_CORE_COMMANDS } from './scaffold.js';
 import { writeManagedFile, isMarkedManaged } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { offerBackup, backupOfferKind } from './wizard-backup.js';
@@ -310,6 +310,59 @@ async function runUpdateLaunchTasks(cwd: string, profile: Profile): Promise<void
   p.outro(chalk.hex('#94A3B8')('Launch tasks updated.'));
 }
 
+// ─── Branch D: Audience archetypes ───────────────────────────────────────────
+
+async function runUpdateAudiences(cwd: string, profile: Profile): Promise<void> {
+  console.log('');
+  console.log(`  ${label('Your audience')}`);
+  console.log(`  ${chalk.hex('#64748B')('Patina can show you how your content lands before you share it — whether that\'s')}`);
+  console.log(`  ${chalk.hex('#64748B')('a post, an email, or a resume. Manage which built-in personas are installed below.')}`);
+  console.log(`  ${chalk.hex('#64748B')('User-created personas (added via /audience) are never affected here.')}`);
+
+  const vars = profileToVars(profile);
+  const archetypeFiles = baseManagedArchetypeFiles(vars);
+
+  const initialValues = PREDEFINED_ARCHETYPES
+    .filter(a => existsSync(join(cwd, `.claude/agents/${a.slug}.md`)))
+    .map(a => a.slug);
+
+  const selected = await p.multiselect<string>({
+    message: `Who do you communicate with?${MULTISELECT_HINT}`,
+    options: PREDEFINED_ARCHETYPES.map(a => ({
+      value: a.slug,
+      label: a.name,
+      hint: chalk.hex('#64748B')(a.hint),
+    })),
+    initialValues,
+    required: false,
+  });
+  if (p.isCancel(selected)) {
+    p.cancel(chalk.hex('#94A3B8')('No changes made.'));
+    return;
+  }
+
+  const added: string[] = [];
+  const removed: string[] = [];
+
+  for (const [rel, content] of archetypeFiles) {
+    const slug = rel.replace('.claude/agents/', '').replace('.md', '');
+    if (selected.includes(slug)) {
+      const result = writeManagedFile(cwd, rel, content);
+      if (result.outcome === 'added' || result.outcome === 'updated') added.push(slug);
+    } else {
+      const outcome = removeManagedFileIfManaged(cwd, rel);
+      if (outcome === 'deleted' && initialValues.includes(slug)) removed.push(slug);
+    }
+  }
+
+  const summaryLines: string[] = [];
+  if (added.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Installed: ${added.join(', ')}`));
+  if (removed.length > 0) summaryLines.push(chalk.hex('#94A3B8')(`Removed: ${removed.join(', ')}`));
+
+  p.note(summaryLines.join('\n') || 'No changes.', label('Done'));
+  p.outro(chalk.hex('#94A3B8')('Audience archetypes updated.'));
+}
+
 // ─── Validate ────────────────────────────────────────────────────────────────
 
 async function runValidate(cwd: string, profile: Profile): Promise<void> {
@@ -460,10 +513,18 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
         }
       }
     }
+    // ── Predefined audience archetypes (skipIfAbsent: refresh installed ones, don't force-add)
+    for (const [rel, content] of baseManagedArchetypeFiles(vars)) {
+      const result = writeManagedFile(cwd, rel, content, { skipIfAbsent: true });
+      if (result.outcome === 'updated') {
+        restoredFiles.push(rel);
+      }
+    }
   } catch (err) {
     p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
     return { healthReport, repairedFiles: [], restoredFiles: [] };
   }
+
   // Clean up the legacy mcp-obsidian .mcp.json on every update path
   cleanupObsidianMcpJson(cwd, []);
   // Ensure audience-prefs.json is gitignored (added in 1.7.x; backfill for existing installs)
@@ -537,6 +598,7 @@ export async function runUpdate(cwd: string): Promise<void> {
     options: [
       { value: 'profile', label: 'Update personal info' },
       { value: 'modules', label: 'Add or remove modules' },
+      { value: 'audiences', label: 'Manage audience personas', hint: chalk.hex('#64748B')('choose which built-in personas are installed') },
       { value: 'launch-tasks', label: 'Set up launch tasks', hint: chalk.hex('#64748B')('tasks Claude runs every session') },
       { value: 'backup', label: 'Back up your notes', hint: chalk.hex('#64748B')('version history — recover anything you delete') },
       { value: 'validate', label: 'Run health check', hint: chalk.hex('#64748B')('check for broken links and excluded items') },
@@ -563,6 +625,8 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runUpdateProfile(cwd, profile);
   } else if (action === 'modules') {
     await runUpdateModules(cwd, profile);
+  } else if (action === 'audiences') {
+    await runUpdateAudiences(cwd, profile);
   } else if (action === 'launch-tasks') {
     await runUpdateLaunchTasks(cwd, profile);
   } else if (action === 'backup') {

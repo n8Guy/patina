@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSy
 import { join } from 'path';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
-import { scaffold, markDemo, profileToVars, renderUpdateCheckSection } from '../scaffold.js';
+import { scaffold, markDemo, profileToVars, renderUpdateCheckSection, baseManagedArchetypeFiles } from '../scaffold.js';
 import { readState } from '../state.js';
 import { detectMode } from '../detect.js';
 import type { ScaffoldOptions, Profile } from '../types.js';
@@ -1491,5 +1491,73 @@ describe('scaffold — audience commands', () => {
 
   it('guide.md contains /with-audience', () => {
     expect(read('.claude/commands/guide.md')).toContain('/with-audience');
+  });
+
+  it('audience.md does not contain a hardcoded built-in archetypes catalog table', () => {
+    expect(read('.claude/commands/audience.md')).not.toContain('Built-in archetypes catalog');
+  });
+});
+
+describe('scaffold — predefined audience archetypes (auto-installed)', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('creates .claude/agents/hiring-manager.md at scaffold time', () => {
+    expect(exists('.claude/agents/hiring-manager.md')).toBe(true);
+  });
+
+  it('creates .claude/agents/recruiter.md at scaffold time', () => {
+    expect(exists('.claude/agents/recruiter.md')).toBe(true);
+  });
+
+  it('predefined archetypes carry role: audience so /with-audience discovers them', () => {
+    for (const slug of ['hiring-manager', 'recruiter']) {
+      expect(read(`.claude/agents/${slug}.md`)).toMatch(/role:\s*audience/);
+    }
+  });
+
+  it('predefined archetypes carry patina: managed so updates overwrite them', () => {
+    for (const slug of ['hiring-manager', 'recruiter']) {
+      expect(read(`.claude/agents/${slug}.md`)).toMatch(/patina:\s*managed/);
+    }
+  });
+
+  it('rendered predefined archetypes contain no unreplaced template variables', () => {
+    for (const slug of ['hiring-manager', 'recruiter']) {
+      const content = read(`.claude/agents/${slug}.md`);
+      expect(content, `.claude/agents/${slug}.md contains unreplaced template variables`).not.toMatch(/\{\{[A-Z_]+\}\}/);
+    }
+  });
+
+  it('hiring-manager.md is rendered with the user title', () => {
+    expect(read('.claude/agents/hiring-manager.md')).toContain('Senior Designer');
+  });
+});
+
+describe('scaffold — predefined archetype templates (template content)', () => {
+  it('each archetype template carries patina: managed frontmatter', () => {
+    for (const [, content] of baseManagedArchetypeFiles()) {
+      expect(content).toMatch(/patina:\s*managed/);
+    }
+  });
+
+  it('each archetype template carries role: audience frontmatter', () => {
+    for (const [, content] of baseManagedArchetypeFiles()) {
+      expect(content).toMatch(/role:\s*audience/);
+    }
+  });
+
+  it('each archetype template carries a _patina_note field', () => {
+    for (const [, content] of baseManagedArchetypeFiles()) {
+      expect(content).toMatch(/_patina_note:/);
+    }
+  });
+
+  it('baseManagedArchetypeFiles returns exactly the two predefined archetypes', () => {
+    const paths = baseManagedArchetypeFiles().map(([p]) => p);
+    expect(paths).toContain('.claude/agents/hiring-manager.md');
+    expect(paths).toContain('.claude/agents/recruiter.md');
+    expect(paths).toHaveLength(2);
   });
 });
