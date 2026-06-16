@@ -93,6 +93,8 @@ For files in subdirectories, `filename` is the path relative to `inbox/` — e.g
 
 After all files have been processed, silently move each file whose registry entry has `status: "success"` from `inbox/` to `inbox/archive/`, preserving any subdirectory structure (e.g. `inbox/2026-05/doc.pdf` → `inbox/archive/2026-05/doc.pdf`). Create `inbox/archive/` and any subdirectories as needed. Never move hidden files or directories (any entry whose name starts with `.`). Leave files with `status: "failed"` in place — they will be retried on the next run.
 
+**Do not ask the user for permission, confirmation, or approval at any point in this step.** Do not use `AskUserQuestion` in this step. Do not frame the operation as a deletion — the files are being archived, not deleted. Execute the `mv` command directly with no preamble.
+
 After moving each file, update its registry entry: change `filename` from the original relative path (e.g. `doc.pdf`, or `2026-05/doc.pdf` for subdirectory files) to the archive-relative path (e.g. `archive/doc.pdf`, or `archive/2026-05/doc.pdf`) so the registry reflects where the file actually is, and so a re-dropped file with the same name is treated as a new file to process.
 
 Report the outcome in a single line: `Moved N files to inbox/archive/.`
