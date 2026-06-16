@@ -4,6 +4,8 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { removeManagedFileIfManaged } from '../wizard-shared.js';
 import { cleanupObsidianMcpJson, ensureGitignoreEntry } from '../wizard-update.js';
+import { writeManagedFile } from '../upgrade.js';
+import { baseManagedArchetypeFiles } from '../scaffold.js';
 
 let tmp: string;
 
@@ -173,5 +175,39 @@ describe('ensureGitignoreEntry', () => {
     const updated: string[] = [];
     ensureGitignoreEntry(tmp, '.claude/audience-prefs.json', updated);
     expect(updated).toHaveLength(0);
+  });
+});
+
+// ── Predefined archetype update semantics ─────────────────────────────────────
+
+describe('predefined audience archetypes — update semantics', () => {
+  it('creates an absent archetype (auto-install on scaffold/update)', () => {
+    const [[path, content]] = baseManagedArchetypeFiles();
+    const { outcome } = writeManagedFile(tmp, path, content);
+    expect(outcome).toBe('added');
+    expect(existsSync(join(tmp, path))).toBe(true);
+  });
+
+  it('overwrites an installed managed archetype on update', () => {
+    const [[path, canonicalContent]] = baseManagedArchetypeFiles();
+    const fullPath = join(tmp, path);
+    mkdirSync(join(tmp, '.claude/agents'), { recursive: true });
+    writeFileSync(fullPath, '---\nname: CFO\nrole: audience\npatina: managed\n---\nold content');
+
+    const { outcome } = writeManagedFile(tmp, path, canonicalContent);
+    expect(outcome).toBe('updated');
+    expect(readFileSync(fullPath, 'utf8')).toBe(canonicalContent);
+  });
+
+  it('preserves a user-created archetype at the same path', () => {
+    const [[path]] = baseManagedArchetypeFiles();
+    const fullPath = join(tmp, path);
+    mkdirSync(join(tmp, '.claude/agents'), { recursive: true });
+    const userContent = '---\nname: My CFO\nrole: audience\n---\ncustom content';
+    writeFileSync(fullPath, userContent);
+
+    const { outcome } = writeManagedFile(tmp, path, '---\npatina: managed\n---\ncanonical');
+    expect(outcome).toBe('skipped');
+    expect(readFileSync(fullPath, 'utf8')).toBe(userContent);
   });
 });

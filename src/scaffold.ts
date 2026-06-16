@@ -203,6 +203,32 @@ export function buildRoutingFile(modules: readonly string[], vars: TemplateVars)
   return preamble + table + '\n';
 }
 
+/**
+ * Metadata for each predefined audience archetype.
+ * To add a new one: create the template in src/templates/.claude/agents/,
+ * add an entry here, add the path to MANAGED_FILES in checksums.ts,
+ * and add tests per the CONTRIBUTING.md "Adding a predefined audience archetype" guide.
+ */
+export const PREDEFINED_ARCHETYPES = [
+  { slug: 'hiring-manager', name: 'Hiring Manager', hint: 'assesses job fit and team compatibility' },
+  { slug: 'recruiter', name: 'Recruiter', hint: 'does the initial screen before the hiring manager' },
+] as const;
+
+export type PredefinedArchetypeSlug = typeof PREDEFINED_ARCHETYPES[number]['slug'];
+
+/**
+ * Returns [relativePath, content] pairs for the predefined audience archetypes.
+ * Pass vars to render template tokens (e.g. {{USER_TITLE}}) — required for on-disk writes.
+ * Omit vars to get raw template content (e.g. for path/structure tests).
+ */
+export function baseManagedArchetypeFiles(vars?: TemplateVars): Array<[string, string]> {
+  return PREDEFINED_ARCHETYPES.map(a => {
+    const p = `.claude/agents/${a.slug}.md`;
+    const raw = tpl(p);
+    return [p, vars ? render(raw, vars) : raw];
+  });
+}
+
 export interface BaseManagedFilesOptions {
   vars: TemplateVars;
   editor: string;
@@ -335,6 +361,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     targetDir, patinaName, userName, title, roleDescription,
     jobDescriptionUrl, work, editor, modules, liProfileUrl, contentDir,
     launchTasks = [],
+    selectedArchetypes,
     demo = false,
     today: todayOverride,
   } = opts;
@@ -376,6 +403,14 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     // Apply _demo: true stamp only to content-dir files with YAML frontmatter
     const fileContent = (demo && isContentFile(relativePath, contentDir) && content.startsWith('---')) ? markDemo(content, demo) : content;
     writeManagedFile(targetDir, relativePath, fileContent);
+  }
+
+  // ── Predefined audience archetypes (write only the ones the user selected)
+  const archetypeFiles = selectedArchetypes !== undefined
+    ? baseManagedArchetypeFiles(vars).filter(([p]) => selectedArchetypes.some(slug => p.endsWith(`/${slug}.md`)))
+    : baseManagedArchetypeFiles(vars);
+  for (const [relativePath, content] of archetypeFiles) {
+    writeManagedFile(targetDir, relativePath, content);
   }
 
   // ── Seed files (written once if absent, never overwritten)

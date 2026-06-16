@@ -4,7 +4,7 @@ import { resolve } from 'path';
 import { privacyNote, label } from './wizard-brand.js';
 import { detectObsidian, openInObsidian, detectVSCode, openInVSCode, detectClaude } from './wizard-editor.js';
 import { MULTISELECT_HINT, OPTIONAL_HINT, slugify, defaultSnoozeUntil, addDeferredModule, onCancel, promptLaunchTasks, GUIDE_HINT_INLINE } from './wizard-shared.js';
-import { scaffold } from './scaffold.js';
+import { scaffold, PREDEFINED_ARCHETYPES } from './scaffold.js';
 import { readState, writeState } from './state.js';
 import { offerBackup } from './wizard-backup.js';
 import { MODULES, getModule } from './modules/registry.js';
@@ -134,6 +134,26 @@ export async function runInstall(cwd: string): Promise<void> {
 
   const modules: ModuleId[] = Array.isArray(setup.modules) ? setup.modules : [];
 
+  // ── Audience personas
+  console.log('');
+  console.log(`  ${label('Your audience')}`);
+  console.log(`  ${chalk.hex('#64748B')('Patina can show you how your content lands before you share it — whether that\'s')}`);
+  console.log(`  ${chalk.hex('#64748B')('a post, an email, or a resume. Pick the personas you communicate with most.')}`);
+  console.log(`  ${chalk.hex('#64748B')('You can add more, or create your own, any time with /audience.')}`);
+
+  const audiencesResult = await p.multiselect<string>({
+    message: `Who do you communicate with?${MULTISELECT_HINT}`,
+    options: PREDEFINED_ARCHETYPES.map(a => ({
+      value: a.slug,
+      label: a.name,
+      hint: chalk.hex('#64748B')(a.hint),
+    })),
+    initialValues: PREDEFINED_ARCHETYPES.map(a => a.slug),
+    required: false,
+  });
+  if (p.isCancel(audiencesResult)) onCancel();
+  const selectedArchetypes: string[] = Array.isArray(audiencesResult) ? audiencesResult : [];
+
   // ── Per-module now/later prompts (generic — driven by requiresConfig on each module def)
   const moduleInputs: Record<string, ModuleAddInputs> = {};
   const deferredModules: DeferredModule[] = [];
@@ -202,6 +222,7 @@ export async function runInstall(cwd: string): Promise<void> {
       liProfileUrl,
       contentDir: 'graph',
       launchTasks,
+      selectedArchetypes,
     });
 
     // Merge deferred entries into state after scaffold has written .patina-state.json.

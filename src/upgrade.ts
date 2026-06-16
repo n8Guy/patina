@@ -36,9 +36,19 @@ export function isLegacyManaged(content: string): boolean {
   return /<!--\s*patina:/.test(content);
 }
 
+export interface WriteManagedFileOptions {
+  /**
+   * When true, skip writing if the file does not already exist on disk.
+   * Use for opt-in managed files (e.g. predefined archetypes) that should be
+   * overwritten on update once installed but never auto-created on scaffold.
+   */
+  skipIfAbsent?: boolean;
+}
+
 /**
  * Write a managed file.
  *
+ * - If the file doesn't exist and skipIfAbsent is true: skip (skipped).
  * - If the file doesn't exist: write it (added).
  * - If the file on disk is marked managed (marker or legacy fence): overwrite (updated).
  * - If the file on disk is unmarked: skip it (user-owned, skipped).
@@ -47,9 +57,11 @@ export function writeManagedFile(
   targetDir: string,
   relativePath: string,
   newContent: string,
+  opts: WriteManagedFileOptions = {},
 ): WriteResult {
   const fullPath = join(targetDir, relativePath);
   if (!existsSync(fullPath)) {
+    if (opts.skipIfAbsent) return { outcome: 'skipped' };
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, newContent, 'utf8');
     return { outcome: 'added' };

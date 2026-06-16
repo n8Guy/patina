@@ -67,6 +67,8 @@ export interface ScaffoldOptions {
   liProfileUrl: string;
   contentDir: string;
   launchTasks?: string[];
+  /** Slugs of predefined audience archetypes to install. Defaults to all if omitted. */
+  selectedArchetypes?: string[];
   demo?: boolean;
   /** ISO date string in YYYY-MM-DD format. Defaults to today. Used in demo mode for determinism. */
   today?: string;

@@ -92,6 +92,31 @@ Compiles TypeScript to `dist/` and copies templates to `dist/templates/`. The `d
 
 ---
 
+## Adding a predefined audience archetype
+
+Patina ships built-in audience archetypes (Hiring Manager, Recruiter) that users can select during install or update. These are opt-in managed files: they are written when the user selects them in the wizard, and overwritten on `patina update` once installed.
+
+To add a new predefined archetype:
+
+1. **Create the template** at `src/templates/.claude/agents/<slug>.md`. Use existing archetypes as the model. The file must:
+   - Include `patina: managed`, `role: audience`, `_patina_note`, `name`, and `description` in its frontmatter
+   - Contain full canonical content (Role, What they care about, What impresses them, What concerns or bores them, Communication style)
+   - May use `{{USER_TITLE}}` (and other `TemplateVars`) to personalize content — `baseManagedArchetypeFiles(vars)` renders them when vars are provided
+
+2. **Register the path** in `MANAGED_FILES` in `src/checksums.ts` (e.g. `'.claude/agents/<slug>.md'`).
+
+3. **Add to `PREDEFINED_ARCHETYPES`** in `src/scaffold.ts` — add an entry with `slug`, `name`, and `hint` (shown to users in the wizard multiselect).
+
+4. **No catalog update needed** — `/with-audience` discovers archetypes dynamically by scanning `.claude/agents/` for files with `role: audience` in their frontmatter. The new archetype appears automatically once installed.
+
+5. **Add tests** in `src/__tests__/scaffold.test.ts`:
+   - Assert the template file has both `patina: managed` and `role: audience` in its frontmatter
+   - Assert that after scaffold with the archetype selected, the on-disk file has no unreplaced `{{[A-Z_]+}}` tokens
+
+6. **Run `npm test`** — the full suite must pass.
+
+---
+
 ## Adding a module
 
 Modules are self-contained feature packs (LinkedIn, resume, goals, …). Each one is a `ModuleDefinition` registered in `src/modules/registry.ts`, with its templates under `src/templates/modules/<name>/`.

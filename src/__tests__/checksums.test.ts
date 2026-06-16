@@ -14,6 +14,11 @@ describe('MANAGED_FILES registry', () => {
     expect(MANAGED_FILES).toContain('.claude/inbox-routing.md');
   });
 
+  it('contains the predefined audience archetype paths', () => {
+    expect(MANAGED_FILES).toContain('.claude/agents/hiring-manager.md');
+    expect(MANAGED_FILES).toContain('.claude/agents/recruiter.md');
+  });
+
   it('does not contain seed-once files', () => {
     expect(MANAGED_FILES).not.toContain('CUSTOM.md');
     expect(MANAGED_FILES).not.toContain('inbox/.gitkeep');

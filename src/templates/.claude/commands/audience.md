@@ -13,9 +13,9 @@ Defines a role archetype that `/with-audience` can consult when reviewing your c
 
 **If no role was provided** (bare `/audience`):
 
-1. List all files in `.claude/agents/` whose frontmatter contains `role: audience`.
+1. List all files in `.claude/agents/` whose frontmatter contains `role: audience`. Collect their plain names (the `name:` frontmatter field, or the filename without extension if no `name:` field).
 2. If none exist, say: "You haven't defined any audience archetypes yet. Try `/audience CFO` or `/audience hiring manager at a design agency` to create your first one."
-3. If one or more exist, present them by name and ask: "Which audience would you like to edit? Or describe a new role to create one."
+3. If one or more exist, present them by plain name and ask: "Which audience would you like to edit? Or describe a new role to create one."
 4. Wait for the user's choice, then continue from the appropriate step.
 
 ---

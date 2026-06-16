@@ -16,6 +16,8 @@ export const MANAGED_FILES = [
   '.claude/commands/audience.md',
   '.claude/commands/with-audience.md',
   '.claude/inbox-routing.md',
+  '.claude/agents/hiring-manager.md',
+  '.claude/agents/recruiter.md',
   '.claude/scripts/check-update.mjs',
   '.claude/scripts/staleness-check.mjs',
   '.claude/scripts/health-check.mjs',
