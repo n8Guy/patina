@@ -764,10 +764,10 @@ describe('syncBaseFiles — upgrade path: syncs module command files for install
     expect(existsSync(join(targetDir, '.claude', 'commands', 'li-post.md'))).toBe(true);
   });
 
-  it('includes restored module command files in the returned repairedFiles list', () => {
-    const { repairedFiles } = syncBaseFiles(targetDir, profile);
-    expect(repairedFiles).toContain('.claude/commands/li-draft.md');
-    expect(repairedFiles).toContain('.claude/commands/li-post.md');
+  it('includes restored module command files in the returned restoredFiles list', () => {
+    const { restoredFiles } = syncBaseFiles(targetDir, profile);
+    expect(restoredFiles).toContain('.claude/commands/li-draft.md');
+    expect(restoredFiles).toContain('.claude/commands/li-post.md');
   });
 
   it('updates INSTRUCTIONS.md when it carries patina: managed marker', () => {
@@ -839,6 +839,22 @@ describe('applyModuleChanges — deferred entry cleared when module removed', ()
     const resumeEntry = finalState.deferred_modules?.find(e => e.module === 'resume');
     expect(resumeEntry).toBeDefined();
     expect(resumeEntry?.snooze_until).toBe('2026-07-01');
+  });
+});
+
+// ── Module uninstall: content-dir files left on disk ─────────────────────────
+
+describe('applyModuleChanges — uninstalling linkedin leaves INSTRUCTIONS.md on disk', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/x' }));
+    profile = loadProfile();
+  });
+
+  it('leaves graph/linkedin/INSTRUCTIONS.md on disk after module removal', () => {
+    applyModuleChanges(targetDir, profile, [], ['linkedin']);
+    expect(existsSync(join(targetDir, 'graph', 'linkedin', 'INSTRUCTIONS.md'))).toBe(true);
   });
 });
 
