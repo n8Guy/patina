@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { removeManagedFileIfManaged } from '../wizard-shared.js';
-import { cleanupObsidianMcpJson } from '../wizard-update.js';
+import { cleanupObsidianMcpJson, ensureGitignoreEntry } from '../wizard-update.js';
 
 let tmp: string;
 
@@ -145,6 +145,33 @@ describe('cleanupObsidianMcpJson', () => {
   it('does nothing when .mcp.json does not exist', () => {
     const updated: string[] = [];
     cleanupObsidianMcpJson(tmp, updated);
+    expect(updated).toHaveLength(0);
+  });
+});
+
+// ── ensureGitignoreEntry ──────────────────────────────────────────────────────
+
+describe('ensureGitignoreEntry', () => {
+  it('appends an entry that is missing from .gitignore', () => {
+    writeFileSync(join(tmp, '.gitignore'), '.obsidian/\n.DS_Store\n', 'utf8');
+    const updated: string[] = [];
+    ensureGitignoreEntry(tmp, '.claude/audience-prefs.json', updated);
+    expect(readFileSync(join(tmp, '.gitignore'), 'utf8')).toContain('.claude/audience-prefs.json');
+    expect(updated).toContain('.gitignore');
+  });
+
+  it('does not duplicate an entry already present', () => {
+    writeFileSync(join(tmp, '.gitignore'), '.obsidian/\n.claude/audience-prefs.json\n', 'utf8');
+    const updated: string[] = [];
+    ensureGitignoreEntry(tmp, '.claude/audience-prefs.json', updated);
+    const content = readFileSync(join(tmp, '.gitignore'), 'utf8');
+    expect(content.split('.claude/audience-prefs.json')).toHaveLength(2);
+    expect(updated).toHaveLength(0);
+  });
+
+  it('does nothing when .gitignore does not exist', () => {
+    const updated: string[] = [];
+    ensureGitignoreEntry(tmp, '.claude/audience-prefs.json', updated);
     expect(updated).toHaveLength(0);
   });
 });

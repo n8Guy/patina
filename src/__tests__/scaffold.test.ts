@@ -1236,6 +1236,16 @@ describe('scaffold — .gitignore update-check entry', () => {
   });
 });
 
+describe('scaffold — .gitignore audience-prefs entry', () => {
+  beforeEach(async () => {
+    await scaffold(opts());
+  });
+
+  it('.gitignore includes .claude/audience-prefs.json', () => {
+    expect(read('.gitignore')).toContain('.claude/audience-prefs.json');
+  });
+});
+
 describe('scaffold — update-check section in CLAUDE.md', () => {
   beforeEach(async () => {
     await scaffold(opts());
