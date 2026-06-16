@@ -82,6 +82,31 @@ npm run dev
 
 This runs the wizard directly from TypeScript source via `tsx`. No build step needed during development.
 
+### Testing locally
+
+`npm run dev` launches the interactive wizard. Use `npx tsx src/cli.ts` directly when you need to pass arguments or invoke a specific subcommand non-interactively:
+
+```bash
+npx tsx src/cli.ts --version
+npx tsx src/cli.ts update
+```
+
+This is the canonical way to exercise a specific command path without going through the wizard entry point.
+
+### Testing a PR or branch
+
+To test a contributor's branch or open PR against a real patina output folder — without checking it out locally:
+
+```bash
+# Test a branch
+npx github:n8Guy/patina#<branch> [args]
+
+# Test an open PR
+npx github:n8Guy/patina#pull/<N>/head [args]
+```
+
+The `prepare` script (`npm run build`) runs automatically on `npm install`, so the `dist/` does not need to be committed to the branch — the npx install compiles it on the fly.
+
 ### Building
 
 ```bash
@@ -121,7 +146,15 @@ To add a new predefined archetype:
 
 Modules are self-contained feature packs (LinkedIn, resume, goals, …). Each one is a `ModuleDefinition` registered in `src/modules/registry.ts`, with its templates under `src/templates/modules/<name>/`.
 
-See **[MODULES.md](./MODULES.md)** for the full `ModuleDefinition` contract, the managed-vs-content file model, the `reflect_hook` convention, and a step-by-step checklist. It is the canonical reference and is kept in sync with the code — start there.
+The high-level steps are:
+
+1. **Create templates** under `src/templates/modules/<name>/` — one file per managed or content output the module writes.
+2. **Define the module** — add a `ModuleDefinition` to `src/modules/registry.ts` with at minimum `id`, `label`, `hint`, `commands`, `managedPaths`, `contentFileNames`, and a `demoContent` method.
+3. **Declare managed paths** in the module's own `managedPaths` array — patina reads them automatically from the registry via `src/checksums.ts`. Do not edit `MANAGED_FILES` directly.
+4. **Add tests** in `src/__tests__/<name>.test.ts` verifying the files that get written to disk.
+5. **Run `npm test`** — the full suite must pass.
+
+See **[MODULES.md](./MODULES.md)** for the full `ModuleDefinition` contract, the managed-vs-content file model, the `reflect_hook` convention, and a complete step-by-step checklist. It is the canonical reference — start there for anything not covered above.
 
 ---
 
