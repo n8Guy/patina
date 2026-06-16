@@ -411,5 +411,5 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeState(targetDir, {});
 
   // ── .gitignore
-  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n.patina-update-check\n`);
+  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n.patina-update-check\n.claude/audience-prefs.json\n`);
 }

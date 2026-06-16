@@ -58,6 +58,20 @@ export function cleanupObsidianMcpJson(cwd: string, updated: string[]): void {
   updated.push('.mcp.json');
 }
 
+/**
+ * Idempotently append a line to .gitignore if it isn't already present.
+ * Exported for testing.
+ */
+export function ensureGitignoreEntry(cwd: string, entry: string, updated: string[]): void {
+  const gitignorePath = join(cwd, '.gitignore');
+  if (!existsSync(gitignorePath)) return;
+  const content = readFileSync(gitignorePath, 'utf8');
+  const lines = content.split('\n');
+  if (lines.some(l => l.trim() === entry)) return;
+  writeFileSync(gitignorePath, content.endsWith('\n') ? content + entry + '\n' : content + '\n' + entry + '\n', 'utf8');
+  updated.push('.gitignore');
+}
+
 // ─── Branch A: Update personal info ──────────────────────────────────────────
 
 export interface ProfileFields {
@@ -452,6 +466,8 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   }
   // Clean up the legacy mcp-obsidian .mcp.json on every update path
   cleanupObsidianMcpJson(cwd, []);
+  // Ensure audience-prefs.json is gitignored (added in 1.7.x; backfill for existing installs)
+  ensureGitignoreEntry(cwd, '.claude/audience-prefs.json', []);
 
   try {
     writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check, backup_offer: existingState.backup_offer });
