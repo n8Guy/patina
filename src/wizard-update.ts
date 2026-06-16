@@ -421,12 +421,13 @@ export async function handleDeferredModules(cwd: string, profile: Profile): Prom
  * Runs at the top of every update wizard invocation so new template files land
  * even when the user makes no profile changes.
  */
-export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: HealthReport; repairedFiles: string[] } {
+export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: HealthReport; repairedFiles: string[]; restoredFiles: string[] } {
   const existingState = readState(cwd);
   const vars = profileToVars(profile);
 
   const healthReport = detectCorruption(cwd, profile);
   const repairedFiles: string[] = [];
+  const restoredFiles: string[] = [];
 
   try {
     for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? []})) {
@@ -438,14 +439,16 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
     for (const module of profile.modules ?? []) {
       for (const [rel, content] of moduleManagedFiles(module, vars)) {
         const result = writeManagedFile(cwd, rel, content);
-        if (result.outcome === 'added' || (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped')) {
+        if (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped') {
           repairedFiles.push(rel);
+        } else if (result.outcome === 'added' || result.outcome === 'updated') {
+          restoredFiles.push(rel);
         }
       }
     }
   } catch (err) {
     p.log.warn(`Failed to sync patina files — some templates may be out of date. Run again to retry. (${err instanceof Error ? err.message : String(err)})`);
-    return { healthReport, repairedFiles: [] };
+    return { healthReport, repairedFiles: [], restoredFiles: [] };
   }
   // Clean up the legacy mcp-obsidian .mcp.json on every update path
   cleanupObsidianMcpJson(cwd, []);
@@ -455,14 +458,14 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   } catch (err) {
     p.log.warn(`Patina files updated but state not saved — run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
-  return { healthReport, repairedFiles };
+  return { healthReport, repairedFiles, restoredFiles };
 }
 
 export async function runUpdate(cwd: string): Promise<void> {
   const profile = loadProfile(cwd);
   p.intro(chalk.hex('#94A3B8')(`Found: ${chalk.bold.white(profile.patina_name || 'patina')}`));
 
-  const { healthReport, repairedFiles } = syncBaseFiles(cwd, profile);
+  const { healthReport, repairedFiles, restoredFiles } = syncBaseFiles(cwd, profile);
 
   if (repairedFiles.length > 0) {
     const noteLines = [
@@ -470,6 +473,13 @@ export async function runUpdate(cwd: string): Promise<void> {
       chalk.hex('#94A3B8')('Your notes and settings in graph/ were not changed.'),
     ];
     p.note(noteLines.join('\n'), label('Corruption repaired'));
+  }
+
+  if (restoredFiles.length > 0) {
+    p.note(
+      chalk.hex('#94A3B8')(`Synced: ${restoredFiles.join(', ')}`),
+      label('Files synced'),
+    );
   }
 
   p.note(
