@@ -322,7 +322,7 @@ async function runUpdateAudiences(cwd: string, profile: Profile): Promise<void> 
   const vars = profileToVars(profile);
   const archetypeFiles = baseManagedArchetypeFiles(vars);
 
-  const initialValues = PREDEFINED_ARCHETYPES
+  const initialValues: string[] = PREDEFINED_ARCHETYPES
     .filter(a => existsSync(join(cwd, `.claude/agents/${a.slug}.md`)))
     .map(a => a.slug);
 
