@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import yaml from 'js-yaml';
@@ -127,6 +127,45 @@ describe('detectCorruption — placeholder corruption', () => {
     const placeholderFinding = report.findings.find(f => f.kind === 'placeholders');
     expect(placeholderFinding).toBeDefined();
     expect(placeholderFinding!.detail).toContain('{{USER_NAME}}');
+  });
+});
+
+describe('detectCorruption — custom archetypes not scanned', () => {
+  it('does not flag a user-created archetype with {{USER_TITLE}} as corrupt', async () => {
+    await scaffold({ ...scaffoldOpts, targetDir });
+    const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+
+    // Create a user-owned custom archetype — NOT in MANAGED_FILES, so it must not be scanned
+    const agentsDir = join(targetDir, '.claude', 'agents');
+    // agentsDir may not exist if no predefined archetypes were selected; create it
+    mkdirSync(agentsDir, { recursive: true });
+    const cfoContent = [
+      '---',
+      'name: CFO',
+      'role: audience',
+      'description: A CFO evaluating content from a Staff Engineer at a logistics company.',
+      '---',
+      '',
+      '## CFO',
+      '',
+      '**Role:** Chief Financial Officer responsible for company fiscal health.',
+      '**What they care about:** ROI, risk, cost efficiency.',
+      '',
+      '## Personal context',
+      '',
+      'This archetype is reacting to content from {{USER_NAME}}, a {{USER_TITLE}} at {{COMPANY_NAME}}.',
+      'They evaluate whether the content reflects the operational realities of a mid-market company.',
+    ].join('\n');
+    writeFileSync(join(agentsDir, 'cfo.md'), cfoContent, 'utf8');
+
+    const report = detectCorruption(targetDir, profile);
+
+    // The custom archetype must NOT appear in the corruption report
+    expect(report.corruptFiles.has('.claude/agents/cfo.md')).toBe(false);
+    const cfoFinding = report.findings.find(f => f.file === '.claude/agents/cfo.md');
+    expect(cfoFinding).toBeUndefined();
+    // The rest of the instance should still be clean
+    expect(report.ok).toBe(true);
   });
 });
 
