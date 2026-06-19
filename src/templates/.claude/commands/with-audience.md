@@ -64,9 +64,35 @@ Wait for the user's response. Do not scan the graph and produce unsolicited cont
 
 ## Step 5 — Run the panel in parallel
 
+### Step 5a — Prepare each archetype (resolve context before spawning subagents)
+
+Before invoking any subagent, the parent `/with-audience` session must prepare each selected archetype's content. Do this for every archetype before spawning any of them in parallel.
+
+For each selected archetype:
+
+1. **Check for new-format sections.** Read the archetype file and check whether it contains a `## Personal context` or `## Context sources` section. If neither section is present, this is an old-format archetype — skip all preparation steps below and use the file content as-is. Old archetypes work exactly as before.
+
+2. **Resolve profile vars.** If the archetype body contains any of the five profile token placeholders — `{{ USER_NAME }}`, `{{ USER_TITLE }}`, `{{ ROLE_DESCRIPTION }}`, `{{ COMPANY_NAME }}`, `{{ COMPANY_DESCRIPTION }}` (double curly braces with a space inside) — substitute the live values you know from CLAUDE.md. Do this substitution yourself, in this parent session — do not rely on subagents to resolve these vars. The subagent receives already-resolved text.
+
+3. **Check for unresolved vars.** After substitution, check whether any `{{ UPPERCASE }}` tokens (double curly braces with a space inside) remain in the resolved content. If any do (e.g. a profile field is blank or missing), warn the user before proceeding:
+
+   > Note: [ArchetypeName] has context placeholders that couldn't be resolved — your profile may be missing [field name]. The panel will run but results may be less personalized.
+
+   Then continue — do NOT abort the panel run.
+
+4. **Resolve graph file references.** If the archetype has a `## Context sources` section containing `note:` or `skills:` entries with wiki-link syntax (e.g. `[[project-atlas]]`), read each referenced file:
+   - For `note:` entries, look in `{{CONTENT_DIR}}/notes/<name>.md`
+   - For `skills:` entries, look in `{{CONTENT_DIR}}/skills/<name>.md`
+   - If a referenced file no longer exists, note it gracefully (e.g. "Note: referenced file 'project-atlas' not found — skipping") and continue. Do not error out.
+   - Collect the content of all successfully read files. You will include this as additional context in the subagent's prompt alongside the resolved archetype text.
+
+After completing Steps 1–4 for all archetypes, proceed to spawn the subagents in parallel.
+
+### Step 5b — Invoke subagents in parallel
+
 For each **selected** audience archetype, invoke a subagent using the Agent tool. Each subagent:
 
-1. Reads the archetype's agent file from `.claude/agents/`
+1. Receives the resolved archetype content (with profile vars substituted and graph file content appended) prepared in Step 5a
 2. Evaluates the content from the perspective of that archetype
 3. Returns:
    - **Reaction:** exactly one of Positive / Negative / Neutral / Mixed

@@ -142,6 +142,71 @@ To add a new predefined archetype:
 
 ---
 
+## Custom audience archetypes (user-created)
+
+Users create custom archetypes via `/audience`. These files land in `.claude/agents/` and are **user-owned** — patina never overwrites or manages them.
+
+### File format
+
+```markdown
+---
+name: CFO
+role: audience
+description: A CFO evaluating content from a Staff Engineer at a logistics company.
+---
+
+## CFO
+
+**Role:** ...
+**What they care about:** ...
+**What impresses them:** ...
+**What concerns or bores them:** ...
+**Communication style:** ...
+
+## Personal context
+
+This archetype is reacting to content from {{ USER_NAME }}, a {{ USER_TITLE }} at {{ COMPANY_NAME }}.
+[Personalization sentence calibrated to how this user's role/company shapes what this archetype looks for.]
+
+## Context sources
+
+- profile: title, role, company
+- note: [[project-atlas]]
+- skills: [[index]]
+```
+
+### Key conventions
+
+- **No `patina: managed` in frontmatter.** Custom archetypes are user-owned. Never add `patina: managed` to them. The corruption scanner (`detectCorruption`) only scans files in `MANAGED_FILES` — custom archetypes are intentionally outside that set, so template tokens in their body sections are not false positives.
+
+- **Token format: `{{ VAR }}` with a space inside.** Always write template tokens as `{{ USER_NAME }}` (double curly braces, space inside). This form intentionally escapes the scaffold render regex `/\{\{(\w+)\}\}/g` (which only matches the no-space form), so tokens survive unmodified in custom archetype files. The resolution logic in `/with-audience` matches this spaced form.
+
+- **Template vars belong in body sections only — never in frontmatter.** The five profile tokens — `{{ USER_NAME }}`, `{{ USER_TITLE }}`, `{{ ROLE_DESCRIPTION }}`, `{{ COMPANY_NAME }}`, `{{ COMPANY_DESCRIPTION }}` — may appear in `## Personal context` and other body prose. The `description:` frontmatter field must always be a plain resolved English sentence (e.g. `"A CFO evaluating content from a Staff Engineer."`) — template tokens in YAML frontmatter break tooling that reads the file before runtime.
+
+- **`## Personal context` and `## Context sources` are optional.** Archetypes without these sections (old-format archetypes) work unchanged in `/with-audience`.
+
+### Runtime resolution in `/with-audience`
+
+When `/with-audience` runs the panel, it prepares each archetype before passing it to a subagent:
+
+1. **Profile var substitution** — replaces `{{ USER_NAME }}`, `{{ USER_TITLE }}`, `{{ ROLE_DESCRIPTION }}`, `{{ COMPANY_NAME }}`, `{{ COMPANY_DESCRIPTION }}` with live values from CLAUDE.md. This happens in the parent session, not in the subagent.
+2. **Unresolved var warning** — if any `{{ UPPERCASE }}` tokens remain after substitution (e.g. a profile field is blank), the user is warned before the panel runs. The panel is not aborted.
+3. **Graph file resolution** — `note: [[name]]` entries in `## Context sources` are read from `{{CONTENT_DIR}}/notes/<name>.md`; `skills:` entries from `{{CONTENT_DIR}}/skills/<name>.md`. Missing files are skipped gracefully. The file content is appended to the subagent's context.
+4. **Backward compatibility** — archetypes with no `## Personal context` or `## Context sources` section are passed through unchanged. No migration needed.
+
+### Wiki-link syntax for graph references
+
+Graph file references in `## Context sources` use wiki-link syntax: `[[filename-without-extension]]`. The link target is the file's base name without `.md`. For example:
+
+```
+- note: [[project-atlas-migration]]
+- skills: [[index]]
+```
+
+These resolve to `{{CONTENT_DIR}}/notes/project-atlas-migration.md` and `{{CONTENT_DIR}}/skills/index.md` respectively at panel time. For skills entries, the link target is relative to the skills folder root — write `[[index]]`, not `[[skills/index]]`.
+
+---
+
 ## Adding a module
 
 Modules are self-contained feature packs (LinkedIn, resume, goals, …). Each one is a `ModuleDefinition` registered in `src/modules/registry.ts`, with its templates under `src/templates/modules/<name>/`.
