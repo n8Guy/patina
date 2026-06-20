@@ -18,6 +18,7 @@ This module helps you draft and refine your LinkedIn profile using your patina g
   LinkedIn Featured.md         — draft for featured content
   LinkedIn Activity.md         — suggestion backlog for posts
   activity/drafts/             — in-progress post and article drafts
+  activity/images/             — images for LinkedIn posts and articles
   activity/posted/             — published posts (moved here by /li-post)
 ```
 

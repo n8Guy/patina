@@ -39,6 +39,7 @@ Read this file first before working on any LinkedIn proposal files. It tells you
   LinkedIn Featured.md         ← draft for the Featured section
   LinkedIn Activity.md         ← posting strategy and suggestion backlog
   activity/drafts/             ← in-progress post and article drafts
+  activity/images/             ← images for LinkedIn posts and articles
   activity/posted/             ← published posts (moved here by /li-post)
 ```
 
@@ -184,3 +185,4 @@ Rules:
 - `posted_at` is an ISO datetime from the session context at the moment `/li-post` is run — not a frozen scaffold token.
 - `/li-post` does not touch `LinkedIn Activity.md`.
 - `activity/posted/` is read-only after a file lands there — do not edit or move posted files.
+- Images for posts and articles go in `activity/images/`. Reference them with a relative path from the draft file (e.g. `../images/filename.png`). The `image` frontmatter field accepts `null` — not every post has an image.
