@@ -62,6 +62,8 @@ type: linkedin-post
 status: draft
 created_at: <session date>
 topic: <short descriptor>
+image: null
+post_text: ""
 ---
 
 ## Hook
@@ -77,6 +79,8 @@ topic: <short descriptor>
 <call to action — question, invitation, or next step>
 ```
 
+After drafting the Hook, Body, and CTA sections, assemble the final copy and write it into `post_text`. This is the text the user will paste directly into LinkedIn.
+
 ### Article template
 
 Write `{{CONTENT_DIR}}/linkedin/activity/drafts/<slug>.md` with this structure:
@@ -87,6 +91,9 @@ type: linkedin-article
 status: draft
 created_at: <session date>
 topic: <short descriptor>
+title: <article title>
+image: null
+post_text: ""
 ---
 
 # <Title>
@@ -103,6 +110,10 @@ topic: <short descriptor>
 
 <takeaway or closing thought>
 ```
+
+`post_text` for an article is the short LinkedIn post copy used when sharing the article link — typically a hook sentence and the article URL. Write it after the article body is drafted.
+
+`image` accepts a relative path from the draft file (e.g. `../images/filename.png`) or `null` when there is no image. Place image files in `{{CONTENT_DIR}}/linkedin/activity/images/`. Create that directory if it does not exist.
 
 ## Confirm
 
