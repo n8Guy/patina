@@ -44,11 +44,11 @@ outcomes:
 
 ## Privacy
 
-You decide what's shareable — patina never blocks client content. Each file carries a `private` flag: `private: false` (the default) is fine for outbound drafts; `private: true` makes outbound modules give **one** heads-up before they use the record, then leave the call to you. Set it on anything under NDA or not yet public — or just tell Claude to keep a client private and it sets the flag. Notes derived from a `private: true` source inherit the flag. See the **Privacy** section in `{{CONTENT_DIR}}/clients/INSTRUCTIONS.md`.
+You decide what's shareable — patina never blocks client content. Each file carries a `private` flag: `private: false` (the default) is fine for outbound drafts; `private: true` makes outbound modules give **one** heads-up before they use the record, then leave the call to you. Set it on anything under NDA or not yet public — or just tell {{AGENT_DISPLAY_NAME}} to keep a client private and it sets the flag. Notes derived from a `private: true` source inherit the flag. See the **Privacy** section in `{{CONTENT_DIR}}/clients/INSTRUCTIONS.md`.
 
 ## Adding a client
 
-To add a client, ask Claude to scaffold one in your session — provide the client name and engagement type (project, retainer, or advisory) and it will create the folder structure and profile.
+To add a client, ask {{AGENT_DISPLAY_NAME}} to scaffold one in your session — provide the client name and engagement type (project, retainer, or advisory) and it will create the folder structure and profile.
 
 ## Slash commands
 

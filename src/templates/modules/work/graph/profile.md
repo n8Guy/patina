@@ -71,4 +71,4 @@ What are you primarily working on right now?
 
 ## Context
 
-Anything else that would help Claude understand your work situation: team dynamics, constraints, ongoing initiatives, things in flux.
+Anything else that would help {{AGENT_DISPLAY_NAME}} understand your work situation: team dynamics, constraints, ongoing initiatives, things in flux.

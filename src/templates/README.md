@@ -5,12 +5,12 @@ patina: managed
 
 This is your patina — a personal knowledge base for your professional story.
 
-- Profile and config live in `profile.yaml` and `CLAUDE.md`.
+- Profile and config live in `profile.yaml` and `{{AGENT_MEMORY_FILE}}`.
 - Your notes and skills live in `{{CONTENT_DIR}}/`.
 
 Your own always-on instructions live in `CUSTOM.md` — patina seeds it once and never overwrites it.
 
-**Your notes and graph content in `{{CONTENT_DIR}}/` are never touched by updates — only setup files (CLAUDE.md, commands, settings) reset on update.**
+**Your notes and graph content in `{{CONTENT_DIR}}/` are never touched by updates — only setup files ({{AGENT_MEMORY_FILE}}, commands, settings) reset on update.**
 
 ## Commands
 
@@ -22,9 +22,9 @@ Drop files into `inbox/` — documents, PDFs, notes, transcripts, anything you w
 
 ## Customising your setup
 
-To add your own persistent instructions for Claude, edit `CUSTOM.md` — patina never overwrites it.
+To add your own persistent instructions for {{AGENT_DISPLAY_NAME}}, edit `CUSTOM.md` — patina never overwrites it.
 
-To customise a patina command, copy it to a new filename and remove the `patina: managed` frontmatter. Unmarked files are yours and survive updates. For example, copy `.claude/commands/add.md` to `.claude/commands/add-work.md` (without the frontmatter) to create a specialised version.
+To customise a patina command, copy it to a new filename and remove the `patina: managed` frontmatter. Unmarked files are yours and survive updates. For example, copy `{{AGENT_COMMANDS_DIR}}/add.md` to `{{AGENT_COMMANDS_DIR}}/add-work.md` (without the frontmatter) to create a specialised version.
 
 ## Keeping your notes safe
 

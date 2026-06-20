@@ -51,15 +51,15 @@ Read this file first before working on any LinkedIn proposal files. It tells you
 
 ## Getting started
 
-Before running any commands, it helps to have `LinkedIn Current State.md` filled in — this file tells Claude what's already live on your profile, so drafts are grounded in reality rather than starting from scratch.
+Before running any commands, it helps to have `LinkedIn Current State.md` filled in — this file tells {{AGENT_DISPLAY_NAME}} what's already live on your profile, so drafts are grounded in reality rather than starting from scratch.
 
-Open your LinkedIn profile in a browser while Claude has access to it, then give Claude this prompt:
+Open your LinkedIn profile in a browser while {{AGENT_DISPLAY_NAME}} has access to it, then give {{AGENT_DISPLAY_NAME}} this prompt:
 
 > *"I have my LinkedIn profile open. Please read my current headline, About section, Experience description for my current role, Skills list, and Featured items — then write them directly into my `{{CONTENT_DIR}}/linkedin/LinkedIn Current State.md` file. After you're done, show me what you captured so I can check it over."*
 
-Claude will read your profile and write the file for you in one step. Take a moment to read through the result — you know your profile better than anyone, and it's worth making sure everything looks right before you start drafting.
+{{AGENT_DISPLAY_NAME}} will read your profile and write the file for you in one step. Take a moment to read through the result — you know your profile better than anyone, and it's worth making sure everything looks right before you start drafting.
 
-If Claude doesn't have browser access, just visit your LinkedIn profile and copy each section into that file manually. Either way works.
+If {{AGENT_DISPLAY_NAME}} doesn't have browser access, just visit your LinkedIn profile and copy each section into that file manually. Either way works.
 
 ---
 
@@ -69,7 +69,7 @@ If Claude doesn't have browser access, just visit your LinkedIn profile and copy
 
 **Publishing:** When a draft looks good, open the file, copy the text from the `## Proposed` section, and paste it into the right place on LinkedIn. There is no automation — LinkedIn doesn't allow it.
 
-**After publishing:** Just tell Claude — *"I published my headline"* or *"I updated my About section."* Claude will:
+**After publishing:** Just tell {{AGENT_DISPLAY_NAME}} — *"I published my headline"* or *"I updated my About section."* {{AGENT_DISPLAY_NAME}} will:
 1. Change `status: draft` to `status: published` in the draft file
 2. Update `LinkedIn Current State.md` to reflect what's now live
 3. Add a row to the Publish Log

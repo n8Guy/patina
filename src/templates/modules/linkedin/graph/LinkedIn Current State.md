@@ -12,13 +12,13 @@ The verified record of what is **actually live** on {{USER_NAME}}'s LinkedIn pro
 
 ## Getting this file set up
 
-The easiest way to fill this in is to open your LinkedIn profile in a browser while Claude has access to it, then give Claude this prompt:
+The easiest way to fill this in is to open your LinkedIn profile in a browser while {{AGENT_DISPLAY_NAME}} has access to it, then give {{AGENT_DISPLAY_NAME}} this prompt:
 
 > *"I have my LinkedIn profile open. Please read my current headline, About section, Experience description for my current role, Skills list, and Featured items — then write them directly into my `{{CONTENT_DIR}}/linkedin/LinkedIn Current State.md` file. After you're done, show me what you captured so I can check it over."*
 
-Claude will read your profile and write the file for you. Take a moment to read through the result — you know your profile better than anyone, and it's worth making sure everything landed correctly before you start drafting.
+{{AGENT_DISPLAY_NAME}} will read your profile and write the file for you. Take a moment to read through the result — you know your profile better than anyone, and it's worth making sure everything landed correctly before you start drafting.
 
-If Claude doesn't have browser access, you can fill this in manually by visiting your LinkedIn profile and copying each section below.
+If {{AGENT_DISPLAY_NAME}} doesn't have browser access, you can fill this in manually by visiting your LinkedIn profile and copying each section below.
 
 ---
 

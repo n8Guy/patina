@@ -6,20 +6,20 @@ reflect_hook: resume-refresh
 description: A private drafting space for your resume
 commands:
   - name: /resume-refresh
-    desc: Refresh your resume working draft from your graph (no input needed — Claude reads your notes)
+    desc: Refresh your resume working draft from your graph (no input needed — {{AGENT_DISPLAY_NAME}} reads your notes)
 installed: {{TODAY}}
 ---
 
 # Resume Module
 
-A private drafting workspace for your resume. You add notes about your work, and this module keeps your resume current. When you submit to a role, tell Claude — it will freeze a copy of what you sent so you always know exactly what a hiring team has seen.
+A private drafting workspace for your resume. You add notes about your work, and this module keeps your resume current. When you submit to a role, tell {{AGENT_DISPLAY_NAME}} — it will freeze a copy of what you sent so you always know exactly what a hiring team has seen.
 
 ## How it works
 
 1. Use `/add` to capture your work — projects, skills, decisions, outcomes.
 2. Run `/resume-refresh` to update your working draft from your latest notes.
 3. When your draft looks good, copy it into your resume document and submit.
-4. Tell Claude — *"I submitted to Acme Corp"* — and it will snapshot the working draft to `Resume Last Submitted.md`.
+4. Tell {{AGENT_DISPLAY_NAME}} — *"I submitted to Acme Corp"* — and it will snapshot the working draft to `Resume Last Submitted.md`.
 
 ## Commands
 

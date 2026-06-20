@@ -18,13 +18,13 @@ A private space for your forward-looking goals. Goals are distinct from notes �
 
 ## How it works
 
-Tell Claude what you want to accomplish. Run `/goal` and it will ask for a horizon, type, and optional due date, then create a goal file in `{{CONTENT_DIR}}/goals/`. Run `/goal-review` to see all open and in-progress goals grouped by status and type, with overdue goals surfaced first.
+Tell {{AGENT_DISPLAY_NAME}} what you want to accomplish. Run `/goal` and it will ask for a horizon, type, and optional due date, then create a goal file in `{{CONTENT_DIR}}/goals/`. Run `/goal-review` to see all open and in-progress goals grouped by status and type, with overdue goals surfaced first.
 
 ## File layout
 
 ```
 {{CONTENT_DIR}}/goals/
-  INSTRUCTIONS.md     ← workflow guide for Claude
+  INSTRUCTIONS.md     ← workflow guide for {{AGENT_DISPLAY_NAME}}
   <slug>.md           ← one file per goal
 ```
 

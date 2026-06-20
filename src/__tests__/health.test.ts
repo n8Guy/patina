@@ -249,3 +249,48 @@ describe('repairCorruption — full repair', () => {
     expect(readFileSync(notePath, 'utf8')).toBe('# My Note\nThis is personal content.');
   });
 });
+
+// ── opencode health integration ───────────────────────────────────────────────
+
+describe('detectCorruption — opencode with module', () => {
+  it('detects {{FAKE}} planted in .opencode/modules/work/CLAUDE.md', async () => {
+    await scaffold({ ...scaffoldOpts, targetDir, agent: 'opencode', modules: ['work'] });
+    const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+
+    // Plant a fake token in the opencode module file (exactly the path the adapter generates)
+    const moduleClaude = join(targetDir, '.opencode', 'modules', 'work', 'CLAUDE.md');
+    const original = readFileSync(moduleClaude, 'utf8');
+    writeFileSync(moduleClaude, original + '\n{{FAKE}}\n', 'utf8');
+
+    const report = detectCorruption(targetDir, profile);
+    expect(report.ok).toBe(false);
+    const finding = report.findings.find(f => f.file === '.opencode/modules/work/CLAUDE.md');
+    expect(finding).toBeDefined();
+    expect(finding!.detail).toContain('{{FAKE}}');
+  });
+
+  it('repairCorruption fixes {{FAKE}} planted in .opencode/modules/work/CLAUDE.md', async () => {
+    await scaffold({ ...scaffoldOpts, targetDir, agent: 'opencode', modules: ['work'] });
+    const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+
+    const moduleClaude = join(targetDir, '.opencode', 'modules', 'work', 'CLAUDE.md');
+    const original = readFileSync(moduleClaude, 'utf8');
+    writeFileSync(moduleClaude, original + '\n{{FAKE}}\n', 'utf8');
+
+    const { report, repairedFiles } = await repairCorruption(targetDir, profile, { dryRun: false });
+    expect(report.ok).toBe(true);
+    expect(repairedFiles).toContain('.opencode/modules/work/CLAUDE.md');
+
+    // Repaired content must not contain {{FAKE}}
+    const repaired = readFileSync(moduleClaude, 'utf8');
+    expect(repaired).not.toContain('{{FAKE}}');
+  });
+
+  it('detectCorruption on a clean opencode patina with module returns ok=true', async () => {
+    await scaffold({ ...scaffoldOpts, targetDir, agent: 'opencode', modules: ['work'] });
+    const profile = yaml.load(readFileSync(join(targetDir, 'profile.yaml'), 'utf8')) as Profile;
+
+    const report = detectCorruption(targetDir, profile);
+    expect(report.ok).toBe(true);
+  });
+});

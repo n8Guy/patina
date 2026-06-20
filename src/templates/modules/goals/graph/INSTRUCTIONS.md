@@ -27,11 +27,11 @@ There are no subfolders. Each goal is a single markdown file named with a short,
 
 ## How to interact with goals
 
-**Always interact with goals through Claude — never edit goal files directly.**
+**Always interact with goals through {{AGENT_DISPLAY_NAME}} — never edit goal files directly.**
 
-To create a goal, tell Claude what you want to accomplish. Claude will choose an appropriate slug, fill in the frontmatter, and write the file.
+To create a goal, tell {{AGENT_DISPLAY_NAME}} what you want to accomplish. {{AGENT_DISPLAY_NAME}} will choose an appropriate slug, fill in the frontmatter, and write the file.
 
-To update a goal (change its status, adjust the due date, mark it done), describe the change to Claude. Claude will update the frontmatter fields in place — it will not create a new file.
+To update a goal (change its status, adjust the due date, mark it done), describe the change to {{AGENT_DISPLAY_NAME}}. {{AGENT_DISPLAY_NAME}} will update the frontmatter fields in place — it will not create a new file.
 
 To review your goals, run `/goal-review`. It groups open and in-progress goals by status and type, flags overdue goals first, and shows a summary count.
 
@@ -101,7 +101,7 @@ Keep it short. Goals are not project plans — they are intentions. Details belo
 
 ## What not to do
 
-- Do not edit goal files directly. Always go through Claude.
+- Do not edit goal files directly. Always go through {{AGENT_DISPLAY_NAME}}.
 - Do not use `type` to select a file template or trigger special behaviour. It is a label only.
 - Do not delete a goal when it is abandoned. Change `status` to `abandoned` and leave it — it is useful context for future reviews.
 - Do not create subfolders inside `{{CONTENT_DIR}}/goals/`. The flat layout is intentional.

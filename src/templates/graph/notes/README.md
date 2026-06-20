@@ -4,7 +4,7 @@ Notes are the heart of your patina. Each one captures something you've done — 
 
 ## How to add a note
 
-Run `/add <description>` and Claude will ask a few short questions and write the note for you. You don't need to create files in here by hand.
+Run `/add <description>` and {{AGENT_DISPLAY_NAME}} will ask a few short questions and write the note for you. You don't need to create files in here by hand.
 
 ## File naming
 

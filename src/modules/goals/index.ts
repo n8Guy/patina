@@ -34,10 +34,10 @@ export const goalsModule = {
 
   managedFiles(vars: TemplateVars): FileEntry[] {
     return [
-      ['.claude/commands/goal.md', render(tpl('modules/goals/commands/goal.md'), vars)],
-      ['.claude/commands/goal-review.md', render(tpl('modules/goals/commands/goal-review.md'), vars)],
-      ['.claude/modules/goals/manifest.md', render(tpl('modules/goals/manifest.md'), vars)],
-      ['.claude/modules/goals/CLAUDE.md', render(tpl('modules/goals/CLAUDE.md'), vars)],
+      [`${vars.AGENT_COMMANDS_DIR}/goal.md`, render(tpl('modules/goals/commands/goal.md'), vars)],
+      [`${vars.AGENT_COMMANDS_DIR}/goal-review.md`, render(tpl('modules/goals/commands/goal-review.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/goals/manifest.md`, render(tpl('modules/goals/manifest.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/goals/CLAUDE.md`, render(tpl('modules/goals/CLAUDE.md'), vars)],
     ];
   },
 

@@ -2,15 +2,16 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { resolve } from 'path';
 import { privacyNote, label } from './wizard-brand.js';
-import { detectObsidian, openInObsidian, detectVSCode, openInVSCode, detectClaude } from './wizard-editor.js';
+import { detectObsidian, openInObsidian, detectVSCode, openInVSCode } from './wizard-editor.js';
 import { MULTISELECT_HINT, OPTIONAL_HINT, slugify, defaultSnoozeUntil, addDeferredModule, onCancel, promptLaunchTasks, GUIDE_HINT_INLINE } from './wizard-shared.js';
 import { scaffold, PREDEFINED_ARCHETYPES } from './scaffold.js';
 import { readState, writeState } from './state.js';
 import { offerBackup } from './wizard-backup.js';
 import { MODULES, getModule } from './modules/registry.js';
+import { AGENTS, getAgent } from './agents/registry.js';
 import { availableLaunchTasks } from './launch-tasks.js';
 import type { ModuleAddInputs } from './modules/types.js';
-import type { DeferredModule, Editor, ModuleId, WorkInfo } from './types.js';
+import type { AgentId, DeferredModule, Editor, ModuleId, WorkInfo } from './types.js';
 
 // ─── Install ─────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,16 @@ export async function runInstall(cwd: string): Promise<void> {
 
   const setup = await p.group(
     {
+      agent: () =>
+        p.select<AgentId>({
+          message: 'Which AI assistant will you use?',
+          options: AGENTS.map(a => ({
+            value: a.agentId,
+            label: a.displayName,
+            hint: chalk.hex('#64748B')(a.agentId === 'claude-code' ? 'default — Claude Code by Anthropic' : 'opencode by SST'),
+          })),
+        }),
+
       editor: () =>
         p.select<Editor>({
           message: 'How do you want to view and edit your files?',
@@ -217,6 +228,7 @@ export async function runInstall(cwd: string): Promise<void> {
       roleDescription: (identity.roleDescription ?? '').trim(),
       jobDescriptionUrl: (identity.jobDescriptionUrl ?? '').trim(),
       work: workInfo,
+      agent: setup.agent,
       editor: setup.editor,
       modules,
       liProfileUrl,
@@ -248,11 +260,13 @@ export async function runInstall(cwd: string): Promise<void> {
     process.exit(1);
   }
 
-  if (!detectClaude()) {
+  const selectedAgent = getAgent(setup.agent);
+  const agentDetected = selectedAgent.detect ? selectedAgent.detect() : false;
+  if (!agentDetected) {
     p.note(
-      chalk.hex('#94A3B8')("Your patina is powered by Claude Code, which doesn't look installed yet.\nInstall it (free) here: ") +
-        chalk.bold.white('https://claude.ai/code'),
-      label('Install Claude Code')
+      chalk.hex('#94A3B8')(`Your patina is powered by ${selectedAgent.displayName}, which doesn't look installed yet.\nInstall it (free) here: `) +
+        chalk.bold.white(selectedAgent.installUrl),
+      label(`Install ${selectedAgent.displayName}`)
     );
   }
 

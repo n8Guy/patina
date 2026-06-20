@@ -22,7 +22,7 @@ export const resumeModule = {
   hint: 'keep your resume current from your graph',
 
   commands: [
-    { name: '/resume-refresh', desc: 'Refresh your resume working draft from your graph (no input needed — Claude reads your notes)' },
+    { name: '/resume-refresh', desc: 'Refresh your resume working draft from your graph (no input needed — {{AGENT_DISPLAY_NAME}} reads your notes)' },
   ],
 
   managedPaths: RESUME_MANAGED_PATHS,
@@ -31,9 +31,9 @@ export const resumeModule = {
 
   managedFiles(vars: TemplateVars): FileEntry[] {
     return [
-      ['.claude/commands/resume-refresh.md', render(tpl('modules/resume/commands/resume-refresh.md'), vars)],
-      ['.claude/modules/resume/CLAUDE.md', render(tpl('modules/resume/CLAUDE.md'), vars)],
-      ['.claude/modules/resume/manifest.md', render(tpl('modules/resume/manifest.md'), vars)],
+      [`${vars.AGENT_COMMANDS_DIR}/resume-refresh.md`, render(tpl('modules/resume/commands/resume-refresh.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/resume/CLAUDE.md`, render(tpl('modules/resume/CLAUDE.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/resume/manifest.md`, render(tpl('modules/resume/manifest.md'), vars)],
     ];
   },
 

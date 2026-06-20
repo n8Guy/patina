@@ -1,9 +1,12 @@
 import { MODULES } from './modules/registry.js';
+import { getAgent } from './agents/registry.js';
+import type { AgentId } from './types.js';
 
 export const CONTENT_SUBDIRS = ['notes', 'skills'] as const;
 
-// Files patina manages (marked managed, overwritten on update).
+// Files patina manages (marked managed, overwritten on update) — claude-code default.
 // graph/** is intentionally excluded — patina never touches user content.
+// For agent-aware lookups, use managedFilesFor(agent, editor) instead.
 export const MANAGED_FILES = [
   'README.md',
   'CLAUDE.md',
@@ -22,6 +25,24 @@ export const MANAGED_FILES = [
   '.claude/scripts/staleness-check.mjs',
   '.claude/scripts/health-check.mjs',
 ] as const;
+
+/**
+ * Returns the set of managed file paths for the given agent and editor.
+ * Replaces direct use of MANAGED_FILES when agent-awareness is needed.
+ */
+export function managedFilesFor(agentId: AgentId | undefined, editor: string): readonly string[] {
+  return getAgent(agentId).baseManagedPaths({ editor });
+}
+
+/**
+ * Returns the managed paths for a specific module under the given agent.
+ */
+export function moduleManagedFilesFor(agentId: AgentId | undefined, moduleId: string): readonly string[] {
+  const adapter = getAgent(agentId);
+  const module = MODULES.find(m => m.id === moduleId);
+  if (!module) return [];
+  return adapter.mapModuleManagedPaths(moduleId, module.managedPaths);
+}
 
 // Files patina seeds once (written if absent, never overwritten).
 // Note: .obsidian/app.json is also seeded (editor-conditional, obsidian only).

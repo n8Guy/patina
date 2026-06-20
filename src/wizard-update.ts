@@ -7,6 +7,8 @@ import { label } from './wizard-brand.js';
 import { MULTISELECT_HINT, OPTIONAL_HINT, onCancel, writeProfile, removeManagedFileIfManaged, promptLaunchTasks, GUIDE_HINT_LOG, snoozeUntilFor } from './wizard-shared.js';
 import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, baseManagedArchetypeFiles, PREDEFINED_ARCHETYPES, GUIDE_CORE_COMMANDS } from './scaffold.js';
+import { getAgent, AGENTS } from './agents/registry.js';
+import { planSetAgent, printSetAgentDiff, confirmAndApplySetAgent } from './set-agent.js';
 import { writeManagedFile, isMarkedManaged } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { offerBackup, backupOfferKind } from './wizard-backup.js';
@@ -14,7 +16,7 @@ import { detectCorruption, formatHealthReport, repairCorruption, type HealthRepo
 import { availableLaunchTasks, pruneLaunchTasks } from './launch-tasks.js';
 import { validate, formatReport } from './validate.js';
 import { getModule } from './modules/registry.js';
-import type { Profile } from './types.js';
+import type { Profile, AgentId } from './types.js';
 
 export { writeProfile, removeManagedFileIfManaged as removeManagedFileIfUnmodified };
 
@@ -112,10 +114,11 @@ export function applyProfileUpdate(
 
   const vars = profileToVars(updatedProfile);
   const existingState = readState(cwd);
+  const profileAdapter = getAgent(updatedProfile.agent);
 
   const files = [
-    ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [] }),
-    ...(updatedProfile.modules ?? []).flatMap(m => moduleManagedFiles(m, vars)),
+    ...baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], agentId: updatedProfile.agent }),
+    ...(updatedProfile.modules ?? []).flatMap(m => profileAdapter.mapModuleManagedFiles(m, moduleManagedFiles(m, vars), vars)),
   ];
 
   const updated: string[] = [];
@@ -271,7 +274,7 @@ export function applyLaunchTaskUpdate(
   const existingState = readState(cwd);
 
   // Re-render all base managed files (CLAUDE.md now contains launch section inline)
-  const files = baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? []});
+  const files = baseManagedFiles({ vars, editor: updatedProfile.editor, modules: updatedProfile.modules ?? [], agentId: updatedProfile.agent });
 
   const updated: string[] = [];
   const skipped: string[] = [];
@@ -320,10 +323,11 @@ async function runUpdateAudiences(cwd: string, profile: Profile): Promise<void> 
   console.log(`  ${chalk.hex('#64748B')('User-created personas (added via /audience) are never affected here.')}`);
 
   const vars = profileToVars(profile);
-  const archetypeFiles = baseManagedArchetypeFiles(vars);
+  const adapter = getAgent(profile.agent);
+  const archetypeFiles = baseManagedArchetypeFiles(vars, profile.agent);
 
   const initialValues: string[] = PREDEFINED_ARCHETYPES
-    .filter(a => existsSync(join(cwd, `.claude/agents/${a.slug}.md`)))
+    .filter(a => existsSync(join(cwd, adapter.archetypePath(a.slug))))
     .map(a => a.slug);
 
   const selected = await p.multiselect<string>({
@@ -345,7 +349,7 @@ async function runUpdateAudiences(cwd: string, profile: Profile): Promise<void> 
   const removed: string[] = [];
 
   for (const [rel, content] of archetypeFiles) {
-    const slug = rel.replace('.claude/agents/', '').replace('.md', '');
+    const slug = rel.replace(/.*\//, '').replace('.md', '');
     if (selected.includes(slug)) {
       const result = writeManagedFile(cwd, rel, content);
       if (result.outcome === 'added' || result.outcome === 'updated') added.push(slug);
@@ -497,14 +501,16 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   const restoredFiles: string[] = [];
 
   try {
-    for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? []})) {
+    for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], agentId: profile.agent })) {
       const result = writeManagedFile(cwd, rel, content);
       if (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped') {
         repairedFiles.push(rel);
       }
     }
+    const syncAdapter = getAgent(profile.agent);
     for (const module of profile.modules ?? []) {
-      for (const [rel, content] of moduleManagedFiles(module, vars)) {
+      const moduleFiles = syncAdapter.mapModuleManagedFiles(module, moduleManagedFiles(module, vars), vars);
+      for (const [rel, content] of moduleFiles) {
         const result = writeManagedFile(cwd, rel, content);
         if (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped') {
           repairedFiles.push(rel);
@@ -514,7 +520,7 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
       }
     }
     // ── Predefined audience archetypes (skipIfAbsent: refresh installed ones, don't force-add)
-    for (const [rel, content] of baseManagedArchetypeFiles(vars)) {
+    for (const [rel, content] of baseManagedArchetypeFiles(vars, profile.agent)) {
       const result = writeManagedFile(cwd, rel, content, { skipIfAbsent: true });
       if (result.outcome === 'updated') {
         restoredFiles.push(rel);
@@ -528,7 +534,8 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   // Clean up the legacy mcp-obsidian .mcp.json on every update path
   cleanupObsidianMcpJson(cwd, []);
   // Ensure audience-prefs.json is gitignored (added in 1.7.x; backfill for existing installs)
-  ensureGitignoreEntry(cwd, '.claude/audience-prefs.json', []);
+  const agentAdapterForGitignore = getAgent(profile.agent);
+  ensureGitignoreEntry(cwd, agentAdapterForGitignore.audiencePrefsGitignoreEntry(), []);
 
   try {
     writeState(cwd, { deferred_modules: existingState.deferred_modules, update_check: existingState.update_check, backup_offer: existingState.backup_offer });
@@ -536,6 +543,43 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
     p.log.warn(`Patina files updated but state not saved — run again to retry. (${err instanceof Error ? err.message : String(err)})`);
   }
   return { healthReport, repairedFiles, restoredFiles };
+}
+
+// ─── Branch E: Switch AI assistant ───────────────────────────────────────────
+
+async function runUpdateAgent(cwd: string, profile: Profile): Promise<void> {
+  const currentAgentId = profile.agent ?? 'claude-code';
+  const currentAdapter = getAgent(currentAgentId);
+
+  const otherAgents = AGENTS.filter(a => a.agentId !== currentAgentId);
+  if (otherAgents.length === 0) {
+    p.note(chalk.hex('#64748B')('No other assistants are available to switch to.'), label('Switch assistant'));
+    return;
+  }
+
+  const target = await p.select({
+    message: `Switch from ${currentAdapter.displayName} to:`,
+    options: otherAgents.map(a => ({
+      value: a.agentId,
+      label: a.displayName,
+    })),
+  });
+
+  if (p.isCancel(target)) {
+    p.cancel(chalk.hex('#94A3B8')('No changes made.'));
+    return;
+  }
+
+  const plan = planSetAgent(cwd, profile, target as AgentId);
+  printSetAgentDiff(plan);
+
+  const result = await confirmAndApplySetAgent(cwd, profile, plan);
+  if (result === null) {
+    p.cancel(chalk.hex('#94A3B8')('No changes made.'));
+    return;
+  }
+
+  p.outro(chalk.hex('#94A3B8')('Assistant switched.'));
 }
 
 export async function runUpdate(cwd: string): Promise<void> {
@@ -593,13 +637,15 @@ export async function runUpdate(cwd: string): Promise<void> {
 
   await handleDeferredModules(cwd, profile);
 
+  const currentAgent = getAgent(profile.agent);
   const action = await p.select({
     message: 'What do you want to do?',
     options: [
       { value: 'profile', label: 'Update personal info' },
       { value: 'modules', label: 'Add or remove modules' },
       { value: 'audiences', label: 'Manage audience personas', hint: chalk.hex('#64748B')('choose which built-in personas are installed') },
-      { value: 'launch-tasks', label: 'Set up launch tasks', hint: chalk.hex('#64748B')('tasks Claude runs every session') },
+      { value: 'launch-tasks', label: 'Set up launch tasks', hint: chalk.hex('#64748B')(`tasks ${currentAgent.displayName} runs every session`) },
+      { value: 'switch-agent', label: 'Switch your AI assistant', hint: chalk.hex('#64748B')(`currently ${currentAgent.displayName} — switch to another assistant`) },
       { value: 'backup', label: 'Back up your notes', hint: chalk.hex('#64748B')('version history — recover anything you delete') },
       { value: 'validate', label: 'Run health check', hint: chalk.hex('#64748B')('check for broken links and excluded items') },
       { value: 'nothing', label: 'Nothing — just checking' },
@@ -615,8 +661,9 @@ export async function runUpdate(cwd: string): Promise<void> {
     const coreLines = GUIDE_CORE_COMMANDS
       .map(c => chalk.bold.white(`  ${c.name.split(' ')[0]}`) + chalk.hex('#94A3B8')(` — ${c.desc}`))
       .join('\n');
+    const agentCli = getAgent(profile.agent).cliCommand;
     p.note(
-      chalk.hex('#94A3B8')('Run ') + chalk.bold.white('claude') + chalk.hex('#94A3B8')(' to start your session, then try:') + '\n' + coreLines,
+      chalk.hex('#94A3B8')('Run ') + chalk.bold.white(agentCli) + chalk.hex('#94A3B8')(' to start your session, then try:') + '\n' + coreLines,
       label('In your session')
     );
     p.outro(chalk.hex('#94A3B8')('No changes made.'));
@@ -629,6 +676,9 @@ export async function runUpdate(cwd: string): Promise<void> {
     await runUpdateAudiences(cwd, profile);
   } else if (action === 'launch-tasks') {
     await runUpdateLaunchTasks(cwd, profile);
+  } else if (action === 'switch-agent') {
+    await runUpdateAgent(cwd, profile);
+    return;
   } else if (action === 'backup') {
     const backupOutcome = await offerBackup(cwd);
     const nowState = readState(cwd);

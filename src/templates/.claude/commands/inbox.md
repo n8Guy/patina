@@ -7,7 +7,7 @@ Loops through every file dropped in `inbox/` and runs the full `/add` flow on ea
 
 ## Step 0 — Reconciliation preflight
 
-Read `.claude/inbox-routing.md`. Build a type→destination map from all markdown tables in the file. For each table row, the `type:` value is the first column (strip backticks) and the destination is the second column (strip backticks).
+Read `{{AGENT_DIR}}/inbox-routing.md`. Build a type→destination map from all markdown tables in the file. For each table row, the `type:` value is the first column (strip backticks) and the destination is the second column (strip backticks).
 
 Scan only the top-level files in `{{CONTENT_DIR}}/notes/` — do not descend into subdirectories or dot directories — for any file whose frontmatter `type:` field matches a registered routable type. These are potentially misrouted artifacts.
 
@@ -108,4 +108,4 @@ Report the outcome in a single line: `Moved N files to inbox/archive/.`
 - Never process files inside `inbox/archive/` — that directory is excluded from Step 2.
 - If a file already exists at its archive destination, keep both by appending a numeric suffix (e.g. `doc-2.pdf`) rather than overwriting.
 - If a file was moved to `inbox/archive/` but its registry `filename` was not yet updated (interrupted session), the entry still shows `status: "success"` under the original path, so it will never be re-scanned or re-processed — the stale path is harmless.
-- If `.claude/inbox-routing.md` does not exist (pre-#166 install), treat the routing table as empty — all artifacts fall back to `{{CONTENT_DIR}}/notes/` with no routing warnings.
+- If `{{AGENT_DIR}}/inbox-routing.md` does not exist (pre-#166 install), treat the routing table as empty — all artifacts fall back to `{{CONTENT_DIR}}/notes/` with no routing warnings.

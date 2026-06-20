@@ -1288,6 +1288,13 @@ describe('renderUpdateCheckSection', () => {
     LAUNCH_SECTION: '',
     UPDATE_CHECK_SECTION: '',
     MODULE_README_BLOCKS: '',
+    AGENT_DIR: '.claude',
+    AGENT_COMMANDS_DIR: '.claude/commands',
+    AGENT_AGENTS_DIR: '.claude/agents',
+    AGENT_SCRIPTS_DIR: '.claude/scripts',
+    AGENT_MEMORY_FILE: 'CLAUDE.md',
+    AGENT_DISPLAY_NAME: 'Claude Code',
+    AGENT_CLI: 'claude',
   };
 
   it('returns a string containing the installed version', () => {

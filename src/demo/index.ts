@@ -61,6 +61,7 @@ export async function runDemo(cwd: string): Promise<void> {
       ...DEMO_PERSONA,
       modules,
       targetDir,
+      agent: 'claude-code', // demo always uses claude-code for stable output
     });
   } catch (err) {
     s.error('Scaffold failed.');

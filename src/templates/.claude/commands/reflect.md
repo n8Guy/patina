@@ -86,7 +86,7 @@ Lead with A and B. Resolve those before moving to C and D.
 
 ## Step 5 — Discover and run module hooks
 
-1. List all files matching `.claude/modules/*/manifest.md` (relative to the project root)
+1. List all files matching `{{AGENT_DIR}}/modules/*/manifest.md` (relative to the project root)
 2. For each file, read the frontmatter and extract `reflect_hook`
 3. Run each hook in sequence
 

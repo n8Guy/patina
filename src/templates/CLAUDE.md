@@ -41,7 +41,7 @@ The graph is the source of truth. Nothing gets added to generated content unless
 - `processed_at` — ISO 8601 timestamp
 - `resulting_paths` — array of paths written during processing
 
-Where each file lands is governed by `.claude/inbox-routing.md`; files without a routable `type:` go to `{{CONTENT_DIR}}/notes/`.
+Where each file lands is governed by `{{AGENT_DIR}}/inbox-routing.md`; files without a routable `type:` go to `{{CONTENT_DIR}}/notes/`.
 
 Deleting `inbox/.processed.json` simply resets tracking with no data loss — your notes remain in `{{CONTENT_DIR}}/notes/`.
 
@@ -49,7 +49,7 @@ Deleting `inbox/.processed.json` simply resets tracking with no data loss — yo
 
 ## How it works
 
-**Adding evidence:** Run `/add` and describe something you've done. Claude asks a few questions and writes a note to `{{CONTENT_DIR}}/notes/`.
+**Adding evidence:** Run `/add` and describe something you've done. {{AGENT_DISPLAY_NAME}} asks a few questions and writes a note to `{{CONTENT_DIR}}/notes/`.
 
 **Reviewing skills:** Run `/reflect` to audit your notes for skill gaps, project completions, and stale entries.
 

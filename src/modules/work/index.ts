@@ -37,9 +37,9 @@ export const workModule = {
 
   managedFiles(vars: TemplateVars): FileEntry[] {
     return [
-      ['.claude/commands/work-check.md', render(tpl('modules/work/commands/work-check.md'), vars)],
-      ['.claude/modules/work/manifest.md', render(tpl('modules/work/manifest.md'), vars)],
-      ['.claude/modules/work/CLAUDE.md', render(tpl('modules/work/CLAUDE.md'), vars)],
+      [`${vars.AGENT_COMMANDS_DIR}/work-check.md`, render(tpl('modules/work/commands/work-check.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/work/manifest.md`, render(tpl('modules/work/manifest.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/work/CLAUDE.md`, render(tpl('modules/work/CLAUDE.md'), vars)],
     ];
   },
 
@@ -74,7 +74,7 @@ export const workModule = {
       '',
       '### Intake',
       '',
-      'Drop files into `inbox/` and run `/inbox`. Artifacts are routed to the correct subfolder based on the table in `.claude/inbox-routing.md`.',
+      `Drop files into \`inbox/\` and run \`/inbox\`. Artifacts are routed to the correct subfolder based on the table in \`${vars.AGENT_DIR}/inbox-routing.md\`.`,
       '',
       '### Commands',
       '',

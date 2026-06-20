@@ -1,5 +1,7 @@
 export type Editor = 'obsidian' | 'vscode' | 'other';
 
+export type AgentId = 'claude-code' | 'opencode';
+
 export type ValidationCheckId =
   | 'wiki-links' | 'exclusions' | 'skill-notes'
   | 'module-wiki-links'
@@ -43,6 +45,7 @@ export interface Profile {
   job_description_url?: string;
   work: WorkInfo;
   editor: Editor;
+  agent?: AgentId;
   modules: ModuleId[];
   content_dir: string;
   created: string;
@@ -63,6 +66,7 @@ export interface ScaffoldOptions {
   jobDescriptionUrl: string;
   work: WorkInfo;
   editor: Editor;
+  agent?: AgentId;
   modules: ModuleId[];
   liProfileUrl: string;
   contentDir: string;
@@ -93,5 +97,13 @@ export interface TemplateVars {
   LAUNCH_SECTION: string;
   UPDATE_CHECK_SECTION: string;
   MODULE_README_BLOCKS: string;
+  /** Agent path tokens — resolved before render() so templates stay agent-agnostic */
+  AGENT_DIR: string;           // e.g. '.claude' or '.opencode'
+  AGENT_COMMANDS_DIR: string;  // e.g. '.claude/commands' or '.opencode/command'
+  AGENT_AGENTS_DIR: string;    // e.g. '.claude/agents' or '.opencode/agent'
+  AGENT_SCRIPTS_DIR: string;   // e.g. '.claude/scripts' or '.opencode/scripts'
+  AGENT_MEMORY_FILE: string;   // e.g. 'CLAUDE.md' or 'AGENTS.md'
+  AGENT_DISPLAY_NAME: string;  // e.g. 'Claude Code' or 'opencode'
+  AGENT_CLI: string;           // e.g. 'claude' or 'opencode'
   [key: string]: string;
 }

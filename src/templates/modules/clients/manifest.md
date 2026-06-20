@@ -18,7 +18,7 @@ Records are **shareable by default** — set `private: true` on anything sensiti
 
 ## How it works
 
-Ask Claude to add a client in your session — provide the name and engagement type and it will scaffold the folder. Drop engagement notes and deliverables into the appropriate subfolders, then use `/add` to extract skills and notes from them.
+Ask {{AGENT_DISPLAY_NAME}} to add a client in your session — provide the name and engagement type and it will scaffold the folder. Drop engagement notes and deliverables into the appropriate subfolders, then use `/add` to extract skills and notes from them.
 
 ## File layout
 
