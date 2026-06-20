@@ -296,6 +296,50 @@ All PRs must pass the full test suite. For new features, add tests. The scaffold
 
 ---
 
+## Agent-only markdown style
+
+Some files in this repo are consumed by Claude, not humans — skills, agent definitions, and command templates. These files should be token-efficient and model-readable.
+
+### What counts as agent-only
+
+- `.claude/skills/**/*.md` — skill definitions Claude follows
+- `.claude/agents/*.md` — audience archetype and agent files
+- `src/templates/.claude/**/*.md` — commands and agents distributed to users
+
+Explicitly **not** agent-only: `CLAUDE.md` (user session context), `README.md`, `CONTRIBUTING.md`, `MODULES.md`, and any user content under `graph/`.
+
+### Rule set
+
+Ten rules govern these files. See [`.claude/skills/format-agent-md/rules.md`](.claude/skills/format-agent-md/rules.md) for the full rule set with rationale.
+
+Short version: no markdown tables, terse phrasing, one idea per bullet, cut filler, no cross-file duplication, move deep exposition to reference files, drop scaffolding headings, WHY-only comments, and never touch fenced code blocks.
+
+### Bulk format command
+
+Run `/format-agent-md` in Claude Code to lint and auto-fix all agent-only files.
+
+Before making any changes, the command prints a plain-language summary ("Rewriting N Claude-internal files — your notes and career data are not touched") and waits for confirmation. Auto-fix is the default path; items that require judgment (duplication, deep exposition) are surfaced as a flagged list for manual review.
+
+Scope to a subdirectory: `/format-agent-md .claude/skills/commit`
+
+### PostToolUse enforcement hook
+
+`.claude/settings.json` (committed, repo-level) registers a PostToolUse hook that runs after every Write or Edit:
+
+```bash
+node .claude/scripts/agent-md-lint-check.mjs
+```
+
+The hook reads the edited file path, checks if it is an agent-only file, and runs two cheap structural checks (markdown table detection, scaffolding heading detection). On a violation, it prints a nudge telling Claude to run `/format-agent-md`. It never blocks an edit — it is advisory only.
+
+The hook exits silently and quickly (under 50 ms for non-violation cases) for any file that is not agent-only, so it does not slow down normal editing.
+
+### This tooling is not distributed to users
+
+The lint hook (`.claude/scripts/agent-md-lint-check.mjs`) and repo settings (`.claude/settings.json`) are dev-repo infrastructure. They are **not** copied into `src/templates/` and are **not** installed when users run `patina`. Users receive the skill files (`.claude/skills/format-agent-md/`) and the rule set as part of the patina skill library, but not the enforcement hook.
+
+---
+
 ## Releases
 
 The maintainer handles releases. Publishing is fully automated via GitHub Actions — no manual tagging or version commits needed.
