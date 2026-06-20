@@ -106,13 +106,11 @@ Run all subagents in parallel. Collect all responses before presenting the table
 
 ## Step 6 — Present the panel
 
-Output the results as a table:
+Output the results per audience member:
 
-| Audience | Reaction | Key Concerns |
-|----------|----------|-------------|
-| [Name] | [Positive / Negative / Neutral / Mixed] | [Concern(s)] |
+- [Name] — [Positive / Negative / Neutral / Mixed] — [Concern(s)]
 
-For Mixed or Negative rows with multiple concerns, list them as separate lines or a short bulleted list within the cell.
+For Mixed or Negative results with multiple concerns, list them on separate lines after the entry.
 
 ---
 

@@ -18,7 +18,7 @@ Run the shared preflight script to verify prerequisites before doing any work:
 bash .claude/skills/shared/preflight.sh
 ```
 
-If it fails, stop and show the error to the user — do not proceed with the workflow.
+Stop on failure — do not proceed.
 
 ---
 
