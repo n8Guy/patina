@@ -40,11 +40,11 @@ function scanDirRelative(dir: string, cwd: string): string[] {
     try { entries = readdirSync(d, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       if (entry.isSymbolicLink()) continue; // skip symlinks to avoid infinite loops
-      const full = join(d, entry.name);
       if (entry.isDirectory()) {
-        scan(full);
+        if (entry.name === 'node_modules') continue; // never patina-managed
+        scan(join(d, entry.name));
       } else if (entry.isFile()) {
-        const rel = full.slice(cwd.length + 1).replace(/\\/g, '/');
+        const rel = join(d, entry.name).slice(cwd.length + 1).replace(/\\/g, '/');
         results.push(rel);
       }
     }
@@ -254,14 +254,10 @@ export function printSetAgentDiff(plan: SetAgentPlan): void {
   console.log('');
 
   if (plan.toRemove.length > 0) {
-    for (const path of plan.toRemove) {
-      console.log(chalk.red(`  - ${path}`));
-    }
+    console.log(chalk.red(`  - ${plan.toRemove.length} files from ${fromAdapter.pathVars.AGENT_DIR}/`));
   }
   if (plan.toAdd.length > 0) {
-    for (const [path] of plan.toAdd) {
-      console.log(chalk.green(`  + ${path}`));
-    }
+    console.log(chalk.green(`  + ${plan.toAdd.length} files to ${toAdapter.pathVars.AGENT_DIR}/`));
   }
   if (plan.kept.length > 0) {
     console.log('');
@@ -290,13 +286,11 @@ export async function confirmAndApplySetAgent(
   const result = applySetAgent(cwd, profile, plan);
   const toAdapter = getAgent(plan.toAgent);
 
+  const parts: string[] = [];
+  if (result.removed.length > 0) parts.push(`removed ${result.removed.length}`);
+  if (result.added.length > 0) parts.push(`added ${result.added.length}`);
   console.log('');
-  if (result.removed.length > 0) {
-    console.log(chalk.hex('#94A3B8')(`Removed: ${result.removed.join(', ')}`));
-  }
-  if (result.added.length > 0) {
-    console.log(chalk.hex('#94A3B8')(`Added: ${result.added.join(', ')}`));
-  }
+  if (parts.length > 0) console.log(chalk.hex('#94A3B8')(parts.join(', ') + '.'));
   if (result.kept.length > 0) {
     console.log(chalk.dim(`Kept (user-owned): ${result.kept.join(', ')}`));
   }
