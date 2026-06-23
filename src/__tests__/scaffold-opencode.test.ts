@@ -75,14 +75,14 @@ describe('scaffold with opencode agent', () => {
     expect(read('AGENTS.md')).toContain('Jane Doe');
   });
 
-  it('creates .opencode/command/ directory with commands', () => {
-    expect(exists('.opencode/command/add.md')).toBe(true);
-    expect(exists('.opencode/command/reflect.md')).toBe(true);
-    expect(exists('.opencode/command/inbox.md')).toBe(true);
-    expect(exists('.opencode/command/status.md')).toBe(true);
-    expect(exists('.opencode/command/guide.md')).toBe(true);
-    expect(exists('.opencode/command/audience.md')).toBe(true);
-    expect(exists('.opencode/command/with-audience.md')).toBe(true);
+  it('creates .opencode/commands/ directory with commands', () => {
+    expect(exists('.opencode/commands/add.md')).toBe(true);
+    expect(exists('.opencode/commands/reflect.md')).toBe(true);
+    expect(exists('.opencode/commands/inbox.md')).toBe(true);
+    expect(exists('.opencode/commands/status.md')).toBe(true);
+    expect(exists('.opencode/commands/guide.md')).toBe(true);
+    expect(exists('.opencode/commands/audience.md')).toBe(true);
+    expect(exists('.opencode/commands/with-audience.md')).toBe(true);
   });
 
   it('does NOT create .claude/ directory', () => {
@@ -102,9 +102,9 @@ describe('scaffold with opencode agent', () => {
     expect(exists('.opencode/scripts/staleness-check.mjs')).toBe(true);
   });
 
-  it('creates .opencode/agent/ for archetypes', () => {
-    expect(exists('.opencode/agent/hiring-manager.md')).toBe(true);
-    expect(exists('.opencode/agent/recruiter.md')).toBe(true);
+  it('creates .opencode/agents/ for archetypes', () => {
+    expect(exists('.opencode/agents/hiring-manager.md')).toBe(true);
+    expect(exists('.opencode/agents/recruiter.md')).toBe(true);
   });
 
   it('does NOT create .claude/agents/', () => {
@@ -123,20 +123,20 @@ describe('scaffold with opencode agent', () => {
   });
 
   it('command files reference {{AGENT_DIR}} resolved to .opencode/', () => {
-    const inboxContent = read('.opencode/command/inbox.md');
+    const inboxContent = read('.opencode/commands/inbox.md');
     expect(inboxContent).toContain('.opencode/inbox-routing.md');
     expect(inboxContent).not.toContain('.claude/');
   });
 
   it('status.md references .opencode/scripts/', () => {
-    const statusContent = read('.opencode/command/status.md');
+    const statusContent = read('.opencode/commands/status.md');
     expect(statusContent).toContain('.opencode/scripts/staleness-check.mjs');
     expect(statusContent).not.toContain('.claude/');
   });
 
-  it('audience.md references .opencode/agent/', () => {
-    const audienceContent = read('.opencode/command/audience.md');
-    expect(audienceContent).toContain('.opencode/agent/');
+  it('audience.md references .opencode/agents/', () => {
+    const audienceContent = read('.opencode/commands/audience.md');
+    expect(audienceContent).toContain('.opencode/agents/');
     expect(audienceContent).not.toContain('.claude/');
   });
 
@@ -221,8 +221,8 @@ describe('opencode scaffold with ALL modules — no .claude/ leaks, no unrendere
     expect(exists('.claude/modules')).toBe(false);
   });
 
-  it('module command files are under .opencode/command/ not .claude/commands/', () => {
-    expect(exists('.opencode/command/work-check.md')).toBe(true);
+  it('module command files are under .opencode/commands/ not .claude/commands/', () => {
+    expect(exists('.opencode/commands/work-check.md')).toBe(true);
     expect(exists('.claude/commands')).toBe(false);
   });
 

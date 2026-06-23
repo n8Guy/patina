@@ -8,8 +8,8 @@ import type { AgentAdapter, AgentPathVars, BaseManagedFilesOpts } from './types.
 
 function rewritePath(p: string): string {
   return p
-    .replace(/^\.claude\/commands\//, '.opencode/command/')
-    .replace(/^\.claude\/agents\//, '.opencode/agent/')
+    .replace(/^\.claude\/commands\//, '.opencode/commands/')
+    .replace(/^\.claude\/agents\//, '.opencode/agents/')
     .replace(/^\.claude\/scripts\//, '.opencode/scripts/')
     .replace(/^\.claude\/modules\//, '.opencode/modules/')
     .replace(/^\.claude\//, '.opencode/');
@@ -17,8 +17,8 @@ function rewritePath(p: string): string {
 
 export const OPENCODE_PATH_VARS: AgentPathVars = {
   AGENT_DIR: '.opencode',
-  AGENT_COMMANDS_DIR: '.opencode/command',
-  AGENT_AGENTS_DIR: '.opencode/agent',
+  AGENT_COMMANDS_DIR: '.opencode/commands',
+  AGENT_AGENTS_DIR: '.opencode/agents',
   AGENT_SCRIPTS_DIR: '.opencode/scripts',
   AGENT_MEMORY_FILE: 'AGENTS.md',
   AGENT_DISPLAY_NAME: 'opencode',
@@ -36,20 +36,20 @@ export const opencodeAdapter: AgentAdapter = {
     const { editor, modules = [] } = opts;
 
     // opencode uses AGENTS.md (rendered from CLAUDE.md template with updated path tokens)
-    // and .opencode/command/ for slash commands, .opencode/scripts/ for node scripts.
+    // and .opencode/commands/ for slash commands, .opencode/scripts/ for node scripts.
     // settings.json is Claude Code-specific and is NOT emitted.
     const files: Array<[string, string]> = [
       ['README.md', render(tpl('README.md'), vars)],
       ['AGENTS.md', render(tpl('CLAUDE.md'), vars)],
       ['.opencode/scripts/staleness-check.mjs', render(tpl('.claude/scripts/staleness-check.mjs'), vars)],
       ['.opencode/scripts/health-check.mjs', tpl('.claude/scripts/health-check.mjs')],
-      ['.opencode/command/add.md', render(tpl('.claude/commands/add.md'), vars)],
-      ['.opencode/command/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
-      ['.opencode/command/inbox.md', render(tpl('.claude/commands/inbox.md'), vars)],
-      ['.opencode/command/status.md', render(tpl('.claude/commands/status.md'), vars)],
-      ['.opencode/command/guide.md', render(tpl('.claude/commands/guide.md'), vars)],
-      ['.opencode/command/audience.md', render(tpl('.claude/commands/audience.md'), vars)],
-      ['.opencode/command/with-audience.md', render(tpl('.claude/commands/with-audience.md'), vars)],
+      ['.opencode/commands/add.md', render(tpl('.claude/commands/add.md'), vars)],
+      ['.opencode/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), vars)],
+      ['.opencode/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), vars)],
+      ['.opencode/commands/status.md', render(tpl('.claude/commands/status.md'), vars)],
+      ['.opencode/commands/guide.md', render(tpl('.claude/commands/guide.md'), vars)],
+      ['.opencode/commands/audience.md', render(tpl('.claude/commands/audience.md'), vars)],
+      ['.opencode/commands/with-audience.md', render(tpl('.claude/commands/with-audience.md'), vars)],
       ['.opencode/inbox-routing.md', buildRoutingFile(modules, vars)],
     ];
 
@@ -78,16 +78,16 @@ export const opencodeAdapter: AgentAdapter = {
     const paths: string[] = [
       'README.md',
       'AGENTS.md',
-      '.opencode/command/add.md',
-      '.opencode/command/reflect.md',
-      '.opencode/command/inbox.md',
-      '.opencode/command/status.md',
-      '.opencode/command/guide.md',
-      '.opencode/command/audience.md',
-      '.opencode/command/with-audience.md',
+      '.opencode/commands/add.md',
+      '.opencode/commands/reflect.md',
+      '.opencode/commands/inbox.md',
+      '.opencode/commands/status.md',
+      '.opencode/commands/guide.md',
+      '.opencode/commands/audience.md',
+      '.opencode/commands/with-audience.md',
       '.opencode/inbox-routing.md',
-      '.opencode/agent/hiring-manager.md',
-      '.opencode/agent/recruiter.md',
+      '.opencode/agents/hiring-manager.md',
+      '.opencode/agents/recruiter.md',
       '.opencode/scripts/staleness-check.mjs',
       '.opencode/scripts/health-check.mjs',
     ];
@@ -105,14 +105,14 @@ export const opencodeAdapter: AgentAdapter = {
       : PREDEFINED_ARCHETYPES;
     return archetypes.map(a => {
       const srcPath = `.claude/agents/${a.slug}.md`;
-      const outPath = `.opencode/agent/${a.slug}.md`;
+      const outPath = `.opencode/agents/${a.slug}.md`;
       const raw = tpl(srcPath);
       return [outPath, render(raw, vars)];
     });
   },
 
   archetypePath(slug: string): string {
-    return `.opencode/agent/${slug}.md`;
+    return `.opencode/agents/${slug}.md`;
   },
 
   detect(): boolean {

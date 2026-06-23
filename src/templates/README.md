@@ -14,6 +14,8 @@ Your own always-on instructions live in `CUSTOM.md` — patina seeds it once and
 
 ## Commands
 
+Open a terminal in this folder and run `{{AGENT_CLI}}` to start a session. Then try:
+
 Run `/guide` in your session to see all available commands with usage examples.
 
 ## Using the inbox

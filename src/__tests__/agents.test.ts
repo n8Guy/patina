@@ -113,29 +113,30 @@ describe('claude-code adapter', () => {
 describe('opencode adapter', () => {
   it('has correct path vars', () => {
     expect(opencodeAdapter.pathVars.AGENT_DIR).toBe('.opencode');
-    expect(opencodeAdapter.pathVars.AGENT_COMMANDS_DIR).toBe('.opencode/command');
-    expect(opencodeAdapter.pathVars.AGENT_AGENTS_DIR).toBe('.opencode/agent');
+    expect(opencodeAdapter.pathVars.AGENT_COMMANDS_DIR).toBe('.opencode/commands');
+    expect(opencodeAdapter.pathVars.AGENT_AGENTS_DIR).toBe('.opencode/agents');
     expect(opencodeAdapter.pathVars.AGENT_SCRIPTS_DIR).toBe('.opencode/scripts');
     expect(opencodeAdapter.pathVars.AGENT_MEMORY_FILE).toBe('AGENTS.md');
     expect(opencodeAdapter.pathVars.AGENT_DISPLAY_NAME).toBe('opencode');
     expect(opencodeAdapter.pathVars.AGENT_CLI).toBe('opencode');
   });
 
-  it('archetypePath uses .opencode/agent/', () => {
-    expect(opencodeAdapter.archetypePath('hiring-manager')).toBe('.opencode/agent/hiring-manager.md');
+  it('archetypePath uses .opencode/agents/', () => {
+    expect(opencodeAdapter.archetypePath('hiring-manager')).toBe('.opencode/agents/hiring-manager.md');
   });
 
-  it('mapModuleManagedPaths rewrites .claude/ → .opencode/', () => {
-    const paths = ['.claude/commands/li-all.md', '.claude/modules/linkedin/manifest.md'];
+  it('mapModuleManagedPaths rewrites .claude/ → .opencode/ with canonical plural dirs', () => {
+    const paths = ['.claude/commands/li-all.md', '.claude/agents/recruiter.md', '.claude/modules/linkedin/manifest.md'];
     const result = opencodeAdapter.mapModuleManagedPaths('linkedin', paths);
-    expect(result).toContain('.opencode/command/li-all.md');
+    expect(result).toContain('.opencode/commands/li-all.md');
+    expect(result).toContain('.opencode/agents/recruiter.md');
     expect(result).toContain('.opencode/modules/linkedin/manifest.md');
   });
 
   it('mapModuleManagedFiles is identity (module managedFiles already uses agent vars)', () => {
     const profile = makeProfile({ agent: 'opencode' });
     const vars = profileToVars(profile);
-    const entries: Array<[string, string]> = [['.opencode/command/test.md', 'content']];
+    const entries: Array<[string, string]> = [['.opencode/commands/test.md', 'content']];
     expect(opencodeAdapter.mapModuleManagedFiles('test', entries, vars)).toEqual(entries);
   });
 
@@ -156,9 +157,9 @@ describe('opencode adapter', () => {
   it('baseManagedPaths includes all expected opencode paths', () => {
     const paths = opencodeAdapter.baseManagedPaths({ editor: 'other' });
     expect(paths).toContain('AGENTS.md');
-    expect(paths).toContain('.opencode/command/add.md');
+    expect(paths).toContain('.opencode/commands/add.md');
     expect(paths).toContain('.opencode/inbox-routing.md');
-    expect(paths).toContain('.opencode/agent/hiring-manager.md');
+    expect(paths).toContain('.opencode/agents/hiring-manager.md');
     expect(paths).toContain('.opencode/scripts/staleness-check.mjs');
   });
 
@@ -190,8 +191,8 @@ describe('profileToVars includes agent path tokens', () => {
   it('includes all AGENT_* vars for opencode', () => {
     const vars = profileToVars(makeProfile({ agent: 'opencode' }));
     expect(vars.AGENT_DIR).toBe('.opencode');
-    expect(vars.AGENT_COMMANDS_DIR).toBe('.opencode/command');
-    expect(vars.AGENT_AGENTS_DIR).toBe('.opencode/agent');
+    expect(vars.AGENT_COMMANDS_DIR).toBe('.opencode/commands');
+    expect(vars.AGENT_AGENTS_DIR).toBe('.opencode/agents');
     expect(vars.AGENT_SCRIPTS_DIR).toBe('.opencode/scripts');
     expect(vars.AGENT_MEMORY_FILE).toBe('AGENTS.md');
     expect(vars.AGENT_DISPLAY_NAME).toBe('opencode');
@@ -236,7 +237,7 @@ describe('opencode baseManagedFiles content', () => {
     expect(paths).not.toContain('CLAUDE.md');
   });
 
-  it('emits .opencode/command/ not .claude/commands/', () => {
+  it('emits .opencode/commands/ not .claude/commands/', () => {
     const profile = makeProfile({ agent: 'opencode' });
     const vars = profileToVars(profile);
     const files = opencodeAdapter.baseManagedFiles(vars, { editor: 'other', modules: [] });
@@ -264,12 +265,12 @@ describe('opencode baseManagedFiles content', () => {
     expect(agentsMd).not.toMatch(/\{\{[A-Z_]+\}\}/);
   });
 
-  it('archetypeFiles uses .opencode/agent/ paths', () => {
+  it('archetypeFiles uses .opencode/agents/ paths', () => {
     const profile = makeProfile({ agent: 'opencode' });
     const vars = profileToVars(profile);
     const files = opencodeAdapter.archetypeFiles(vars);
     for (const [p] of files) {
-      expect(p).toMatch(/^\.opencode\/agent\//);
+      expect(p).toMatch(/^\.opencode\/agents\//);
     }
   });
 });

@@ -118,7 +118,7 @@ describe('applySetAgent — claude-code → opencode', () => {
     const plan = planSetAgent(targetDir, profile, 'opencode');
     applySetAgent(targetDir, profile, plan);
 
-    expect(exists('.opencode/command/add.md')).toBe(true);
+    expect(exists('.opencode/commands/add.md')).toBe(true);
     expect(exists('AGENTS.md')).toBe(true);
   });
 
@@ -189,7 +189,7 @@ describe('applySetAgent — opencode → claude-code (reverse)', () => {
     const plan = planSetAgent(targetDir, profile, 'claude-code');
     applySetAgent(targetDir, profile, plan);
 
-    expect(exists('.opencode/command/add.md')).toBe(false);
+    expect(exists('.opencode/commands/add.md')).toBe(false);
     expect(exists('AGENTS.md')).toBe(false);
   });
 
@@ -266,12 +266,12 @@ describe('applySetAgent with modules — files move .claude/ → .opencode/', ()
     expect(exists('.claude/modules/work/CLAUDE.md')).toBe(false);
   });
 
-  it('module command files move from .claude/commands/ to .opencode/command/', () => {
+  it('module command files move from .claude/commands/ to .opencode/commands/', () => {
     const profile = loadProfile();
     const plan = planSetAgent(targetDir, profile, 'opencode');
     applySetAgent(targetDir, profile, plan);
 
-    expect(exists('.opencode/command/work-check.md')).toBe(true);
+    expect(exists('.opencode/commands/work-check.md')).toBe(true);
     expect(exists('.claude/commands/work-check.md')).toBe(false);
   });
 
@@ -309,7 +309,7 @@ describe('planSetAgent — legacy profile (agent field absent)', () => {
     const legacyProfile: Profile = { ...profile, agent: undefined };
     const plan = planSetAgent(targetDir, legacyProfile, 'opencode');
     applySetAgent(targetDir, legacyProfile, plan);
-    expect(exists('.opencode/command/add.md')).toBe(true);
+    expect(exists('.opencode/commands/add.md')).toBe(true);
     expect(exists('AGENTS.md')).toBe(true);
     expect(exists('.claude/commands/add.md')).toBe(false);
   });

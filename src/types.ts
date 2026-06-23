@@ -99,8 +99,8 @@ export interface TemplateVars {
   MODULE_README_BLOCKS: string;
   /** Agent path tokens — resolved before render() so templates stay agent-agnostic */
   AGENT_DIR: string;           // e.g. '.claude' or '.opencode'
-  AGENT_COMMANDS_DIR: string;  // e.g. '.claude/commands' or '.opencode/command'
-  AGENT_AGENTS_DIR: string;    // e.g. '.claude/agents' or '.opencode/agent'
+  AGENT_COMMANDS_DIR: string;  // e.g. '.claude/commands' or '.opencode/commands'
+  AGENT_AGENTS_DIR: string;    // e.g. '.claude/agents' or '.opencode/agents'
   AGENT_SCRIPTS_DIR: string;   // e.g. '.claude/scripts' or '.opencode/scripts'
   AGENT_MEMORY_FILE: string;   // e.g. 'CLAUDE.md' or 'AGENTS.md'
   AGENT_DISPLAY_NAME: string;  // e.g. 'Claude Code' or 'opencode'
