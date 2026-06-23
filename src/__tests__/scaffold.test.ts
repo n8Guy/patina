@@ -1224,6 +1224,21 @@ describe('scaffold — staleness-check.mjs', () => {
     const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
     expect(settings.permissions.allow).toContain('Bash(node .claude/scripts/staleness-check.mjs)');
   });
+
+  it('settings.json allows inbox mv and mkdir', () => {
+    const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
+    expect(settings.permissions.allow).toContain('Bash(mv inbox/*)');
+    expect(settings.permissions.allow).toContain('Bash(mkdir -p inbox/*)');
+  });
+
+  it('all settings.json permission rules have balanced parentheses', () => {
+    const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
+    for (const rule of settings.permissions.allow) {
+      const open = (rule.match(/\(/g) ?? []).length;
+      const close = (rule.match(/\)/g) ?? []).length;
+      expect(`${rule}: open=${open} close=${close}`).toBe(`${rule}: open=${open} close=${open}`);
+    }
+  });
 });
 
 describe('scaffold — .gitignore update-check entry', () => {
