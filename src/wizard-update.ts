@@ -9,7 +9,7 @@ import { applyModuleChanges, runUpdateModules } from './wizard-modules.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles, baseManagedArchetypeFiles, PREDEFINED_ARCHETYPES, GUIDE_CORE_COMMANDS } from './scaffold.js';
 import { getAgent, AGENTS } from './agents/registry.js';
 import { planSetAgent, printSetAgentDiff, confirmAndApplySetAgent } from './set-agent.js';
-import { writeManagedFile, isMarkedManaged } from './upgrade.js';
+import { writeManagedFile, isMarkedManaged, isLegacyManaged } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { offerBackup, backupOfferKind } from './wizard-backup.js';
 import { detectCorruption, formatHealthReport, repairCorruption, type HealthReport } from './health.js';
@@ -501,12 +501,33 @@ export function syncBaseFiles(cwd: string, profile: Profile): { healthReport: He
   const restoredFiles: string[] = [];
 
   try {
-    for (const [rel, content] of baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], agentId: profile.agent })) {
+    const baseEntries = baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], agentId: profile.agent });
+    for (const [rel, content] of baseEntries) {
       const result = writeManagedFile(cwd, rel, content);
       if (healthReport.corruptFiles.has(rel) && result.outcome !== 'skipped') {
         repairedFiles.push(rel);
       }
     }
+
+    // Legacy repair: README.md written before the `patina: managed` frontmatter was introduced
+    // has no ownership marker, so writeManagedFile treats it as user-owned and skips it. If it
+    // still contains the stale "No modules installed" placeholder but modules are now installed,
+    // force-write the current content so module blocks land correctly.
+    if ((profile.modules ?? []).length > 0) {
+      const readmeRel = 'README.md';
+      const readmePath = join(cwd, readmeRel);
+      if (existsSync(readmePath)) {
+        const existing = readFileSync(readmePath, 'utf8');
+        if (!isMarkedManaged(readmeRel, existing) && !isLegacyManaged(existing) && existing.includes('_No modules installed._')) {
+          const readmeEntry = baseEntries.find(([rel]) => rel === readmeRel);
+          if (readmeEntry) {
+            writeFileSync(readmePath, readmeEntry[1], 'utf8');
+            restoredFiles.push(readmeRel);
+          }
+        }
+      }
+    }
+
     const syncAdapter = getAgent(profile.agent);
     for (const module of profile.modules ?? []) {
       const moduleFiles = syncAdapter.mapModuleManagedFiles(module, moduleManagedFiles(module, vars), vars);

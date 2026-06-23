@@ -789,6 +789,43 @@ describe('syncBaseFiles — upgrade path: syncs module command files for install
   });
 });
 
+// ── syncBaseFiles: legacy README repair ──────────────────────────────────────
+
+describe('syncBaseFiles — legacy README.md without patina: managed marker', () => {
+  let profile: Profile;
+
+  beforeEach(async () => {
+    await scaffold(opts({ modules: ['linkedin'], liProfileUrl: 'https://linkedin.com/in/x' }));
+    profile = loadProfile();
+
+    // Simulate a pre-marker install: strip the `patina: managed` frontmatter from README.md
+    // so writeManagedFile considers it user-owned and would normally skip it.
+    const readmePath = join(targetDir, 'README.md');
+    const current = readFileSync(readmePath, 'utf8');
+    const stripped = current.replace(/^---\s*\npatina: managed\s*\n---\s*\n/, '');
+    // Inject the stale placeholder so the legacy repair condition triggers
+    const stale = stripped.replace(/## Installed modules[\s\S]*$/, '## Installed modules\n\n_No modules installed._\n');
+    writeFileSync(readmePath, stale, 'utf8');
+  });
+
+  it('force-writes README.md module blocks when marker is absent and modules are installed', () => {
+    syncBaseFiles(targetDir, profile);
+    expect(read('README.md').toLowerCase()).toContain('linkedin');
+  });
+
+  it('includes README.md in the returned restoredFiles list', () => {
+    const { restoredFiles } = syncBaseFiles(targetDir, profile);
+    expect(restoredFiles).toContain('README.md');
+  });
+
+  it('does not touch a user-owned README.md that lacks the stale placeholder', () => {
+    // User has customised their README without the stale placeholder
+    writeFileSync(join(targetDir, 'README.md'), '# My custom README\n\nI wrote this myself.\n', 'utf8');
+    syncBaseFiles(targetDir, profile);
+    expect(read('README.md')).toBe('# My custom README\n\nI wrote this myself.\n');
+  });
+});
+
 // ── Deferred module: applyModuleChanges clears entry on module remove ─────────
 
 describe('applyModuleChanges — deferred entry cleared when module removed', () => {
