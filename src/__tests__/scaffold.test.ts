@@ -146,6 +146,10 @@ describe('scaffold — core files', () => {
     expect(content).toContain('## Slash commands');
   });
 
+  it('CLAUDE.md commands table includes /status', () => {
+    expect(read('CLAUDE.md')).toContain('`/status`');
+  });
+
   it('CLAUDE.md does not contain startup flow (moved to /status)', () => {
     const content = read('CLAUDE.md');
     expect(content).not.toContain('On session start');

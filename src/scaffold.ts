@@ -122,6 +122,7 @@ const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
   { name: '/add <description>', desc: 'Add a skill, project, or experience to your graph' },
   { name: '/reflect [slug]', desc: 'Review your graph for gaps, completions, and stale skills — also runs installed module hooks' },
   { name: '/inbox', desc: 'Process files dropped into inbox/ automatically' },
+  { name: '/status', desc: 'Show stale content, inbox, open goals, and pending module setup' },
   { name: '/guide', desc: 'Show all available commands with usage examples' },
   { name: '/audience', desc: 'Define who you are speaking to' },
   { name: '/with-audience', desc: 'Talk through your draft as your defined audience' },
