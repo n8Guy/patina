@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, rmdirSync, statSync, writeFileSync, type Dirent } from 'fs';
+import { existsSync, readFileSync, readdirSync, rmSync, rmdirSync, statSync, writeFileSync, type Dirent } from 'fs';
 import { join } from 'path';
 import * as p from '@clack/prompts';
 import chalk from 'chalk';
@@ -6,8 +6,9 @@ import { getAgent } from './agents/registry.js';
 import { MODULES } from './modules/registry.js';
 import { profileToVars, baseManagedFiles, moduleManagedFiles } from './scaffold.js';
 import { PREDEFINED_ARCHETYPES } from './scaffold-constants.js';
-import { writeManagedFile, isMarkedManaged } from './upgrade.js';
-import { writeProfile, removeManagedFileIfManaged } from './wizard-shared.js';
+import { writeManagedFile, writeSeedFile, isMarkedManaged, isLegacyManaged } from './upgrade.js';
+import { writeProfile } from './wizard-shared.js';
+import { tpl } from './template-loader.js';
 import type { AgentId, Profile } from './types.js';
 
 export interface SetAgentPlan {
@@ -159,10 +160,15 @@ export function applySetAgent(
   const removed: string[] = [];
   const added: string[] = [];
 
-  // Remove old managed files
+  // Remove old managed files. toRemove is the canonical managed paths list, so delete
+  // unconditionally — marker-based checks are not used here because legacy files pre-date
+  // the markers and should still be cleaned up on an explicit agent switch.
   for (const rel of plan.toRemove) {
-    const outcome = removeManagedFileIfManaged(cwd, rel);
-    if (outcome === 'deleted') removed.push(rel);
+    const fullPath = join(cwd, rel);
+    if (existsSync(fullPath)) {
+      rmSync(fullPath);
+      removed.push(rel);
+    }
   }
 
   // Prune now-empty agent directories
@@ -174,10 +180,20 @@ export function applySetAgent(
     if (result.outcome !== 'skipped') added.push(rel);
   }
 
-  // Write shared-path files (same path in both agents; re-render content for new agent)
+  // Write shared-path files (same path in both agents; re-render content for new agent).
+  // README.md is always force-written: it references agent-specific variables (e.g.
+  // AGENT_MEMORY_FILE) and must be current after a switch regardless of marker presence.
   for (const [rel, content] of plan.toAddShared) {
-    writeManagedFile(cwd, rel, content);
+    if (rel === 'README.md') {
+      writeFileSync(join(cwd, rel), content, 'utf8');
+    } else {
+      writeManagedFile(cwd, rel, content);
+    }
   }
+
+  // Seed CUSTOM.md if absent — only created on initial scaffold; switching agents should
+  // also ensure it exists so the memory file's reference to it is not broken.
+  writeSeedFile(cwd, 'CUSTOM.md', tpl('CUSTOM.md'));
 
   // Update profile
   const newProfile: Profile = { ...profile, agent: plan.toAgent };

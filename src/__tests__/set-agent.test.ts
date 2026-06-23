@@ -149,6 +149,43 @@ describe('applySetAgent — claude-code → opencode', () => {
     expect(exists('.claude/commands/custom.md')).toBe(true);
   });
 
+  it('removes legacy .claude/ managed files that lack patina: managed marker', () => {
+    // Strip the managed marker from add.md to simulate a pre-marker install
+    const addMd = join(targetDir, '.claude/commands/add.md');
+    const content = readFileSync(addMd, 'utf8');
+    writeFileSync(addMd, content.replace(/^---\s*\npatina: managed\s*\n---\s*\n/, ''), 'utf8');
+
+    const profile = loadProfile();
+    const plan = planSetAgent(targetDir, profile, 'opencode');
+    applySetAgent(targetDir, profile, plan);
+
+    expect(exists('.claude/commands/add.md')).toBe(false);
+  });
+
+  it('seeds CUSTOM.md if absent', () => {
+    rmSync(join(targetDir, 'CUSTOM.md'), { force: true });
+
+    const profile = loadProfile();
+    const plan = planSetAgent(targetDir, profile, 'opencode');
+    applySetAgent(targetDir, profile, plan);
+
+    expect(exists('CUSTOM.md')).toBe(true);
+  });
+
+  it('force-writes README.md even when patina: managed marker is absent', () => {
+    // Strip the marker from README.md to simulate a legacy install
+    const readmePath = join(targetDir, 'README.md');
+    const content = readFileSync(readmePath, 'utf8');
+    writeFileSync(readmePath, content.replace(/^---\s*\npatina: managed\s*\n---\s*\n/, ''), 'utf8');
+
+    const profile = loadProfile();
+    const plan = planSetAgent(targetDir, profile, 'opencode');
+    applySetAgent(targetDir, profile, plan);
+
+    // README.md must reference AGENTS.md after switching to opencode
+    expect(readFileSync(join(targetDir, 'README.md'), 'utf8')).toContain('AGENTS.md');
+  });
+
   it('updates profile.yaml to agent: opencode', () => {
     const profile = loadProfile();
     const plan = planSetAgent(targetDir, profile, 'opencode');
