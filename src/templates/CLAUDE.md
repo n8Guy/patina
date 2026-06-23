@@ -1,7 +1,7 @@
 ---
 patina: managed
 ---
-# CLAUDE.md
+# {{AGENT_MEMORY_FILE}}
 
 This file is loaded automatically each session to give you context about who you're working with and how this patina is organised.
 

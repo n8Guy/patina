@@ -75,6 +75,11 @@ describe('scaffold with opencode agent', () => {
     expect(read('AGENTS.md')).toContain('Jane Doe');
   });
 
+  it('AGENTS.md H1 heading is # AGENTS.md not # CLAUDE.md', () => {
+    expect(read('AGENTS.md')).toContain('# AGENTS.md');
+    expect(read('AGENTS.md')).not.toContain('# CLAUDE.md');
+  });
+
   it('creates .opencode/commands/ directory with commands', () => {
     expect(exists('.opencode/commands/add.md')).toBe(true);
     expect(exists('.opencode/commands/reflect.md')).toBe(true);
