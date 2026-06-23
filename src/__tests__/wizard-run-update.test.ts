@@ -606,7 +606,7 @@ describe('applyProfileUpdate — inbox/.processed.json preserved on update', () 
       filename: 'doc.pdf',
       status: 'success',
       processed_at: '2026-01-15T09:32:00.000Z',
-      resulting_note_paths: ['graph/notes/doc.md'],
+      resulting_paths: ['graph/notes/doc.md'],
     };
     writeFileSync(
       join(targetDir, 'inbox/.processed.json'),
