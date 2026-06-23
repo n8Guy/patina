@@ -7,7 +7,7 @@ Run each check below and report results in a single consolidated view. Do not as
 
 ## 1. Stale content
 
-Run `node .claude/scripts/staleness-check.mjs` and show the output. If the command produces no output, show nothing for this section.
+Run `node {{AGENT_SCRIPTS_DIR}}/staleness-check.mjs` and show the output. If the command produces no output, show nothing for this section.
 
 ## 2. Inbox
 
@@ -25,7 +25,7 @@ Read `.patina-state.json`. If it contains a `deferred_modules` list, check each 
 
 ## 5. Inbox routing
 
-Read `.claude/inbox-routing.md`. If the file does not exist (pre-#166 install), report: `Inbox routing — routing file not yet generated. Run \`npx my-patina@latest\` to update.` and skip this section.
+Read `{{AGENT_DIR}}/inbox-routing.md`. If the file does not exist (pre-#166 install), report: `Inbox routing — routing file not yet generated. Run \`npx my-patina@latest\` to update.` and skip this section.
 
 Build a type→destination map from all markdown tables in the file.
 
@@ -36,7 +36,7 @@ Scan `{{CONTENT_DIR}}/notes/` (non-recursive; skip dot dirs) for any file whose 
 
 ## 6. Patina health
 
-Run `node .claude/scripts/health-check.mjs` and show the output. If the command produces no output (exit 0), show nothing for this section.
+Run `node {{AGENT_SCRIPTS_DIR}}/health-check.mjs` and show the output. If the command produces no output (exit 0), show nothing for this section.
 
 ## Output format
 

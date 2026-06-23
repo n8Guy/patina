@@ -22,10 +22,10 @@ This module tracks {{USER_NAME}}'s forward-looking goals. Goals are future commi
 
 ## How it works
 
-Goals are created and updated through Claude. Each goal is a markdown file with YAML frontmatter capturing its status, time horizon, and type. Read `{{CONTENT_DIR}}/goals/INSTRUCTIONS.md` before working with any goal files.
+Goals are created and updated through {{AGENT_DISPLAY_NAME}}. Each goal is a markdown file with YAML frontmatter capturing its status, time horizon, and type. Read `{{CONTENT_DIR}}/goals/INSTRUCTIONS.md` before working with any goal files.
 
 ## Rules
 
-- Never edit goal files directly on behalf of the user — always go through Claude.
+- Never edit goal files directly on behalf of the user — always go through {{AGENT_DISPLAY_NAME}}.
 - Use the `type` field for grouping and filtering only. It has no structural meaning.
 - When a goal's `status` changes, update the frontmatter field — do not create a new file.

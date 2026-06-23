@@ -146,6 +146,10 @@ describe('scaffold — core files', () => {
     expect(content).toContain('## Slash commands');
   });
 
+  it('CLAUDE.md commands table includes /status', () => {
+    expect(read('CLAUDE.md')).toContain('`/status`');
+  });
+
   it('CLAUDE.md does not contain startup flow (moved to /status)', () => {
     const content = read('CLAUDE.md');
     expect(content).not.toContain('On session start');
@@ -1224,6 +1228,21 @@ describe('scaffold — staleness-check.mjs', () => {
     const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
     expect(settings.permissions.allow).toContain('Bash(node .claude/scripts/staleness-check.mjs)');
   });
+
+  it('settings.json allows inbox mv and mkdir', () => {
+    const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
+    expect(settings.permissions.allow).toContain('Bash(mv inbox/*)');
+    expect(settings.permissions.allow).toContain('Bash(mkdir -p inbox/*)');
+  });
+
+  it('all settings.json permission rules have balanced parentheses', () => {
+    const settings = JSON.parse(read('.claude/settings.json')) as { permissions: { allow: string[] } };
+    for (const rule of settings.permissions.allow) {
+      const open = (rule.match(/\(/g) ?? []).length;
+      const close = (rule.match(/\)/g) ?? []).length;
+      expect(`${rule}: open=${open} close=${close}`).toBe(`${rule}: open=${open} close=${open}`);
+    }
+  });
 });
 
 describe('scaffold — .gitignore update-check entry', () => {
@@ -1288,6 +1307,13 @@ describe('renderUpdateCheckSection', () => {
     LAUNCH_SECTION: '',
     UPDATE_CHECK_SECTION: '',
     MODULE_README_BLOCKS: '',
+    AGENT_DIR: '.claude',
+    AGENT_COMMANDS_DIR: '.claude/commands',
+    AGENT_AGENTS_DIR: '.claude/agents',
+    AGENT_SCRIPTS_DIR: '.claude/scripts',
+    AGENT_MEMORY_FILE: 'CLAUDE.md',
+    AGENT_DISPLAY_NAME: 'Claude Code',
+    AGENT_CLI: 'claude',
   };
 
   it('returns a string containing the installed version', () => {

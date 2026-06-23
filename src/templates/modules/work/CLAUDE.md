@@ -18,7 +18,7 @@ This module holds {{USER_NAME}}'s raw professional artifacts — transcripts of 
 
 ## Artifact types
 
-Each file starts with an info block at the top. The `type` field tells Claude and `/add` how to handle it.
+Each file starts with an info block at the top. The `type` field tells {{AGENT_DISPLAY_NAME}} and `/add` how to handle it.
 
 **Transcripts** — event-based records of meetings or conversations:
 ```
@@ -53,4 +53,4 @@ tags: []
 - Raw artifacts are **inputs**, not outputs. Do not edit them to look polished — keep them as-captured.
 - `profile.md` is the exception: it is authored, not transactional. Update it when role, responsibilities, or context changes.
 - When extracting skills or notes from work artifacts, write new files to `{{CONTENT_DIR}}/notes/` or `{{CONTENT_DIR}}/skills/` — do not modify the source artifact.
-- Routing from `inbox/` is governed by `.claude/inbox-routing.md`. This module registers `transcript`, `weekly`, and `reference`.
+- Routing from `inbox/` is governed by `{{AGENT_DIR}}/inbox-routing.md`. This module registers `transcript`, `weekly`, and `reference`.

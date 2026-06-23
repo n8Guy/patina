@@ -5,8 +5,8 @@
     "allow": [
       "Bash(node .claude/scripts/check-update.mjs)",
       "Bash(node .claude/scripts/staleness-check.mjs)",
-      "Bash(mv inbox/",
-      "Bash(mkdir -p inbox/"
+      "Bash(mv inbox/*)",
+      "Bash(mkdir -p inbox/*)"
     ]
   },
   "hooks": {

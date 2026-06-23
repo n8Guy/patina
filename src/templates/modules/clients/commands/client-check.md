@@ -26,6 +26,6 @@ Example output:
 Clients: Cedar Health (1 active engagement, 2 deliverables) · Northwind Freight (1 complete engagement, 1 deliverable)
 ```
 
-If the clients folder is empty or contains only hidden entries (names starting with `.`), say: "Clients module is installed but no clients yet — ask Claude to add a client to get started."
+If the clients folder is empty or contains only hidden entries (names starting with `.`), say: "Clients module is installed but no clients yet — ask {{AGENT_DISPLAY_NAME}} to add a client to get started."
 
 Keep the output brief. This is a status check, not a review.

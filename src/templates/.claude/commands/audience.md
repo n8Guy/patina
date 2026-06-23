@@ -3,7 +3,7 @@ patina: managed
 ---
 # /audience — Create or Edit an Audience Archetype
 
-Defines a role archetype that `/with-audience` can consult when reviewing your content. Each archetype lives in `.claude/agents/` as a separate file with `role: audience` frontmatter — Claude discovers them automatically, no registration needed.
+Defines a role archetype that `/with-audience` can consult when reviewing your content. Each archetype lives in `{{AGENT_AGENTS_DIR}}/` as a separate file with `role: audience` frontmatter — {{AGENT_DISPLAY_NAME}} discovers them automatically, no registration needed.
 
 ---
 
@@ -13,7 +13,7 @@ Defines a role archetype that `/with-audience` can consult when reviewing your c
 
 **If no role was provided** (bare `/audience`):
 
-1. List all files in `.claude/agents/` whose frontmatter contains `role: audience`. Collect their plain names (the `name:` frontmatter field, or the filename without extension if no `name:` field).
+1. List all files in `{{AGENT_AGENTS_DIR}}/` whose frontmatter contains `role: audience`. Collect their plain names (the `name:` frontmatter field, or the filename without extension if no `name:` field).
 2. If none exist, say: "You haven't defined any audience archetypes yet. Try `/audience CFO` or `/audience hiring manager at a design agency` to create your first one."
 3. If one or more exist, present them by plain name and ask: "Which audience would you like to edit? Or describe a new role to create one."
 4. Wait for the user's choice, then continue from the appropriate step.
@@ -22,7 +22,7 @@ Defines a role archetype that `/with-audience` can consult when reviewing your c
 
 ## Step 2 — Synthesize the archetype with profile context
 
-Draw on both your general knowledge of the role **and** the profile context you already have from CLAUDE.md (the user's name, title, role description, company name, and company description). Do not ask the user to supply this — it is already in context.
+Draw on both your general knowledge of the role **and** the profile context you already have from {{AGENT_MEMORY_FILE}} (the user's name, title, role description, company name, and company description). Do not ask the user to supply this — it is already in context.
 
 Your synthesis goal is not just "what does a CFO care about in general" but specifically **"what does a CFO care about when evaluating content from this particular user"** — i.e., someone with this title, at this type of company, doing this kind of work. Calibrate every field accordingly:
 
@@ -77,7 +77,7 @@ Wait for a yes/no confirmation before proceeding to Step 3. If the user asks to 
 
 Derive a filename slug from the archetype name: lowercase, hyphens, no special characters (e.g. `cfo.md`, `hiring-manager-design-agency.md`).
 
-Write to `.claude/agents/<slug>.md` using the format below.
+Write to `{{AGENT_AGENTS_DIR}}/<slug>.md` using the format below.
 
 **Critical formatting rules:**
 
@@ -128,4 +128,4 @@ Use the file's base name (without `.md` extension) as the wiki-link target. For 
 
 ## Step 4 — Confirm
 
-Tell the user the archetype name and that they can run `/with-audience` to get their reaction. Tell them the file is at `.claude/agents/<slug>.md` and they can edit it directly any time.
+Tell the user the archetype name and that they can run `/with-audience` to get their reaction. Tell them the file is at `{{AGENT_AGENTS_DIR}}/<slug>.md` and they can edit it directly any time.

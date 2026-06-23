@@ -28,9 +28,9 @@ export const clientsModule = {
 
   managedFiles(vars: TemplateVars): FileEntry[] {
     return [
-      ['.claude/commands/client-check.md', render(tpl('modules/clients/commands/client-check.md'), vars)],
-      ['.claude/modules/clients/manifest.md', render(tpl('modules/clients/manifest.md'), vars)],
-      ['.claude/modules/clients/CLAUDE.md', render(tpl('modules/clients/CLAUDE.md'), vars)],
+      [`${vars.AGENT_COMMANDS_DIR}/client-check.md`, render(tpl('modules/clients/commands/client-check.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/clients/manifest.md`, render(tpl('modules/clients/manifest.md'), vars)],
+      [`${vars.AGENT_DIR}/modules/clients/CLAUDE.md`, render(tpl('modules/clients/CLAUDE.md'), vars)],
     ];
   },
 
@@ -64,7 +64,7 @@ export const clientsModule = {
       '',
       '### Adding a client',
       '',
-      'To add a client, ask Claude to scaffold one in your session — it will create the folder structure and profile.',
+      `To add a client, ask ${vars.AGENT_DISPLAY_NAME} to scaffold one in your session — it will create the folder structure and profile.`,
       '',
       '### Commands',
       '',

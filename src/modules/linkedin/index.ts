@@ -37,12 +37,12 @@ export const linkedinModule = {
 
   commands: [
     { name: '/li-all', desc: 'Refresh all LinkedIn drafts at once from your latest notes (no input needed)' },
-    { name: '/li-about', desc: 'Refine your About section draft (no input needed — Claude reads your graph)' },
-    { name: '/li-headline', desc: 'Refine your headline draft (no input needed — Claude reads your graph)' },
-    { name: '/li-experience', desc: 'Refine your experience section draft (no input needed — Claude reads your graph)' },
-    { name: '/li-skills', desc: 'Refine your skills list draft (no input needed — Claude reads your graph)' },
-    { name: '/li-featured', desc: 'Refine Featured or draft a post to pin (no input needed — Claude reads your graph)' },
-    { name: '/li-activity', desc: 'Update your posting strategy or draft a post (no input needed — Claude reads your graph)' },
+    { name: '/li-about', desc: 'Refine your About section draft (no input needed — {{AGENT_DISPLAY_NAME}} reads your graph)' },
+    { name: '/li-headline', desc: 'Refine your headline draft (no input needed — {{AGENT_DISPLAY_NAME}} reads your graph)' },
+    { name: '/li-experience', desc: 'Refine your experience section draft (no input needed — {{AGENT_DISPLAY_NAME}} reads your graph)' },
+    { name: '/li-skills', desc: 'Refine your skills list draft (no input needed — {{AGENT_DISPLAY_NAME}} reads your graph)' },
+    { name: '/li-featured', desc: 'Refine Featured or draft a post to pin (no input needed — {{AGENT_DISPLAY_NAME}} reads your graph)' },
+    { name: '/li-activity', desc: 'Update your posting strategy or draft a post (no input needed — {{AGENT_DISPLAY_NAME}} reads your graph)' },
     { name: '/li-draft', desc: 'Promote a suggestion or start a new post/article draft' },
     { name: '/li-post', desc: 'Mark a draft as posted and move it to the posted folder' },
   ],
@@ -64,15 +64,15 @@ export const linkedinModule = {
 
   managedFiles(vars: TemplateVars): FileEntry[] {
     const files: FileEntry[] = LI_COMMANDS.map(cmd => [
-      `.claude/commands/${cmd}`,
+      `${vars.AGENT_COMMANDS_DIR}/${cmd}`,
       render(tpl(`modules/linkedin/commands/${cmd}`), vars),
     ]);
     files.push([
-      '.claude/modules/linkedin/manifest.md',
+      `${vars.AGENT_DIR}/modules/linkedin/manifest.md`,
       render(tpl('modules/linkedin/manifest.md'), vars),
     ]);
     files.push([
-      '.claude/modules/linkedin/CLAUDE.md',
+      `${vars.AGENT_DIR}/modules/linkedin/CLAUDE.md`,
       render(tpl('modules/linkedin/CLAUDE.md'), vars),
     ]);
     files.push([

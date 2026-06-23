@@ -3,13 +3,13 @@ patina: managed
 ---
 # /with-audience — Get Your Audience Panel's Reaction
 
-Discovers all audience archetypes in `.claude/agents/`, lets you choose which ones to include, runs each selected one in parallel, and returns a panel table showing how each archetype reacts to your content. Use this to pressure-test a draft, see where you're landing, and identify gaps before you publish or send.
+Discovers all audience archetypes in `{{AGENT_AGENTS_DIR}}/`, lets you choose which ones to include, runs each selected one in parallel, and returns a panel table showing how each archetype reacts to your content. Use this to pressure-test a draft, see where you're landing, and identify gaps before you publish or send.
 
 ---
 
 ## Step 1 — Discover audience archetypes
 
-List all files in `.claude/agents/` whose frontmatter contains `role: audience`. Collect their plain names (the `name:` frontmatter field, or the filename without extension if no `name:` field).
+List all files in `{{AGENT_AGENTS_DIR}}/` whose frontmatter contains `role: audience`. Collect their plain names (the `name:` frontmatter field, or the filename without extension if no `name:` field).
 
 If none are found, say:
 
@@ -21,7 +21,7 @@ Stop. Do not continue.
 
 ## Step 2 — Load saved selection
 
-Check whether `.claude/audience-prefs.json` exists.
+Check whether `{{AGENT_DIR}}/audience-prefs.json` exists.
 
 - **If it exists:** read it. If it is valid JSON with a `defaultAudience` array, use those names as your saved selection. If the file is missing, malformed, or `defaultAudience` is absent or not an array, treat this as a first run (no saved selection).
 - **If it does not exist:** treat the saved selection as all discovered archetypes (first run).
@@ -72,7 +72,7 @@ For each selected archetype:
 
 1. **Check for new-format sections.** Read the archetype file and check whether it contains a `## Personal context` or `## Context sources` section. If neither section is present, this is an old-format archetype — skip all preparation steps below and use the file content as-is. Old archetypes work exactly as before.
 
-2. **Resolve profile vars.** If the archetype body contains any of the five profile token placeholders — `{{ USER_NAME }}`, `{{ USER_TITLE }}`, `{{ ROLE_DESCRIPTION }}`, `{{ COMPANY_NAME }}`, `{{ COMPANY_DESCRIPTION }}` (double curly braces with a space inside) — substitute the live values you know from CLAUDE.md. Do this substitution yourself, in this parent session — do not rely on subagents to resolve these vars. The subagent receives already-resolved text.
+2. **Resolve profile vars.** If the archetype body contains any of the five profile token placeholders — `{{ USER_NAME }}`, `{{ USER_TITLE }}`, `{{ ROLE_DESCRIPTION }}`, `{{ COMPANY_NAME }}`, `{{ COMPANY_DESCRIPTION }}` (double curly braces with a space inside) — substitute the live values you know from {{AGENT_MEMORY_FILE}}. Do this substitution yourself, in this parent session — do not rely on subagents to resolve these vars. The subagent receives already-resolved text.
 
 3. **Check for unresolved vars.** After substitution, check whether any `{{ UPPERCASE }}` tokens (double curly braces with a space inside) remain in the resolved content. If any do (e.g. a profile field is blank or missing), warn the user before proceeding:
 
@@ -116,7 +116,7 @@ For Mixed or Negative results with multiple concerns, list them on separate line
 
 ## Step 7 — Save the selection
 
-After presenting the panel, write the chosen selection to `.claude/audience-prefs.json`:
+After presenting the panel, write the chosen selection to `{{AGENT_DIR}}/audience-prefs.json`:
 
 ```json
 {

@@ -9,7 +9,12 @@ import { writeState, STATE_FILENAME } from './state.js';
 import { renderLaunchSection } from './launch-tasks.js';
 import { markDemo as markDemoFn } from './demo/mark.js';
 import { getPatinaVersion } from './version.js';
-import type { ScaffoldOptions, Profile, TemplateVars } from './types.js';
+import { getAgent } from './agents/registry.js';
+import type { ScaffoldOptions, Profile, TemplateVars, AgentId } from './types.js';
+// Constants extracted to break circular deps with agents/
+export { PREDEFINED_ARCHETYPES } from './scaffold-constants.js';
+export type { PredefinedArchetypeSlug } from './scaffold-constants.js';
+import { PREDEFINED_ARCHETYPES } from './scaffold-constants.js';
 
 function writeRaw(targetDir: string, relativePath: string, content: string): void {
   const full = join(targetDir, relativePath);
@@ -56,17 +61,20 @@ export function validateManifestFrontmatter(moduleName: string, content: string)
  */
 export function profileToVars(profile: Profile, liProfileUrl?: string, today?: string): TemplateVars {
   const resolvedToday = today ?? new Date().toISOString().split('T')[0];
+  const adapter = getAgent(profile.agent);
+  const agentDir = adapter.pathVars.AGENT_DIR;
   const modulesSection = (profile.modules ?? []).length
     ? profile.modules
         .map(id => {
           const def = getModule(id);
           const label = def?.label ?? id;
-          return `- [${label} module context](.claude/modules/${id}/CLAUDE.md)`;
+          return `- [${label} module context](${agentDir}/modules/${id}/CLAUDE.md)`;
         })
         .join('\n')
     : '_No modules installed._';
-  const commandsSection = buildCommandsSection(profile.modules ?? []);
-  const guideCommands = buildGuideCommands(profile.modules ?? []);
+  // Pass pathVars so {{AGENT_DISPLAY_NAME}} in command descriptions resolves correctly
+  const commandsSection = buildCommandsSection(profile.modules ?? [], adapter.pathVars as unknown as TemplateVars);
+  const guideCommands = buildGuideCommands(profile.modules ?? [], adapter.pathVars as unknown as TemplateVars);
 
   const baseVars: TemplateVars = {
     PATINA_NAME: profile.patina_name,
@@ -87,10 +95,13 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
     LAUNCH_SECTION: '',
     UPDATE_CHECK_SECTION: '',
     MODULE_README_BLOCKS: '',
+    // Agent path tokens — resolved before render() so templates stay agent-agnostic
+    ...adapter.pathVars,
   };
 
   // Compute update-check section with vars (needs PATINA_VERSION)
-  baseVars.UPDATE_CHECK_SECTION = renderUpdateCheckSection(baseVars);
+  // Adapter returns null for agents that don't support auto-update hooks (e.g. opencode v1)
+  baseVars.UPDATE_CHECK_SECTION = adapter.renderUpdateCheckSection(baseVars) ?? '';
 
   // Compute launch section (needs CONTENT_DIR etc)
   const rawLaunch = renderLaunchSection(profile.launch_tasks, profile.modules ?? []);
@@ -105,12 +116,13 @@ export function profileToVars(profile: Profile, liProfileUrl?: string, today?: s
  * Core slash commands present in every patina, regardless of installed modules.
  * Rendered into the regenerated commands table in CLAUDE.md.
  */
-// Keep in sync with MANAGED_FILES in checksums.ts — every base command here needs
-// a corresponding entry there and in baseManagedFiles() below.
+// Keep in sync with baseManagedFiles() in each agent adapter — every base command here
+// needs a corresponding entry in the adapter's baseManagedFiles() and baseManagedPaths().
 const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
   { name: '/add <description>', desc: 'Add a skill, project, or experience to your graph' },
   { name: '/reflect [slug]', desc: 'Review your graph for gaps, completions, and stale skills — also runs installed module hooks' },
   { name: '/inbox', desc: 'Process files dropped into inbox/ automatically' },
+  { name: '/status', desc: 'Show stale content, inbox, open goals, and pending module setup' },
   { name: '/guide', desc: 'Show all available commands with usage examples' },
   { name: '/audience', desc: 'Define who you are speaking to' },
   { name: '/with-audience', desc: 'Talk through your draft as your defined audience' },
@@ -118,8 +130,9 @@ const BASE_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
 
 /**
  * Build the markdown table for the commands section.
+ * Pass vars to resolve {{TOKEN}} placeholders in command descriptions (e.g. {{AGENT_DISPLAY_NAME}}).
  */
-export function buildCommandsSection(modules: readonly string[]): string {
+export function buildCommandsSection(modules: readonly string[], vars?: TemplateVars): string {
   const rows = [
     ...BASE_COMMANDS,
     ...modules.flatMap(id => getModule(id)?.commands ?? []),
@@ -127,7 +140,7 @@ export function buildCommandsSection(modules: readonly string[]): string {
   return [
     '| Command | What it does |',
     '|---------|-------------|',
-    ...rows.map(c => `| \`${c.name}\` | ${c.desc} |`),
+    ...rows.map(c => `| \`${c.name}\` | ${vars ? render(c.desc, vars) : c.desc} |`),
   ].join('\n');
 }
 
@@ -148,8 +161,9 @@ const GUIDE_CORE_LINES: ReadonlyArray<string> = GUIDE_CORE_COMMANDS.map(
 
 /**
  * Build the pre-rendered command-reference block written into guide.md.
+ * Pass vars to resolve {{TOKEN}} placeholders in command descriptions (e.g. {{AGENT_DISPLAY_NAME}}).
  */
-export function buildGuideCommands(modules: readonly string[]): string {
+export function buildGuideCommands(modules: readonly string[], vars?: TemplateVars): string {
   const lines: string[] = [
     '> Here\'s what you can do:',
     ...GUIDE_CORE_LINES,
@@ -160,87 +174,52 @@ export function buildGuideCommands(modules: readonly string[]): string {
     lines.push('>');
     lines.push(`> **${def.label}**`);
     for (const cmd of def.commands) {
-      lines.push(`> - \`${cmd.name}\` — ${cmd.desc}`);
+      const desc = vars ? render(cmd.desc, vars) : cmd.desc;
+      lines.push(`> - \`${cmd.name}\` — ${desc}`);
     }
   }
   return lines.join('\n');
 }
 
-/**
- * Build the content of `.claude/inbox-routing.md` from all installed modules' declared
- * `inboxRoutes`. Plain table with managed marker — overwritten on every update.
- */
-export function buildRoutingFile(modules: readonly string[], vars: TemplateVars): string {
-  const routes = modules.flatMap(id => getModule(id)?.inboxRoutes ?? []);
-  const rows = routes.length
-    ? routes.map(r => {
-        const dest = r.destination.endsWith('/') ? r.destination : `${r.destination}/`;
-        return `| \`${r.type}\` | \`${vars.CONTENT_DIR}/${dest}\` | ${r.description ?? ''} |`;
-      })
-    : [`| _(none)_ | — | No modules with routable types are installed. |`];
+// buildRoutingFile is re-exported from scaffold-routing.ts (moved there to break circular deps)
+export { buildRoutingFile } from './scaffold-routing.js';
 
-  const table = [
-    '| `type:` value | Destination | Notes |',
-    '|---------------|-------------|-------|',
-    ...rows,
-  ].join('\n');
-
-  const preamble = [
-    '---',
-    'patina: managed',
-    '---',
-    '# Inbox routing table',
-    '',
-    "This file maps the `type:` field in an artifact's frontmatter to the folder it",
-    'is filed into when you run `/inbox`. Any `type:` not listed here is **unknown** —',
-    `\`/inbox\` will file it to \`${vars.CONTENT_DIR}/notes/\` and surface a visible warning`,
-    'naming the type and the nearest registered match.',
-    '',
-    'The table below is regenerated by patina whenever you add or remove modules.',
-    '',
-  ].join('\n');
-
-  return preamble + table + '\n';
-}
-
-/**
- * Metadata for each predefined audience archetype.
- * To add a new one: create the template in src/templates/.claude/agents/,
- * add an entry here, add the path to MANAGED_FILES in checksums.ts,
- * and add tests per the CONTRIBUTING.md "Adding a predefined audience archetype" guide.
- */
-export const PREDEFINED_ARCHETYPES = [
-  { slug: 'hiring-manager', name: 'Hiring Manager', hint: 'assesses job fit and team compatibility' },
-  { slug: 'recruiter', name: 'Recruiter', hint: 'does the initial screen before the hiring manager' },
-] as const;
-
-export type PredefinedArchetypeSlug = typeof PREDEFINED_ARCHETYPES[number]['slug'];
 
 /**
  * Returns [relativePath, content] pairs for the predefined audience archetypes.
  * Pass vars to render template tokens (e.g. {{USER_TITLE}}) — required for on-disk writes.
  * Omit vars to get raw template content (e.g. for path/structure tests).
+ * The output paths are agent-specific (e.g. .claude/agents/ or .opencode/agent/).
+ * Pass agentId to resolve the correct adapter explicitly; defaults to claude-code.
  */
-export function baseManagedArchetypeFiles(vars?: TemplateVars): Array<[string, string]> {
-  return PREDEFINED_ARCHETYPES.map(a => {
-    const p = `.claude/agents/${a.slug}.md`;
-    const raw = tpl(p);
-    return [p, vars ? render(raw, vars) : raw];
-  });
+export function baseManagedArchetypeFiles(vars?: TemplateVars, agentId?: AgentId): Array<[string, string]> {
+  const adapter = getAgent(agentId);
+  if (!vars) {
+    // No vars: return raw content with adapter-specific paths (no token rendering)
+    return PREDEFINED_ARCHETYPES.map(a => {
+      const srcPath = `.claude/agents/${a.slug}.md`;
+      const outPath = adapter.archetypePath(a.slug);
+      return [outPath, tpl(srcPath)];
+    });
+  }
+  return adapter.archetypeFiles(vars);
 }
 
 export interface BaseManagedFilesOptions {
   vars: TemplateVars;
   editor: string;
   modules?: readonly string[];
+  /** Agent id to resolve the adapter. Defaults to claude-code for backward compat. */
+  agentId?: AgentId;
 }
 
 /**
  * Returns [relativePath, content] pairs for the base managed files.
  * These are all marked (patina: managed) and overwritten on update.
+ * Delegates to the appropriate agent adapter by agentId (or falls back to claude-code).
  */
 export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, string]> {
-  const { vars, editor, modules = [] } = opts;
+  const { vars, editor, modules = [], agentId } = opts;
 
   // Build module README blocks inline
   const moduleReadmeBlocks = modules
@@ -252,35 +231,10 @@ export function baseManagedFiles(opts: BaseManagedFilesOptions): Array<[string, 
   // Re-render vars with MODULE_README_BLOCKS filled in
   const fullVars: TemplateVars = { ...vars, MODULE_README_BLOCKS: moduleReadmeBlocksVar };
 
-  const files: Array<[string, string]> = [
-    ['README.md', render(tpl('README.md'), fullVars)],
-    ['CLAUDE.md', render(tpl('CLAUDE.md'), fullVars)],
-    ['.claude/settings.json', tpl('.claude/settings.json')],
-    ['.claude/scripts/check-update.mjs', render(tpl('.claude/scripts/check-update.mjs'), fullVars)],
-    ['.claude/scripts/staleness-check.mjs', render(tpl('.claude/scripts/staleness-check.mjs'), fullVars)],
-    ['.claude/scripts/health-check.mjs', tpl('.claude/scripts/health-check.mjs')],
-    ['.claude/commands/add.md', render(tpl('.claude/commands/add.md'), fullVars)],
-    ['.claude/commands/reflect.md', render(tpl('.claude/commands/reflect.md'), fullVars)],
-    ['.claude/commands/inbox.md', render(tpl('.claude/commands/inbox.md'), fullVars)],
-    ['.claude/commands/status.md', render(tpl('.claude/commands/status.md'), fullVars)],
-    ['.claude/commands/guide.md', render(tpl('.claude/commands/guide.md'), fullVars)],
-    ['.claude/commands/audience.md', render(tpl('.claude/commands/audience.md'), fullVars)],
-    ['.claude/commands/with-audience.md', render(tpl('.claude/commands/with-audience.md'), fullVars)],
-    ['.claude/inbox-routing.md', buildRoutingFile(modules, fullVars)],
-  ];
+  // Resolve adapter by explicit agentId — never by sniffing a path string
+  const adapter = getAgent(agentId);
 
-  if (editor === 'vscode') {
-    const vscodeSettings = {
-      _patina: 'managed',
-      _patina_note: 'This file is managed by patina and is overwritten on update. Remove the _patina key to take ownership.',
-      'workbench.editorAssociations': {
-        '*.md': 'vscode.markdown.preview.editor',
-      },
-    };
-    files.push(['.vscode/settings.json', JSON.stringify(vscodeSettings, null, 2) + '\n']);
-  }
-
-  return files;
+  return adapter.baseManagedFiles(fullVars, { editor, modules });
 }
 
 /**
@@ -299,45 +253,8 @@ export function moduleContentFiles(module: string, vars: TemplateVars, contentDi
   return getModule(module)?.contentFiles(vars, contentDir) ?? [];
 }
 
-/**
- * Build the body of the update-check section in CLAUDE.md.
- * The embedded version number is read from `vars.PATINA_VERSION` so it stays
- * accurate on upgrade without any user action.
- */
-export function renderUpdateCheckSection(vars: TemplateVars): string {
-  return `## Update check
-
-After you finish responding to the user's **first message** of this session — at the natural
-end of that response, not mid-task — check for \`.patina-update-check\`.
-
-If the file exists, parse it as JSON:
-- It looks like \`{ "checked_at": "<ISO timestamp>", "available_version": "<version or null>" }\`.
-- If \`available_version\` is null, missing, or not a valid semver string, say nothing.
-- Otherwise, read \`.patina-state.json\`. If \`update_check.last_notified_version\` equals
-  \`available_version\`, say nothing (already notified).
-- Otherwise, append this notification to the end of your response (fill in the version numbers):
-
-    ---
-    There's a newer version of patina available (you have ${vars.PATINA_VERSION}, the latest is [version]).
-
-    To update: finish what you're doing in this session, close this window, and run this
-    command in your terminal:
-
-        npx my-patina@latest
-
-    Your notes and settings will stay exactly as they are.
-    ---
-
-  - After notifying, write \`available_version\` to \`update_check.last_notified_version\` in
-    \`.patina-state.json\`.
-- Do NOT delete \`.patina-update-check\`. The checker script re-runs automatically once \`checked_at\` is older than 24 hours.
-- If the file is absent or not valid JSON, say nothing.
-
-For version comparison, split on \`.\` and compare major, minor, and patch numerically. If
-the value is not a valid semver string, skip silently.
-
-Skip this step entirely in headless or non-interactive sessions.`;
-}
+// renderUpdateCheckSection is re-exported from scaffold-routing.ts (moved there to break circular deps)
+export { renderUpdateCheckSection } from './scaffold-routing.js';
 
 /**
  * In demo mode, inserts `_demo: true` as the first line inside a leading `---` frontmatter block.
@@ -364,6 +281,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     selectedArchetypes,
     demo = false,
     today: todayOverride,
+    agent,
   } = opts;
 
   const today = todayOverride ?? new Date().toISOString().split('T')[0];
@@ -377,6 +295,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
     job_description_url: jobDescriptionUrl || undefined,
     work,
     editor,
+    agent: agent ?? 'claude-code',
     modules,
     content_dir: contentDir,
     created: today,
@@ -385,17 +304,19 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   };
 
   const vars = profileToVars(tempProfile, liProfileUrl, today);
+  const adapter = getAgent(tempProfile.agent);
 
   mkdirSync(targetDir, { recursive: true });
 
   // ── Managed files (marked, overwritten on update)
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles({ vars, editor, modules }),
-    ...modules.flatMap(m => moduleManagedFiles(m, vars)),
+    ...baseManagedFiles({ vars, editor, modules, agentId: tempProfile.agent }),
+    ...modules.flatMap(m => adapter.mapModuleManagedFiles(m, moduleManagedFiles(m, vars), vars)),
   ];
 
+  const agentDir = adapter.pathVars.AGENT_DIR;
   for (const module of modules) {
-    const manifestEntry = managedFiles.find(([p]) => p === `.claude/modules/${module}/manifest.md`);
+    const manifestEntry = managedFiles.find(([p]) => p === `${agentDir}/modules/${module}/manifest.md`);
     if (manifestEntry) validateManifestFrontmatter(module, manifestEntry[1]);
   }
 
@@ -407,8 +328,8 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
 
   // ── Predefined audience archetypes (write only the ones the user selected)
   const archetypeFiles = selectedArchetypes !== undefined
-    ? baseManagedArchetypeFiles(vars).filter(([p]) => selectedArchetypes.some(slug => p.endsWith(`/${slug}.md`)))
-    : baseManagedArchetypeFiles(vars);
+    ? baseManagedArchetypeFiles(vars, tempProfile.agent).filter(([p]) => selectedArchetypes.some(slug => p.endsWith(`/${slug}.md`)))
+    : baseManagedArchetypeFiles(vars, tempProfile.agent);
   for (const [relativePath, content] of archetypeFiles) {
     writeManagedFile(targetDir, relativePath, content);
   }
@@ -446,5 +367,6 @@ export async function scaffold(opts: ScaffoldOptions): Promise<void> {
   writeState(targetDir, {});
 
   // ── .gitignore
-  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n.patina-update-check\n.claude/audience-prefs.json\n`);
+  const audiencePrefsEntry = adapter.audiencePrefsGitignoreEntry();
+  writeRaw(targetDir, '.gitignore', `.obsidian/\n.DS_Store\n${STATE_FILENAME}\ninbox/.processed.json\n.patina-update-check\n${audiencePrefsEntry}\n`);
 }

@@ -7,6 +7,7 @@ import { writeManagedFile, writeSeedFile } from './upgrade.js';
 import { readState, writeState, stripLegacyChecksums } from './state.js';
 import { pruneLaunchTasks } from './launch-tasks.js';
 import { MODULES, getModule } from './modules/registry.js';
+import { getAgent } from './agents/registry.js';
 import type { ModuleAddInputs } from './modules/types.js';
 import type { ModuleId, Profile } from './types.js';
 
@@ -44,6 +45,8 @@ export function applyModuleChanges(
   const deleted: string[] = [];
   const kept: string[] = [];
 
+  const moduleAdapter = getAgent(profile.agent);
+
   for (const module of toAdd) {
     const def = getModule(module);
     if (def?.onAdd) {
@@ -53,7 +56,8 @@ export function applyModuleChanges(
     const vars = profileToVars(updatedProfile);
     const contentDir = updatedProfile.content_dir;
 
-    for (const [rel, content] of moduleManagedFiles(module, vars)) {
+    const moduleFiles = moduleAdapter.mapModuleManagedFiles(module, moduleManagedFiles(module, vars), vars);
+    for (const [rel, content] of moduleFiles) {
       const result = writeManagedFile(cwd, rel, content);
       if (result.outcome === 'skipped') {
         skippedFiles.push(rel);
@@ -75,7 +79,8 @@ export function applyModuleChanges(
 
   for (const module of toRemove) {
     const def = getModule(module);
-    const managedRels = def?.managedPaths ?? [];
+    const canonicalPaths = def?.managedPaths ?? [];
+    const managedRels = moduleAdapter.mapModuleManagedPaths(module, canonicalPaths);
     for (const rel of managedRels) {
       const result = removeManagedFileIfManaged(cwd, rel);
       if (result === 'deleted') {
@@ -98,7 +103,7 @@ export function applyModuleChanges(
   // Regenerate base files once with final module list so CLAUDE.md Modules section and
   // README module blocks are correct
   const finalVars = profileToVars(updatedProfile);
-  for (const [rel, content] of baseManagedFiles({ vars: finalVars, editor: updatedProfile.editor, modules: updatedProfile.modules})) {
+  for (const [rel, content] of baseManagedFiles({ vars: finalVars, editor: updatedProfile.editor, modules: updatedProfile.modules, agentId: updatedProfile.agent })) {
     writeManagedFile(cwd, rel, content);
   }
 
@@ -140,13 +145,15 @@ export async function runUpdateModules(cwd: string, profile: Profile): Promise<v
 
   // Show planned file changes
   const changeLines: string[] = [];
+  const changeAdapter = getAgent(profile.agent);
+  const memFile = changeAdapter.pathVars.AGENT_MEMORY_FILE;
   for (const m of toAdd) {
     const def = getModule(m);
-    changeLines.push(`Adding ${def?.label ?? m}: adds commands, updates README and CLAUDE.md`);
+    changeLines.push(`Adding ${def?.label ?? m}: adds commands, updates README and ${memFile}`);
   }
   for (const m of toRemove) {
     const def = getModule(m);
-    changeLines.push(`Removing ${def?.label ?? m}: removes its commands and updates README and CLAUDE.md`);
+    changeLines.push(`Removing ${def?.label ?? m}: removes its commands and updates README and ${memFile}`);
   }
   p.note(changeLines.join('\n'), label('Planned changes'));
 

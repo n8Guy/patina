@@ -56,7 +56,7 @@ Client work is often sensitive, but **you** decide what's shareable — patina n
 - `private: false` (the default) — fine to draw on for LinkedIn, resume, and other outbound drafts.
 - `private: true` — outbound modules give you a heads-up before using it, so you can confirm you're cleared to share. They won't block it; the call is yours.
 
-Set `private: true` on any record you want flagged — a client under NDA, unreleased work, anything not yet public. You can also just tell Claude ("keep the Acme work private") and it will set the flag for you.
+Set `private: true` on any record you want flagged — a client under NDA, unreleased work, anything not yet public. You can also just tell {{AGENT_DISPLAY_NAME}} ("keep the Acme work private") and it will set the flag for you.
 
 When a note is derived from a `private: true` source, carry `private: true` onto the derived note too, so the flag follows the evidence.
 
@@ -64,7 +64,7 @@ When a note is derived from a `private: true` source, carry `private: true` onto
 
 ## How to add client content
 
-**New client:** Ask Claude to scaffold one — provide the client name and engagement type and it will create the folder structure and profile.
+**New client:** Ask {{AGENT_DISPLAY_NAME}} to scaffold one — provide the client name and engagement type and it will create the folder structure and profile.
 
 **New engagement:** Create a new `.md` file in `[client-slug]/engagements/` using the info block format above.
 
@@ -72,7 +72,7 @@ When a note is derived from a `private: true` source, carry `private: true` onto
 
 **Ad-hoc notes:** Drop files into `[client-slug]/notes/` or process via `/inbox`. Notes derived from a `private: true` source inherit `private: true`.
 
-**Via /add:** Run `/add` and describe the client work. Claude will ask clarifying questions and write the file to the appropriate subfolder.
+**Via /add:** Run `/add` and describe the client work. {{AGENT_DISPLAY_NAME}} will ask clarifying questions and write the file to the appropriate subfolder.
 
 ---
 

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { baseManagedFiles, moduleManagedFiles, profileToVars } from './scaffold.js';
+import { getAgent } from './agents/registry.js';
 import { readState, writeState } from './state.js';
 import type { Profile } from './types.js';
 
@@ -77,9 +78,10 @@ export function detectCorruption(
   const corruptFiles = new Set<string>();
 
   const vars = profileToVars(profile);
+  const adapter = getAgent(profile.agent);
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? []}),
-    ...profile.modules.flatMap(m => moduleManagedFiles(m, vars)),
+    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], agentId: profile.agent }),
+    ...(profile.modules ?? []).flatMap(m => adapter.mapModuleManagedFiles(m, moduleManagedFiles(m, vars), vars)),
   ];
 
   for (const [rel] of managedFiles) {
@@ -126,9 +128,10 @@ export async function repairCorruption(
   }
 
   const vars = profileToVars(profile);
+  const adapter = getAgent(profile.agent);
   const managedFiles: Array<[string, string]> = [
-    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? []}),
-    ...profile.modules.flatMap(m => moduleManagedFiles(m, vars)),
+    ...baseManagedFiles({ vars, editor: profile.editor, modules: profile.modules ?? [], agentId: profile.agent }),
+    ...(profile.modules ?? []).flatMap(m => adapter.mapModuleManagedFiles(m, moduleManagedFiles(m, vars), vars)),
   ];
 
   const repairedFiles: string[] = [];

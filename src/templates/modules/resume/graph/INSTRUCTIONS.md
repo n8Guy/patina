@@ -36,7 +36,7 @@ Read this file first before working on any resume files. It tells you who {{USER
 
 **Working Draft** is the living document. Run `/resume-refresh` to keep it current with your graph. This is what you copy from when applying somewhere.
 
-**Last Submitted** is a snapshot of the Working Draft at the time you most recently submitted to a role. It answers the question: "what did they actually see?" Do not edit it manually — update it by telling Claude you submitted.
+**Last Submitted** is a snapshot of the Working Draft at the time you most recently submitted to a role. It answers the question: "what did they actually see?" Do not edit it manually — update it by telling {{AGENT_DISPLAY_NAME}} you submitted.
 
 ---
 
@@ -52,7 +52,7 @@ Before running `/resume-refresh`, it helps to have a few notes in `{{CONTENT_DIR
 
 **Publishing:** When the draft looks good, copy the content and paste it into your resume document (Word, Google Docs, a PDF tool). There is no automation — this module generates the content, you control where it goes.
 
-**After submitting:** Tell Claude — *"I submitted to Acme Corp"* or *"I applied to the senior engineer role at Acme."* Claude will copy the current Working Draft into `Resume Last Submitted.md`, adding a note about when and where you applied.
+**After submitting:** Tell {{AGENT_DISPLAY_NAME}} — *"I submitted to Acme Corp"* or *"I applied to the senior engineer role at Acme."* {{AGENT_DISPLAY_NAME}} will copy the current Working Draft into `Resume Last Submitted.md`, adding a note about when and where you applied.
 
 ---
 

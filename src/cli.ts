@@ -5,7 +5,10 @@ import { findPatinaRoot, validate, formatReport, formatReportJson } from './vali
 import { loadProfile } from './detect.js';
 import { runDemo } from './demo/index.js';
 import { detectCorruption, repairCorruption, formatHealthReport } from './health.js';
+import { planSetAgent, printSetAgentDiff, confirmAndApplySetAgent } from './set-agent.js';
+import { getAgent, AGENTS } from './agents/registry.js';
 import chalk from 'chalk';
+import type { AgentId } from './types.js';
 
 const program = new Command();
 
@@ -106,6 +109,50 @@ program
         } else {
           console.log(chalk.hex('#94A3B8')('Nothing to repair.'));
         }
+      }
+    } catch (err) {
+      console.error(chalk.red(err instanceof Error ? err.message : String(err)));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('set-agent <agent>')
+  .description('Switch your patina to a different AI assistant (claude-code or opencode)')
+  .action(async (agentArg: string) => {
+    try {
+      // Normalize aliases
+      const normalized = agentArg === 'claude' ? 'claude-code' : agentArg;
+      const validIds = AGENTS.map(a => a.agentId);
+      if (!validIds.includes(normalized as AgentId)) {
+        console.error(chalk.red(`Unknown agent: "${agentArg}". Valid options: ${validIds.join(', ')}`));
+        process.exit(1);
+      }
+      const targetId = normalized as AgentId;
+
+      const cwd = process.cwd();
+      const root = findPatinaRoot(cwd);
+      if (root === null) {
+        console.error(chalk.red('No patina found here. Run this command from inside a patina directory.'));
+        process.exit(1);
+      }
+
+      const profile = loadProfile(root);
+      const currentAgentId: AgentId = profile.agent ?? 'claude-code';
+
+      if (currentAgentId === targetId) {
+        const adapter = getAgent(targetId);
+        console.log(chalk.hex('#94A3B8')(`Already using ${adapter.displayName}. No changes made.`));
+        process.exit(0);
+      }
+
+      const plan = planSetAgent(root, profile, targetId);
+      printSetAgentDiff(plan);
+
+      const result = await confirmAndApplySetAgent(root, profile, plan);
+      if (result === null) {
+        console.log('Aborted.');
+        process.exit(0);
       }
     } catch (err) {
       console.error(chalk.red(err instanceof Error ? err.message : String(err)));
