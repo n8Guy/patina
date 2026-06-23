@@ -89,20 +89,18 @@ export function planSetAgent(cwd: string, profile: Profile, target: AgentId): Se
 
   const managedPathsSet = new Set([...canonicalBasePaths, ...canonicalModulePaths, ...archetypePaths]);
 
-  // Determine what to remove vs keep from the managed path list
+  // Files in managedPathsSet are patina-owned by definition (canonical list is the source of
+  // truth), so always queue them for removal regardless of whether the marker is present on
+  // disk — old patinas pre-date the markers and would otherwise be incorrectly left behind.
   const toRemove: string[] = [];
   const kept: string[] = [];
 
   for (const rel of managedPathsSet) {
-    if (!existsSync(join(cwd, rel))) continue; // already gone
-    if (wouldDeleteIfManaged(cwd, rel)) {
-      toRemove.push(rel);
-    } else {
-      kept.push(rel);
-    }
+    if (existsSync(join(cwd, rel))) toRemove.push(rel);
   }
 
-  // Also scan the agent directory for user-owned files NOT in the managed list
+  // Scan the agent directory for files NOT in the managed list. Only keep ones that lack the
+  // patina marker — those are genuinely user-created files we should not delete.
   const agentDirPath = join(cwd, fromAdapter.pathVars.AGENT_DIR);
   if (existsSync(agentDirPath)) {
     const userFiles = scanDirRelative(agentDirPath, cwd);

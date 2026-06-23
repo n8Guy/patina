@@ -97,6 +97,20 @@ describe('planSetAgent — claude-code → opencode', () => {
     // It should be in kept
     expect(plan.kept).toContain('.claude/commands/custom.md');
   });
+
+  it('plan includes managed-set files in toRemove even when patina: managed marker is absent (legacy patinas)', () => {
+    // Simulate a pre-marker install: strip patina: managed from add.md so it looks user-owned
+    const addMd = join(targetDir, '.claude/commands/add.md');
+    const content = readFileSync(addMd, 'utf8');
+    writeFileSync(addMd, content.replace(/^---\s*\npatina: managed\s*\n---\s*\n/, ''), 'utf8');
+
+    const profile = loadProfile();
+    const plan = planSetAgent(targetDir, profile, 'opencode');
+
+    // add.md is a canonical managed path — must be removed even without the marker
+    expect(plan.toRemove).toContain('.claude/commands/add.md');
+    expect(plan.kept).not.toContain('.claude/commands/add.md');
+  });
 });
 
 describe('applySetAgent — claude-code → opencode', () => {
