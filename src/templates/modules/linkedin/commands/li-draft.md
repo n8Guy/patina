@@ -18,7 +18,7 @@ Look at the user's message after `/li-draft`:
 
 Ask the user one question in a single conversational message:
 
-> "What type of content is this — a **post** (hook, body, CTA) or an **article** (title, intro, body, conclusion)?"
+> "What type of content is this — a **post** (hook, body, CTA), an **article** (title, intro, body, conclusion), or a **linked post** (sharing an external URL with a short comment)?"
 
 Wait for the answer before continuing.
 
@@ -121,9 +121,38 @@ x_post: ""
 
 `image` accepts a relative path from the draft file (e.g. `../images/filename.png`) or `null` when there is no image. Place image files in `{{CONTENT_DIR}}/linkedin/activity/images/`. Create that directory if it does not exist.
 
+### Linked post template
+
+A linked post shares an external URL with a short comment — there is no assembled paste-text to compose, so `post_text` is `null` rather than an empty string. `null` here means "not applicable for this type," distinct from `""` which would mean "not yet written."
+
+Write `{{CONTENT_DIR}}/linkedin/activity/drafts/<slug>.md` with this structure:
+
+```
+---
+type: linkedin-linked-post
+status: draft
+created_at: <session date>
+topic: <short descriptor>
+image: null
+post_text: null
+---
+
+## URL
+
+<the external link being shared>
+
+## Comment
+
+<short commentary or reaction the user wants to add alongside the link>
+```
+
+`image` follows the same convention as the other types: a relative path or `null` when there is no image.
+
+A linked post has no `x_post` field. Unlike a post or article, there is no substantive body to distill into a punchy X sentence — the comment already is that sentence.
+
 ## Confirm
 
 Report:
 1. The full path of the new file
-2. The content type chosen (post or article)
+2. The content type chosen (post, article, or linked post)
 3. Whether a suggestion was removed from `LinkedIn Activity.md` (and if so, which one)
