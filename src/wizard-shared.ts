@@ -2,7 +2,7 @@ import * as p from '@clack/prompts';
 import chalk from 'chalk';
 import { join } from 'path';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { isMarkedManaged } from './upgrade.js';
 import { availableLaunchTasks, launchSelectionError, type AvailableLaunchTask } from './launch-tasks.js';
 import type { DeferredModule, ModuleId, Profile } from './types.js';

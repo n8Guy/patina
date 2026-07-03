@@ -7,7 +7,7 @@ description: Track freelance, consulting, and advisory client relationships, wit
 commands:
   - name: /client-check
     desc: Status count of clients and their engagement state (no input needed — runs during /reflect too)
-installed: {{TODAY}}
+installed: "{{TODAY}}"
 ---
 
 # Clients Module

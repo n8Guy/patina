@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { tpl } from '../template-loader.js';
 import { MANIFEST_REQUIRED_FIELDS } from '../scaffold.js';
 import { MODULES, getModule } from '../modules/registry.js';

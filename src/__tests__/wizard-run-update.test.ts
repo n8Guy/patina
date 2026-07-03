@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { scaffold } from '../scaffold.js';
 import { readState } from '../state.js';
 import { applyProfileUpdate, applyModuleChanges, applyLaunchTaskUpdate, syncBaseFiles } from '../wizard.js';

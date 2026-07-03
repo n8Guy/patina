@@ -23,7 +23,7 @@ commands:
     desc: Promote a suggestion or start a new post/article draft
   - name: /li-post
     desc: Mark a draft as posted and move it to the posted folder
-installed: {{TODAY}}
+installed: "{{TODAY}}"
 ---
 
 # LinkedIn Module

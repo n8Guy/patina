@@ -7,7 +7,7 @@ description: A private drafting space for your resume
 commands:
   - name: /resume-refresh
     desc: Refresh your resume working draft from your graph (no input needed — {{AGENT_DISPLAY_NAME}} reads your notes)
-installed: {{TODAY}}
+installed: "{{TODAY}}"
 ---
 
 # Resume Module
