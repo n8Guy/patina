@@ -64,6 +64,7 @@ created_at: <session date>
 topic: <short descriptor>
 image: null
 post_text: ""
+x_post: ""
 ---
 
 ## Hook
@@ -81,6 +82,8 @@ post_text: ""
 
 After drafting the Hook, Body, and CTA sections, assemble the final copy and write it into `post_text`. This is the text the user will paste directly into LinkedIn.
 
+Once `post_text` is written, distill it into a single punchy sentence capturing the core idea, ready to copy-paste to X (Twitter) alongside or after publishing on LinkedIn. Run it through the same anti-AI pattern check above. Write it into `x_post`.
+
 ### Article template
 
 Write `{{CONTENT_DIR}}/linkedin/activity/drafts/<slug>.md` with this structure:
@@ -94,6 +97,7 @@ topic: <short descriptor>
 title: <article title>
 image: null
 post_text: ""
+x_post: ""
 ---
 
 # <Title>
@@ -112,6 +116,8 @@ post_text: ""
 ```
 
 `post_text` for an article is the short LinkedIn post copy used when sharing the article link — typically a hook sentence and the article URL. Write it after the article body is drafted.
+
+`x_post` for an article is a single punchy sentence capturing the article's core idea, ready to copy-paste to X (Twitter) — not the link-share teaser that `post_text` is, but the underlying insight itself. Run it through the same anti-AI pattern check above. Write it after the article body is drafted.
 
 `image` accepts a relative path from the draft file (e.g. `../images/filename.png`) or `null` when there is no image. Place image files in `{{CONTENT_DIR}}/linkedin/activity/images/`. Create that directory if it does not exist.
 
