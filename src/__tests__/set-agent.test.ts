@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, existsSync, writeFileSync, mkdirSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { scaffold } from '../scaffold.js';
 import { planSetAgent, applySetAgent } from '../set-agent.js';
 import type { Profile, ScaffoldOptions } from '../types.js';

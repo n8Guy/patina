@@ -9,7 +9,7 @@ commands:
     desc: Create a new goal · e.g. /goal Land a senior IC role by end of year
   - name: /goal-review
     desc: Review open and in-progress goals, flag overdue (no input needed)
-installed: {{TODAY}}
+installed: "{{TODAY}}"
 ---
 
 # Goals Module

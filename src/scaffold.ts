@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { render } from './template.js';
 import { writeManagedFile, writeSeedFile } from './upgrade.js';
 import { tpl } from './template-loader.js';
