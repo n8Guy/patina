@@ -384,10 +384,29 @@ describe('scaffold — linkedin module', () => {
     expect(read('.claude/commands/li-draft.md')).toMatch(/^---\s*\npatina: managed\s*\n---/);
   });
 
-  it('li-draft.md contains post and article type schema', () => {
+  it('li-draft.md contains post, article, and linked post type schema', () => {
     const content = read('.claude/commands/li-draft.md');
     expect(content).toContain('type: linkedin-post');
     expect(content).toContain('type: linkedin-article');
+    expect(content).toContain('type: linkedin-linked-post');
+  });
+
+  it('li-draft.md presents three content type choices', () => {
+    const content = read('.claude/commands/li-draft.md');
+    expect(content).toMatch(/post.*article.*linked post/is);
+  });
+
+  it('li-draft.md scaffolds linked post frontmatter with post_text: null and image: null', () => {
+    const content = read('.claude/commands/li-draft.md');
+    const block = content.split('### Linked post template')[1];
+    expect(block).toContain('type: linkedin-linked-post');
+    expect(block).toContain('post_text: null');
+    expect(block).toContain('image: null');
+  });
+
+  it('li-draft.md explains post_text: null means not applicable for this type', () => {
+    const content = read('.claude/commands/li-draft.md');
+    expect(content).toContain('not applicable for this type');
   });
 
   it('li-draft.md contains status: draft', () => {
@@ -413,6 +432,12 @@ describe('scaffold — linkedin module', () => {
     const content = read('.claude/commands/li-draft.md');
     expect(content).toContain('## Intro');
     expect(content).toContain('## Conclusion');
+  });
+
+  it('li-draft.md contains linked post section headers (URL/Comment)', () => {
+    const content = read('.claude/commands/li-draft.md');
+    expect(content).toContain('## URL');
+    expect(content).toContain('## Comment');
   });
 
   it('li-draft.md does not use frozen {{TODAY}} for created_at', () => {
